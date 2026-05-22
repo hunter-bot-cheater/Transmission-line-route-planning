@@ -1,0 +1,4 @@
+data/downloaded/
+*.pkl
+*.pyc
+__pycache__/
