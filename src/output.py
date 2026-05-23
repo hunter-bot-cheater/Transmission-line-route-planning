@@ -43,13 +43,15 @@ def export_path(coords, output_dir):
         "geometry": [line],
     }, crs=cfg.WGS84)
 
+    data_dir = output_dir / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
     # SHP
-    shp_path = output_dir / "optimal_path.shp"
+    shp_path = data_dir / "optimal_path.shp"
     gdf.to_file(shp_path, driver="ESRI Shapefile", encoding="utf-8")
     print(f"  SHP已保存: {shp_path}")
 
     # GeoJSON
-    geojson_path = output_dir / "optimal_path.geojson"
+    geojson_path = data_dir / "optimal_path.geojson"
     gdf.to_file(geojson_path, driver="GeoJSON", encoding="utf-8")
     print(f"  GeoJSON已保存: {geojson_path}")
 
@@ -60,7 +62,7 @@ def export_path(coords, output_dir):
         "name": ["起点", "终点"],
         "geometry": [start_pt, end_pt],
     }, crs=cfg.WGS84)
-    pts_gdf.to_file(output_dir / "start_end_points.shp", driver="ESRI Shapefile", encoding="utf-8")
+    pts_gdf.to_file(data_dir / "start_end_points.shp", driver="ESRI Shapefile", encoding="utf-8")
 
 
 def compute_length(coords):
@@ -145,8 +147,10 @@ def compute_statistics(coords, cost_raster, dem, slope, hard_mask, transform, ou
 
     stats["vertices"] = len(coords)
 
+    reports_dir = output_dir / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
     # 保存JSON
-    json_path = output_dir / "statistics.json"
+    json_path = reports_dir / "statistics.json"
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(stats, f, ensure_ascii=False, indent=2)
     print(f"  统计JSON已保存: {json_path}")
@@ -156,7 +160,7 @@ def compute_statistics(coords, cost_raster, dem, slope, hard_mask, transform, ou
         import openpyxl
         import pandas as pd
         df = pd.DataFrame([stats])
-        xlsx_path = output_dir / "statistics.xlsx"
+        xlsx_path = reports_dir / "statistics.xlsx"
         df.T.to_excel(xlsx_path, sheet_name="统计指标", header=False)
         print(f"  统计XLSX已保存: {xlsx_path}")
     except ImportError:
@@ -240,7 +244,7 @@ def create_overview_map(coords, cost_raster, dem, taiwan_lines, hard_mask, trans
     fig.suptitle("台湾输电线路智能路径规划", fontsize=18, fontweight="bold", y=0.98)
     plt.tight_layout(rect=[0, 0, 1, 0.95])
 
-    path = output_dir / "map_overview.png"
+    path = output_dir / "maps" / "map_overview.png"
     fig.savefig(path, dpi=cfg.FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
     print(f"  概览图已保存: {path}")
@@ -278,7 +282,7 @@ def create_detail_map(coords, cost_raster, dem, hard_mask, transform, output_dir
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_aspect(1.0 / math.cos(math.radians(np.mean(lats))))
 
-    path = output_dir / "map_detail.png"
+    path = output_dir / "maps" / "map_detail.png"
     fig.savefig(path, dpi=600, bbox_inches="tight")
     plt.close(fig)
     print(f"  局部放大图已保存: {path}")
@@ -355,7 +359,7 @@ def create_elevation_profile(coords, dem, slope, transform, output_dir):
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    path = output_dir / "elevation_profile.png"
+    path = output_dir / "maps" / "elevation_profile.png"
     fig.savefig(path, dpi=cfg.FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
     print(f"  高程剖面图已保存: {path}")
@@ -495,7 +499,7 @@ L.control.scale({{imperial: false, metric: true}}).addTo(map);
 </body>
 </html>'''
 
-    html_path = output_dir / "interactive_map.html"
+    html_path = output_dir / "maps" / "interactive_map.html"
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"  交互式地图已保存: {html_path}")

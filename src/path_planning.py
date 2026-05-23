@@ -7,7 +7,6 @@
 """
 import numpy as np
 from scipy.ndimage import gaussian_filter
-from scipy.interpolate import splprep, splev
 import heapq
 import math
 import time
@@ -56,11 +55,12 @@ except ImportError:
 # ============================================================
 # 成本表面融合
 # ============================================================
-def fuse_cost_surface(rf_cost, soft_mask, hard_mask, smooth_sigma=1.0):
+def fuse_cost_surface(rf_cost, soft_mask, hard_mask, dist_existing=None, smooth_sigma=1.0):
     """
     融合成本表面:
-    final_cost = rf_cost * soft_mask
+    final_cost = rf_cost * soft_mask * corridor_bonus
     硬约束区域 = INF
+    走廊偏好: 距现有输电线越近, 成本越低(共享基础设施)
     """
     print("[Phase4] 融合成本表面...")
 
@@ -69,10 +69,16 @@ def fuse_cost_surface(rf_cost, soft_mask, hard_mask, smooth_sigma=1.0):
 
     final_cost = rf_cost.copy().astype(np.float64)
 
+    # 走廊偏好: 线性斜坡, 1000m内获得成本折扣
+    if dist_existing is not None:
+        corridor_bonus = 0.02 + 0.98 * np.clip(dist_existing / 1000.0, 0, 1)
+        final_cost = final_cost * corridor_bonus.astype(np.float64)
+        print(f"  走廊偏好已应用 (线性斜坡至1000m, 最多98%折扣)")
+
     # 应用软约束
     if soft_mask is not None:
         soft_mask = np.nan_to_num(soft_mask, nan=1.0)
-        soft_mask = np.clip(soft_mask, 0.01, 1.0)  # 防止极端值
+        soft_mask = np.clip(soft_mask, 0.01, 1.0)
         final_cost = final_cost * soft_mask.astype(np.float64)
 
     # 确定有效区域
@@ -294,10 +300,10 @@ def smooth_path(path_cells, transform, hard_mask=None, cost_raster=None):
     """
     路径平滑:
     1. 栅格坐标 -> 地理坐标
-    2. RDP简化
-    3. B样条拟合
+    2. RDP简化 (保留关键拐点)
+    3. 线性插值 (分段直线, 更符合真实输电线路)
     4. 等距重采样
-    5. 硬约束验证与校正
+    5. 硬约束局部A*修复 (沿原始A*路径微调, 不跳远)
     """
     print("[Phase4] 路径平滑...")
 
@@ -307,81 +313,146 @@ def smooth_path(path_cells, transform, hard_mask=None, cost_raster=None):
     # 1. 转为地理坐标
     geo_coords = grid_to_geo_coords(path_cells, transform)
 
-    # 2. RDP简化
-    simplified = rdp(geo_coords, epsilon=cfg.PATH_SMOOTH_RDP_EPSILON / 111000.0)
-    print(f"  RDP简化: {len(geo_coords)} -> {len(simplified)} 点")
-    simplified = np.array(simplified)
+    # 2. RDP简化 — 使用更小的epsilon保留更多细节
+    rdp_epsilon_deg = cfg.PATH_SMOOTH_RDP_EPSILON / 111000.0
+    simplified = rdp(geo_coords, epsilon=rdp_epsilon_deg)
+    print(f"  RDP简化: {len(geo_coords)} -> {len(simplified)} 点 (epsilon={cfg.PATH_SMOOTH_RDP_EPSILON}m)")
 
-    if len(simplified) < 4:
-        return _validate_and_fix([tuple(p) for p in simplified], hard_mask, transform)
+    if len(simplified) < 2:
+        return [(float(p[0]), float(p[1])) for p in simplified]
 
-    # 3. B样条拟合
-    try:
-        x, y = simplified[:, 0], simplified[:, 1]
-        tck, u = splprep([x, y], s=len(simplified) * 0.5, k=min(3, len(simplified) - 1))
+    # 3. 线性插值 — 分段直线, 等距重采样
+    simplified_arr = np.array(simplified)
+    x_simp, y_simp = simplified_arr[:, 0], simplified_arr[:, 1]
 
-        # 4. 等距重采样
-        total_dist = sum(
-            math.sqrt((x[i + 1] - x[i]) ** 2 + (y[i + 1] - y[i]) ** 2)
-            for i in range(len(x) - 1)
-        )
-        spacing_deg = cfg.PATH_RESAMPLE_SPACING / 111000.0
-        n_samples = max(int(total_dist / spacing_deg), len(simplified))
-        u_new = np.linspace(0, 1, n_samples)
-        x_smooth, y_smooth = splev(u_new, tck)
+    # 计算分段累积弧长
+    seg_dists = np.sqrt(np.diff(x_simp)**2 + np.diff(y_simp)**2)
+    cum_dist = np.concatenate([[0], np.cumsum(seg_dists)])
+    total_dist = cum_dist[-1]
 
-        smoothed = [(float(x_smooth[i]), float(y_smooth[i])) for i in range(n_samples)]
-        print(f"  B样条平滑: {len(smoothed)} 点 (间距{cfg.PATH_RESAMPLE_SPACING}m)")
-    except Exception as e:
-        print(f"  B样条拟合失败: {e}, 使用RDP简化结果")
-        smoothed = [(float(p[0]), float(p[1])) for p in simplified]
+    spacing_deg = cfg.PATH_RESAMPLE_SPACING / 111000.0
+    n_samples = max(int(total_dist / spacing_deg), len(simplified))
+    sample_dists = np.linspace(0, total_dist, n_samples)
 
-    # 5. 硬约束校正
-    smoothed = _validate_and_fix(smoothed, hard_mask, transform)
+    # 线性插值
+    x_interp = np.interp(sample_dists, cum_dist, x_simp)
+    y_interp = np.interp(sample_dists, cum_dist, y_simp)
+    smoothed = [(float(x_interp[i]), float(y_interp[i])) for i in range(n_samples)]
+    print(f"  线性插值: {len(smoothed)} 点 (间距{cfg.PATH_RESAMPLE_SPACING}m)")
+
+    # 4. 硬约束检测与局部修复
+    if hard_mask is not None:
+        smoothed = _fix_violations_local(smoothed, hard_mask, transform, path_cells)
 
     return smoothed
 
 
-def _validate_and_fix(coords, hard_mask, transform):
-    """验证并修复穿越硬约束的路径点"""
-    if hard_mask is None:
+def _fix_violations_local(coords, hard_mask, transform, a_star_path):
+    """
+    局部修复穿越硬约束的路径段。
+    对违规段, 在A*路径上找该段首尾的最近点, 用A*子路径替换。
+    这比"跳到最近有效像元"更忠实于走廊偏好。
+    """
+    H, W = hard_mask.shape
+    n = len(coords)
+
+    # 找出所有违规段
+    bad_segments = []
+    in_bad = False
+    seg_start = None
+    for i, (lon, lat) in enumerate(coords):
+        r, c = geo_to_grid(lat, lon, transform)
+        bad = not (0 <= r < H and 0 <= c < W and hard_mask[r, c] == 1)
+        if bad and not in_bad:
+            seg_start = i
+            in_bad = True
+        elif not bad and in_bad:
+            bad_segments.append((seg_start, i - 1))
+            in_bad = False
+    if in_bad:
+        bad_segments.append((seg_start, n - 1))
+
+    if not bad_segments:
+        print(f"  硬约束验证通过, 无违规点")
         return coords
 
-    H, W = hard_mask.shape
-    violations = 0
+    # 构建A*路径的栅格索引以便快速查找最近点
+    a_star_grid = {(r, c): geo_idx for geo_idx, (r, c) in enumerate(a_star_path)}
+    a_star_coords = [(c, r) for r, c in a_star_path]  # (col, row) for spatial KD-tree
+
+    from scipy.spatial import cKDTree
+    try:
+        kd = cKDTree(a_star_coords)
+    except Exception:
+        kd = None
+
+    total_violations = sum(e - s + 1 for s, e in bad_segments)
+    print(f"  硬约束违规: {total_violations} 点, {len(bad_segments)} 段 — 局部A*修复中...")
+
     fixed = list(coords)
 
-    for i, (lon, lat) in enumerate(fixed):
-        r, c = geo_to_grid(lat, lon, transform)
-        if 0 <= r < H and 0 <= c < W:
-            if hard_mask[r, c] == 0:
-                # 搜索最近的有效像元
-                nr, nc = _find_nearest_valid_mask(hard_mask, r, c, search_radius=20)
-                if nr is not None:
-                    new_lat, new_lon = grid_to_geo(nr, nc, transform)
-                    fixed[i] = (new_lon, new_lat)
-                    violations += 1
+    for seg_s, seg_e in bad_segments:
+        # 找到段前和段后的有效锚点
+        anchor_before = seg_s - 1
+        anchor_after = seg_e + 1
 
-    if violations > 0:
-        print(f"  硬约束校正: {violations} 个点已移至邻近可行区域")
-    else:
-        print(f"  硬约束验证通过, 无违规点")
+        if anchor_before < 0 and anchor_after >= n:
+            # 全路径无效 — 回退到A*路径
+            if kd:
+                _, idx_start = kd.query([fixed[0][0], fixed[0][1]])
+                _, idx_end = kd.query([fixed[-1][0], fixed[-1][1]])
+                sub = a_star_path[min(idx_start, idx_end):max(idx_start, idx_end) + 1]
+                fixed = grid_to_geo_coords(sub, transform)
+                print(f"    全段回退到A*路径")
+            return fixed
+
+        if anchor_before < 0:
+            anchor_before = 0
+        if anchor_after >= n:
+            anchor_after = n - 1
+
+        lon_a, lat_a = fixed[anchor_before]
+        lon_b, lat_b = fixed[anchor_after]
+        ra, ca = geo_to_grid(lat_a, lon_a, transform)
+        rb, cb = geo_to_grid(lat_b, lon_b, transform)
+
+        # 在A*路径中找锚点对应的最近点
+        if kd:
+            _, idx_a = kd.query([lon_a, lat_a])
+            _, idx_b = kd.query([lon_b, lat_b])
+        else:
+            idx_a, idx_b = 0, len(a_star_path) - 1
+
+        if abs(idx_a - idx_b) > 1:
+            # 用A*子路径替换违规段
+            sub_start = min(idx_a, idx_b)
+            sub_end = max(idx_a, idx_b) + 1
+            sub_cells = a_star_path[sub_start:sub_end]
+            sub_coords = grid_to_geo_coords(sub_cells, transform)
+
+            # 替换
+            fixed = fixed[:seg_s] + sub_coords + fixed[seg_e + 1:]
+            print(f"    段 [{seg_s}, {seg_e}]: A*子路径 {len(sub_coords)} 点替换")
+        else:
+            # 太短, 简单线性插值并检查
+            n_fill = seg_e - seg_s + 2
+            lons = np.linspace(lon_a, lon_b, n_fill)[1:-1]
+            lats = np.linspace(lat_a, lat_b, n_fill)[1:-1]
+            fill_coords = [(float(lo), float(la)) for lo, la in zip(lons, lats)]
+            fixed[seg_s:seg_e + 1] = fill_coords
+
+    # 递归检查一次, 防止嵌套违规
+    remaining = 0
+    for lon, lat in fixed:
+        r, c = geo_to_grid(lat, lon, transform)
+        if 0 <= r < H and 0 <= c < W and hard_mask[r, c] == 0:
+            remaining += 1
+
+    if remaining > 0 and remaining < total_violations:
+        print(f"    嵌套修复: {remaining} 残留违规")
+        fixed = _fix_violations_local(fixed, hard_mask, transform, a_star_path)
 
     return fixed
-
-
-def _find_nearest_valid_mask(mask, r, c, search_radius=20):
-    """在掩膜中搜索最近的有效像元(值=1)"""
-    H, W = mask.shape
-    for radius in range(1, search_radius + 1):
-        for dr in range(-radius, radius + 1):
-            for dc in range(-radius, radius + 1):
-                if max(abs(dr), abs(dc)) != radius:
-                    continue
-                nr, nc = r + dr, c + dc
-                if 0 <= nr < H and 0 <= nc < W and mask[nr, nc] == 1:
-                    return nr, nc
-    return None, None
 
 
 # ============================================================

@@ -12,12 +12,16 @@ DOWNLOADED_DIR = DATA_DIR / "downloaded"
 PROCESSED_DIR = DATA_DIR / "processed"
 MODELS_DIR = DATA_DIR / "models"
 OUTPUT_DIR = BASE_DIR / "output"
+OUTPUT_MAPS_DIR = OUTPUT_DIR / "maps"
+OUTPUT_DATA_DIR = OUTPUT_DIR / "data"
+OUTPUT_REPORTS_DIR = OUTPUT_DIR / "reports"
 
 DEM_PATH = Path(r"D:\地形数据\台湾省_DEM_30m分辨率_SRTM数据.tif")
 SHP_PATH = Path(r"D:\输电线数据\示例数据-中国输电线路矢量.shp")
 
 # 自动创建所有目录
-for _d in [DATA_DIR, DOWNLOADED_DIR, PROCESSED_DIR, MODELS_DIR, OUTPUT_DIR]:
+for _d in [DATA_DIR, DOWNLOADED_DIR, PROCESSED_DIR, MODELS_DIR,
+           OUTPUT_DIR, OUTPUT_MAPS_DIR, OUTPUT_DATA_DIR, OUTPUT_REPORTS_DIR]:
     _d.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
@@ -52,20 +56,23 @@ ROUGHNESS_WINDOW = 9  # 粗糙度窗口(像元数)
 # ============================================================
 # 硬约束参数
 # ============================================================
-MAX_SLOPE = 35            # 坡度>35°禁止建设
+MAX_SLOPE = 40            # 坡度>40°禁止建设
 WATER_BUFFER = 50         # 水域缓冲距离(米)
 EXISTING_LINE_BUFFER = 30 # 与现有线路安全间距(米)
+AIRPORT_BUFFER = 800      # 机场缓冲区(米) — 净空限制(仅跑道/大型机场)
+URBAN_DENSITY_THRESHOLD = 1500  # 建筑密度>1500栋/km²禁止建设(城市密集区)
 
 # ============================================================
 # 伪标签生成权重
 # ============================================================
 LABEL_WEIGHTS = {
-    "dist_existing": 0.30,
-    "slope": 0.25,
-    "landuse": 0.15,
-    "road_access": 0.10,
-    "water": 0.10,
-    "protected": 0.10,
+    "dist_existing": 0.60,
+    "slope": 0.12,
+    "landuse": 0.08,
+    "road_access": 0.04,
+    "railway": 0.04,
+    "water": 0.06,
+    "protected": 0.06,
 }
 
 # ============================================================
@@ -81,7 +88,7 @@ RF_RANDOM_STATE = 42
 # A* 路径搜索参数
 # ============================================================
 ASTAR_NEIGHBORHOOD = 8  # 8邻域Moore
-PATH_SMOOTH_RDP_EPSILON = 90  # RDP简化阈值(米)
+PATH_SMOOTH_RDP_EPSILON = 50  # RDP简化阈值(米)
 PATH_RESAMPLE_SPACING = 30    # 最终路径采样间距(米)
 
 # ============================================================
@@ -117,6 +124,7 @@ FEATURE_BANDS = {
     "typhoon_risk": 14,
     "seismic_risk": 15,
     "landslide_risk": 16,
+    "dist_railway": 17,
 }
 N_FEATURES = len(FEATURE_BANDS)
 

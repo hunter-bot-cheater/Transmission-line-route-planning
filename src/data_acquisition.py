@@ -259,6 +259,40 @@ def fetch_osm_buildings(bbox):
     return _osm_to_gdf(data.get("elements", []), "polygon")
 
 
+def fetch_osm_railways(bbox):
+    """下载铁路网(高铁+台铁+捷运)"""
+    bbox_str = f"{bbox[1]},{bbox[0]},{bbox[3]},{bbox[2]}"
+    query = f"""
+    [out:json][timeout:180];
+    (
+      way["railway"="rail"]({bbox_str});
+      way["railway"="high_speed"]({bbox_str});
+      way["railway"="subway"]({bbox_str});
+      way["railway"="light_rail"]({bbox_str});
+      way["railway"="narrow_gauge"]({bbox_str});
+    );
+    out geom;
+    """
+    data = _overpass_query(query, "taiwan_railways")
+    return _osm_to_gdf(data.get("elements", []), "line")
+
+
+def fetch_osm_airports(bbox):
+    """下载机场/飞行区(仅跑道和大型机场, 不含小型直升机坪)"""
+    bbox_str = f"{bbox[1]},{bbox[0]},{bbox[3]},{bbox[2]}"
+    query = f"""
+    [out:json][timeout:180];
+    (
+      way["aeroway"="aerodrome"]({bbox_str});
+      way["aeroway"="runway"]({bbox_str});
+      relation["aeroway"="aerodrome"]({bbox_str});
+    );
+    out geom;
+    """
+    data = _overpass_query(query, "taiwan_airports")
+    return _osm_to_gdf(data.get("elements", []), "polygon")
+
+
 # ============================================================
 # 气象/灾害风险代理层
 # ============================================================
@@ -411,6 +445,20 @@ def acquire_all():
     except Exception as e:
         print(f"  OSM建筑获取失败: {e}")
         result["osm_buildings"] = gpd.GeoDataFrame(geometry=[], crs=cfg.WGS84)
+
+    try:
+        result["osm_railways"] = fetch_osm_railways(bbox)
+        print(f"  OSM铁路: {len(result['osm_railways'])} 条")
+    except Exception as e:
+        print(f"  OSM铁路获取失败: {e}")
+        result["osm_railways"] = gpd.GeoDataFrame(geometry=[], crs=cfg.WGS84)
+
+    try:
+        result["osm_airports"] = fetch_osm_airports(bbox)
+        print(f"  OSM机场: {len(result['osm_airports'])} 个")
+    except Exception as e:
+        print(f"  OSM机场获取失败: {e}")
+        result["osm_airports"] = gpd.GeoDataFrame(geometry=[], crs=cfg.WGS84)
 
     # 4. 风险代理层
     result["typhoon_risk"] = build_typhoon_risk(dem, transform, crs)

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 台湾输电线路智能路径规划系统 — 完整说明文档
 
 ## 项目概述
@@ -488,3 +489,6 @@ pip install folium contextily openpyxl
 ---
 
 *项目路径: D:\大创\ | 总规模: ~519 MB | 运行耗时: ~4分钟 | Python 3.13*
+=======
+# -
+>>>>>>> a20bd10cecf9394965cb4aa8d1f7034cb2cfb346

@@ -1,0 +1,26 @@
+{
+  "validation_line_id": "way/365662519",
+  "start": [
+    22.418346399995453,
+    120.61039009990938
+  ],
+  "end": [
+    21.959538199967795,
+    120.74868989979431
+  ],
+  "real_length_km": 57.371457578532045,
+  "predicted_length_km": 55.88562094308342,
+  "length_error_pct": 2.5898533838272506,
+  "hausdorff_distance_m": 3699.287665570595,
+  "mean_nearest_distance_m": 1464.5290526600902,
+  "overlap_within_500m_pct": 35.263967196309586,
+  "overlap_within_1km_pct": 52.48590466427473,
+  "overlap_within_2km_pct": 59.96924654023578,
+  "acceptable": true,
+  "reasons": [
+    "Hausdorff距离 3699m < 5km [通过]",
+    "平均距离 1465m < 2km [通过]",
+    "500m重叠率 35.3% > 30% [通过]",
+    "长度误差 2.6% < 30% [通过]"
+  ]
+}

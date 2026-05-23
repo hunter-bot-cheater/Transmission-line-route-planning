@@ -116,7 +116,13 @@ def main():
         data.update(terrain_factors)
 
         # 栅格对齐
-        aligned = align_all_rasters(data, dem, transform)
+        osm_data = {
+            "osm_landuse": data.get("osm_landuse"),
+            "osm_buildings": data.get("osm_buildings"),
+            "osm_railways": data.get("osm_railways"),
+            "osm_airports": data.get("osm_airports"),
+        }
+        aligned = align_all_rasters(data, dem, transform, osm_data=osm_data)
         dst_transform = aligned["transform"]
         dst_shape = aligned["shape"]
 
@@ -154,7 +160,7 @@ def main():
         predicted_cost = predict_cost_surface(rf, scaler, feature_stack, hard_mask)
 
         # 保存成本栅格
-        save_cost_geotiff(predicted_cost, dst_transform, crs, cfg.OUTPUT_DIR / "cost_surface.tif")
+        save_cost_geotiff(predicted_cost, dst_transform, crs, cfg.OUTPUT_DATA_DIR / "cost_surface.tif")
 
         print("  Phase 3 完成\n")
     else:
@@ -169,15 +175,16 @@ def main():
         print("=" * 50)
 
         # 成本融合
-        final_cost = fuse_cost_surface(predicted_cost, soft_mask, hard_mask)
+        dist_existing = aligned.get("dist_existing_line")
+        final_cost = fuse_cost_surface(predicted_cost, soft_mask, hard_mask, dist_existing=dist_existing)
 
         # 保存最终成本表面
-        save_cost_geotiff(final_cost, dst_transform, crs, cfg.OUTPUT_DIR / "final_cost_surface.tif")
+        save_cost_geotiff(final_cost, dst_transform, crs, cfg.OUTPUT_DATA_DIR / "final_cost_surface.tif")
 
         # 保存硬约束掩膜
         import rasterio
         with rasterio.open(
-            cfg.OUTPUT_DIR / "constraint_mask.tif", "w",
+            cfg.OUTPUT_DATA_DIR / "constraint_mask.tif", "w",
             driver="GTiff", height=hard_mask.shape[0], width=hard_mask.shape[1],
             count=1, dtype=np.uint8, crs=crs, transform=dst_transform,
         ) as dst:

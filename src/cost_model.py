@@ -47,9 +47,12 @@ def build_feature_stack(aligned):
         "dist_road": "dist_road",
         "dist_water": "dist_water",
         "dist_existing_line": "dist_existing_line",
+        "landuse_code": "landuse_code",
+        "building_density": "building_density",
         "typhoon_risk": "typhoon_risk",
         "seismic_risk": "seismic_risk",
         "landslide_risk": "landslide_risk",
+        "dist_railway": "dist_railway",
     }
 
     for aligned_key, feature_name in key_to_feature.items():
@@ -59,12 +62,13 @@ def build_feature_stack(aligned):
             if arr.shape[:2] == shape:
                 stack[:, :, idx] = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
 
-    # 缺失的特征(landuse_code, building_density)默认为0
-    # 这些需要从OSM数据导出的特征暂时用0填充
-
-    # 无限值处理
     stack = np.nan_to_num(stack, nan=0, posinf=0, neginf=0)
 
+    # 打印实际填充的特征
+    filled = [name for name in cfg.FEATURE_BANDS if np.any(stack[:,:,cfg.FEATURE_BANDS[name]] != 0)]
+    missing = [name for name in cfg.FEATURE_BANDS if name not in filled]
+    if missing:
+        print(f"  实际缺失: {missing}")
     print(f"  特征堆叠: {stack.shape}")
     return stack
 
@@ -74,9 +78,8 @@ def build_feature_stack(aligned):
 # ============================================================
 def generate_pseudo_labels(aligned, taiwan_lines, hard_mask):
     """
-    基于现有输电线+地形因素生成伪标签
-    现有线路60m缓冲区 = 低成本
-    远离线路 + 陡坡 = 高成本
+    基于现有输电线+多因素生成训练伪标签
+    更全面的成本建模: 地形 + 土地利用 + 建筑密度 + 距现有线距离
     标签范围: 0(低成本) ~ 1(高成本)
     """
     print("[Phase3] 生成训练伪标签...")
@@ -88,59 +91,85 @@ def generate_pseudo_labels(aligned, taiwan_lines, hard_mask):
     dist_existing = aligned.get("dist_existing_line")
     dist_water = aligned.get("dist_water")
     dist_road = aligned.get("dist_road")
+    dist_railway = aligned.get("dist_railway")
+    landuse = aligned.get("landuse_code")
+    build_density = aligned.get("building_density")
+    landslide = aligned.get("landslide_risk")
 
-    # 1. 距现有线路距离得分
+    # 1. 距现有线路距离 — 核心因素 (快速衰减, ~280m半衰)
     if dist_existing is not None:
-        # 距离越远成本越高
-        d_score = 1.0 - np.exp(-dist_existing / 800)
+        d_existing_score = 1.0 - np.exp(-dist_existing / 400)
     else:
-        d_score = np.full(shape, 0.5, dtype=np.float32)
+        d_existing_score = np.full(shape, 0.4, dtype=np.float32)
 
-    # 2. 坡度得分
+    # 2. 坡度 — 施工难度
     if slope is not None:
         s_score = np.clip(slope / cfg.MAX_SLOPE, 0, 1)
+        # 陡坡额外惩罚(>25°)
+        s_score = np.where(slope > 25, s_score * 1.5, s_score)
     else:
         s_score = np.full(shape, 0.3, dtype=np.float32)
 
-    # 3. 土地利用代理 (基于坡度+DEM粗糙度)
-    if dem is not None:
-        from scipy.ndimage import uniform_filter
-        roughness = np.abs(dem - uniform_filter(np.nan_to_num(dem, nan=0), size=3))
-        r_score = np.clip(roughness / 100, 0, 1)
+    # 3. 土地利用成本
+    if landuse is not None:
+        lu_cost_map = {1: 0.05, 2: 0.25, 3: 0.15, 4: 0.80, 5: 0.95, 6: 0.90, 7: 0.70, 8: 0.30}
+        lu_score = np.zeros(shape, dtype=np.float32)
+        for code in range(1, 9):
+            lu_score[landuse == code] = lu_cost_map.get(code, 0.30)
+    else:
+        lu_score = np.full(shape, 0.30, dtype=np.float32)
+
+    # 4. 建筑密度 — 拆迁成本
+    if build_density is not None and np.any(build_density > 0):
+        b_score = np.clip(build_density / 5000.0, 0, 1)  # 5000栋/km² → cost=1
+    else:
+        b_score = np.full(shape, 0.1, dtype=np.float32)
+
+    # 5. 道路可达性 — 材料运输
+    if dist_road is not None:
+        r_score = 1.0 - np.exp(-dist_road / 2000)
     else:
         r_score = np.full(shape, 0.3, dtype=np.float32)
 
-    # 4. 道路可达性: 距道路越近成本越低(材料运输方便)
-    if dist_road is not None:
-        road_score = 1.0 - np.exp(-dist_road / 1500)
+    # 6. 铁路邻近 — 共享交通走廊(比道路更优)
+    if dist_railway is not None:
+        rail_score = 1.0 - np.exp(-dist_railway / 3000)
     else:
-        road_score = np.full(shape, 0.3, dtype=np.float32)
+        rail_score = np.full(shape, 0.3, dtype=np.float32)
 
-    # 5. 水域惩罚
+    # 7. 水域穿越
     if dist_water is not None:
-        water_score = np.exp(-dist_water / 100)
+        w_score = np.exp(-dist_water / 150)
     else:
-        water_score = np.full(shape, 0.0, dtype=np.float32)
+        w_score = np.full(shape, 0.0, dtype=np.float32)
 
-    # 6. 保护区惩罚: 已在hard_mask中体现
+    # 8. 滑坡风险
+    if landslide is not None:
+        ls_score = landslide
+    else:
+        ls_score = np.full(shape, 0.2, dtype=np.float32)
 
-    # 加权组合
+    # 加权: 距现有线权重最高(它编码了真实工程师的选择)
     w = cfg.LABEL_WEIGHTS
     labels = (
-        w["dist_existing"] * d_score +
+        w["dist_existing"] * d_existing_score +
         w["slope"] * s_score +
-        w["landuse"] * r_score +
-        w["road_access"] * road_score +
-        w["water"] * water_score +
-        w["protected"] * 0.0  # 保护区已在硬约束中
+        w["landuse"] * (0.5 * lu_score + 0.5 * b_score) +  # landuse权重拆给landuse+building
+        w["road_access"] * r_score +
+        w["railway"] * rail_score +
+        w["water"] * w_score +
+        w["protected"] * ls_score
     )
 
-    # 硬约束区域标签置为NaN(不参与训练)
+    # 微扰动: 添加小量噪声防止RF过拟合确定性公式
+    rng = np.random.RandomState(42)
+    noise = rng.uniform(-0.03, 0.03, size=shape).astype(np.float32)
+    labels = np.clip(labels + noise, 0, 1)
+
     labels = labels.astype(np.float32)
     if hard_mask is not None:
         labels[hard_mask == 0] = np.nan
 
-    labels = np.clip(labels, 0, 1)
     print(f"  伪标签生成完成, 范围: [{np.nanmin(labels):.3f}, {np.nanmax(labels):.3f}]")
     return labels
 
