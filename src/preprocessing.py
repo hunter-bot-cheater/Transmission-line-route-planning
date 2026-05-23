@@ -10,7 +10,7 @@ import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 from rasterio.features import rasterize
 from rasterio import features
-from scipy.ndimage import uniform_filter, sobel, gaussian_filter, distance_transform_edt
+from scipy.ndimage import uniform_filter, sobel, gaussian_filter, distance_transform_edt, binary_dilation
 from scipy.spatial import KDTree
 import geopandas as gpd
 from shapely.geometry import box
@@ -216,7 +216,6 @@ def generate_hard_mask(data, transform, shape):
         water_raster = vector_to_raster(water_gdf, transform, shape)
         buffer_deg = cfg.meters_to_deg(cfg.WATER_BUFFER)
         buffer_pixels = max(1, int(buffer_deg / pixel_deg))
-        from scipy.ndimage import binary_dilation
         water_buffer = binary_dilation(water_raster > 0, iterations=buffer_pixels)
         hard_mask[water_buffer] = 0
         print(f"  水域缓冲区禁止: {water_buffer.sum()} 像元")
@@ -315,17 +314,104 @@ def compute_distance_raster(gdf, transform, shape, max_dist_m=5000):
 # ============================================================
 # 栅格对齐
 # ============================================================
-def align_all_rasters(data, reference_dem, ref_transform):
+def _landuse_tag_to_code(tags):
+    """将OSM landuse标签映射为分类编码"""
+    if not tags:
+        return 8  # other/unknown
+    lu = tags.get("landuse", "").lower()
+    nat = tags.get("natural", "").lower()
+
+    mapping = {
+        "forest": 1, "wood": 1, "scrub": 1, "heath": 1,
+        "farmland": 2, "farmyard": 2, "orchard": 2, "vineyard": 2,
+        "meadow": 2, "grass": 2, "grassland": 2, "greenfield": 2,
+        "bare_rock": 3, "bare_ground": 3, "scree": 3, "sand": 3, "beach": 3,
+        "residential": 4, "retail": 4, "commercial": 4, "urban": 4,
+        "industrial": 5, "quarry": 5, "brownfield": 5, "construction": 5,
+        "reservoir": 6, "basin": 6, "water": 6, "salt_pond": 6, "aquaculture": 6,
+        "wetland": 7, "marsh": 7, "swamp": 7, "mud": 7,
+        "cemetery": 8, "recreation_ground": 8, "village_green": 8,
+        "military": 8, "allotments": 8, "plant_nursery": 8,
+    }
+    for key, code in mapping.items():
+        if key in lu or key in nat:
+            return code
+    return 8
+
+
+def rasterize_landuse(gdf, transform, shape):
+    """
+    将OSM土地利用GeoDataFrame转为分类栅格(1-8)
+    各类别: 1=森林, 2=农田, 3=裸地, 4=居民区, 5=工业区, 6=水域, 7=湿地, 8=其他
+    使用批量处理: 按类别分组后一次性栅格化, 大幅提速
+    """
+    if gdf is None or len(gdf) == 0:
+        return np.full(shape, 8, dtype=np.uint8)
+
+    from rasterio import features
+    from collections import defaultdict
+
+    # 按编码分组几何
+    groups = defaultdict(list)
+    for _, row in gdf.iterrows():
+        try:
+            geom = row.geometry
+            if geom is None or geom.is_empty:
+                continue
+            tags = row.get("tags", {}) if hasattr(row, "tags") else {}
+            code = _landuse_tag_to_code(tags)
+            groups[code].append(geom)
+        except Exception:
+            continue
+
+    # 批量栅格化 (按类别优先级: 低编号先填, 高编号覆盖)
+    result = np.zeros(shape, dtype=np.uint8)
+    for code in sorted(groups.keys()):
+        shapes_list = [(g, code) for g in groups[code] if g is not None]
+        if not shapes_list:
+            continue
+        mask = features.rasterize(
+            shapes_list, out_shape=shape, transform=transform,
+            fill=0, all_touched=True, dtype=np.uint8
+        )
+        result = np.where(mask == code, code, result)
+        print(f"    类别{code}: {len(shapes_list)}个面")
+
+    # 未分配像元设为默认类别8(其他)
+    result[result == 0] = 8
+    return result
+
+
+def rasterize_building_density(gdf, transform, shape):
+    """
+    计算建筑密度(栋/km²)
+    """
+    if gdf is None or len(gdf) == 0:
+        return np.zeros(shape, dtype=np.float32)
+
+    # 将建筑点转为二值栅格
+    building_raster = vector_to_raster(gdf, transform, shape, burn_value=1, all_touched=True)
+
+    # 使用高斯核密度估计
+    cellsize_m = abs(transform.a) * cfg.METERS_PER_DEG
+    sigma_pixels = max(2, int(500 / cellsize_m))  # 500m带宽
+    from scipy.ndimage import gaussian_filter
+    density = gaussian_filter(building_raster.astype(np.float32), sigma=sigma_pixels)
+    # 转为栋/km²
+    cell_area_km2 = (cellsize_m / 1000) ** 2
+    density = density / cell_area_km2
+
+    return density.astype(np.float32)
+
+
+def align_all_rasters(data, reference_dem, ref_transform, osm_data=None):
     """
     将所有栅格对齐至统一的90m分辨率参考网格
+    osm_data: dict with 'osm_landuse', 'osm_buildings' GeoDataFrames
     """
     print("[Phase2] 栅格对齐至统一分辨率...")
 
-    # DEM原始分辨率(度) -> 目标分辨率(度)
-    # SRTM 1 arc-second ≈ 0.0002778° = 30m
-    # 目标90m = 3 arc-seconds ≈ 0.000833°
     orig_res_deg = abs(ref_transform.a)
-    # 30m SRTM -> 90m target
     dst_res_deg = orig_res_deg * (cfg.BASE_RESOLUTION / 30.0)
 
     dst_transform, dst_width, dst_height = calculate_default_transform(
@@ -362,7 +448,7 @@ def align_all_rasters(data, reference_dem, ref_transform):
             aligned[name] = resample_to_target(arr, ref_transform, dst_transform, (dst_height, dst_width))
             print(f"  对齐: {name}")
 
-    # 特殊处理: 距离栅格在统一网格上重新计算
+    # 距离栅格
     print("  计算距离栅格...")
     roads = data.get("osm_roads")
     aligned["dist_road"] = compute_distance_raster(roads, dst_transform, (dst_height, dst_width))
@@ -370,9 +456,34 @@ def align_all_rasters(data, reference_dem, ref_transform):
     water = data.get("osm_water")
     aligned["dist_water"] = compute_distance_raster(water, dst_transform, (dst_height, dst_width))
 
-    # 距现有输电线距离
     lines = data.get("taiwan_lines")
     aligned["dist_existing_line"] = compute_distance_raster(lines, dst_transform, (dst_height, dst_width), max_dist_m=10000)
+
+    railways = data.get("osm_railways")
+    aligned["dist_railway"] = compute_distance_raster(railways, dst_transform, (dst_height, dst_width), max_dist_m=5000)
+
+    # 机场数据传递(在hard_mask中使用)
+    if osm_data:
+        airports_gdf = osm_data.get("osm_airports")
+        if airports_gdf is not None and len(airports_gdf) > 0:
+            aligned["airport_raster"] = vector_to_raster(airports_gdf, dst_transform, (dst_height, dst_width))
+            print(f"  机场栅格化: {(aligned['airport_raster'] > 0).sum()} 像元")
+
+    # 土地利用分类栅格
+    if osm_data:
+        landuse_gdf = osm_data.get("osm_landuse")
+        if landuse_gdf is not None and len(landuse_gdf) > 0:
+            print("  栅格化土地利用分类...")
+            aligned["landuse_code"] = rasterize_landuse(landuse_gdf, dst_transform, (dst_height, dst_width))
+            print(f"    分类分布: {np.bincount(aligned['landuse_code'].ravel(), minlength=9)[1:]}")
+
+        buildings_gdf = osm_data.get("osm_buildings")
+        if buildings_gdf is not None and len(buildings_gdf) > 0:
+            print("  计算建筑密度...")
+            aligned["building_density"] = rasterize_building_density(buildings_gdf, dst_transform, (dst_height, dst_width))
+            vals = aligned["building_density"][aligned["building_density"] > 0]
+            if len(vals) > 0:
+                print(f"    密度范围: {vals.min():.0f} - {vals.max():.0f} 栋/km^2")
 
     print("[Phase2] 栅格对齐完成\n")
     return aligned

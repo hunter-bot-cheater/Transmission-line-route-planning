@@ -1,0 +1,191 @@
+{
+  "n_lines_tested": 6,
+  "n_acceptable": 4,
+  "overall_assessment": "需进一步优化",
+  "aggregate_stats": {
+    "hausdorff_mean": 5970.699329253958,
+    "hausdorff_median": 3856.0520672127923,
+    "mean_distance_mean": 2346.093997231234,
+    "mean_distance_median": 1114.2118778897066,
+    "overlap_500m_mean": 39.758564167908595,
+    "overlap_500m_median": 40.555505079926675,
+    "length_error_mean": 2.2170067162600193,
+    "length_error_median": 0.5211074028688344
+  },
+  "lines": [
+    {
+      "line_id": "way/365662519",
+      "voltage": "345000",
+      "real_length_km": 57.371457578532045,
+      "predicted_length_km": 57.47914062313001,
+      "length_error_pct": 0.1876944549483724,
+      "hausdorff_m": 4462.500554864715,
+      "mean_distance_m": 1537.9152417706034,
+      "overlap_500m_pct": 30.59125964010283,
+      "overlap_1km_pct": 54.652956298200515,
+      "overlap_2km_pct": 71.41388174807199,
+      "acceptable": true,
+      "n_real_vertices": 158,
+      "n_predicted_vertices": 1945,
+      "start": [
+        22.418346399995453,
+        120.61039009990938
+      ],
+      "end": [
+        21.959538199967795,
+        120.74868989979431
+      ],
+      "reasons": [
+        "Hausdorff 4463m < 5km [通过]",
+        "平均距离 1538m < 2km [通过]",
+        "500m重叠 31% > 30% [通过]",
+        "长度误差 0.2% < 30% [通过]"
+      ]
+    },
+    {
+      "line_id": "way/203692582",
+      "voltage": "345000",
+      "real_length_km": 109.83631826857658,
+      "predicted_length_km": 109.71714597844817,
+      "length_error_pct": 0.1084998951230307,
+      "hausdorff_m": 10731.842985281077,
+      "mean_distance_m": 4130.645436949724,
+      "overlap_500m_pct": 19.109808102345415,
+      "overlap_1km_pct": 25.772921108742004,
+      "overlap_2km_pct": 34.83475479744136,
+      "acceptable": false,
+      "n_real_vertices": 284,
+      "n_predicted_vertices": 3752,
+      "start": [
+        23.06512890000635,
+        120.42671319971616
+      ],
+      "end": [
+        23.89054169973247,
+        120.76969850020504
+      ],
+      "reasons": [
+        "Hausdorff 10732m > 5km [偏高]",
+        "平均距离 4131m > 2km [偏高]",
+        "500m重叠 19% < 30% [偏低]",
+        "长度误差 0.1% < 30% [通过]"
+      ]
+    },
+    {
+      "line_id": "way/202162589",
+      "voltage": "161000",
+      "real_length_km": 73.74618475725168,
+      "predicted_length_km": 77.00841471685169,
+      "length_error_pct": 4.423591498784921,
+      "hausdorff_m": 3249.60357956087,
+      "mean_distance_m": 690.5085140088096,
+      "overlap_500m_pct": 59.76577257272384,
+      "overlap_1km_pct": 81.79070646014355,
+      "overlap_2km_pct": 91.68870419342652,
+      "acceptable": true,
+      "n_real_vertices": 192,
+      "n_predicted_vertices": 2647,
+      "start": [
+        24.69162919962348,
+        120.98572839962902
+      ],
+      "end": [
+        24.213852100395847,
+        121.03317789982312
+      ],
+      "reasons": [
+        "Hausdorff 3250m < 5km [通过]",
+        "平均距离 691m < 2km [通过]",
+        "500m重叠 60% > 30% [通过]",
+        "长度误差 4.4% < 30% [通过]"
+      ]
+    },
+    {
+      "line_id": "way/179686272",
+      "voltage": "161000",
+      "real_length_km": 70.61967789727485,
+      "predicted_length_km": 70.72840278411243,
+      "length_error_pct": 0.15395834429566788,
+      "hausdorff_m": 2825.2029648865123,
+      "mean_distance_m": 631.1004950723895,
+      "overlap_500m_pct": 50.51975051975052,
+      "overlap_1km_pct": 87.02702702702703,
+      "overlap_2km_pct": 96.75675675675676,
+      "acceptable": true,
+      "n_real_vertices": 209,
+      "n_predicted_vertices": 2405,
+      "start": [
+        22.783302300041026,
+        121.0900276002206
+      ],
+      "end": [
+        23.334594500096475,
+        121.30527559973308
+      ],
+      "reasons": [
+        "Hausdorff 2825m < 5km [通过]",
+        "平均距离 631m < 2km [通过]",
+        "500m重叠 51% > 30% [通过]",
+        "长度误差 0.2% < 30% [通过]"
+      ]
+    },
+    {
+      "line_id": "way/199445383",
+      "voltage": "345000",
+      "real_length_km": 53.37743561102881,
+      "predicted_length_km": 57.42012288724041,
+      "length_error_pct": 7.573775753618827,
+      "hausdorff_m": 13290.087771482626,
+      "mean_distance_m": 6662.289306166215,
+      "overlap_500m_pct": 2.109492717227524,
+      "overlap_1km_pct": 4.018081366147665,
+      "overlap_2km_pct": 7.734806629834254,
+      "acceptable": false,
+      "n_real_vertices": 122,
+      "n_predicted_vertices": 1991,
+      "start": [
+        23.89023299968606,
+        120.76991649976493
+      ],
+      "end": [
+        23.551708899900994,
+        120.5897881003525
+      ],
+      "reasons": [
+        "Hausdorff 13290m > 5km [偏高]",
+        "平均距离 6662m > 2km [偏高]",
+        "500m重叠 2% < 30% [偏低]",
+        "长度误差 7.6% < 30% [通过]"
+      ]
+    },
+    {
+      "line_id": "way/184391013",
+      "voltage": "161000",
+      "real_length_km": 55.99732102111544,
+      "predicted_length_km": 56.475829525137684,
+      "length_error_pct": 0.8545203507892964,
+      "hausdorff_m": 1264.9581194479435,
+      "mean_distance_m": 424.10498941966125,
+      "overlap_500m_pct": 76.45530145530145,
+      "overlap_1km_pct": 95.84199584199584,
+      "overlap_2km_pct": 100.0,
+      "acceptable": true,
+      "n_real_vertices": 180,
+      "n_predicted_vertices": 1924,
+      "start": [
+        24.263969399666628,
+        120.73799830040308
+      ],
+      "end": [
+        24.70751679978054,
+        120.93719639987317
+      ],
+      "reasons": [
+        "Hausdorff 1265m < 5km [通过]",
+        "平均距离 424m < 2km [通过]",
+        "500m重叠 76% > 30% [通过]",
+        "长度误差 0.9% < 30% [通过]"
+      ]
+    }
+  ]
+}
