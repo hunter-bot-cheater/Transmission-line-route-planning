@@ -1,4 +1,23 @@
-data/downloaded/
-*.pkl
-*.pyc
+# 大文件数据目录
+data/
+
+# Python 缓存
 __pycache__/
+*.py[cod]
+*.so
+
+# v1 输出和缓存
+v1_20260525/__pycache__/
+
+# v2 输出和缓存
+v2_20260525/__pycache__/
+
+# shared 缓存
+shared/__pycache__/
+
+# IDE 和系统文件
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store

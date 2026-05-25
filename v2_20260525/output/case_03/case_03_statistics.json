@@ -1,0 +1,22 @@
+{
+  "case_id": "case_03",
+  "way_id": "way/202162589",
+  "description": "新竹桃园线(西北台湾, 161kV, 中距离)",
+  "start": [
+    24.69162919962348,
+    120.98572839962902
+  ],
+  "end": [
+    24.213852100395847,
+    121.03317789982312
+  ],
+  "real_length_km": 73.74618475725168,
+  "predicted_length_km": 75.67428170116058,
+  "length_error_pct": 2.614503991298753,
+  "hausdorff_m": 3617.9440854065597,
+  "mean_distance_m": 782.5475435717696,
+  "overlap_500m_pct": 54.68509984639017,
+  "quality_passed": true,
+  "quality_n_passed": 7,
+  "fail_reason": "NONE"
+}

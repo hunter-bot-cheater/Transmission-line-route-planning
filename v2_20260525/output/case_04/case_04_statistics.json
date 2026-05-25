@@ -1,0 +1,22 @@
+{
+  "case_id": "case_04",
+  "way_id": "way/179686272",
+  "description": "台东花东纵谷线(东台湾, 161kV, 中距离)",
+  "start": [
+    22.783302300041026,
+    121.0900276002206
+  ],
+  "end": [
+    23.334594500096475,
+    121.30527559973308
+  ],
+  "real_length_km": 70.61967789727485,
+  "predicted_length_km": 70.2794908827407,
+  "length_error_pct": 0.48171702939370015,
+  "hausdorff_m": 2826.0899004837247,
+  "mean_distance_m": 718.2363203372182,
+  "overlap_500m_pct": 35.953177257525084,
+  "quality_passed": true,
+  "quality_n_passed": 7,
+  "fail_reason": "NONE"
+}

@@ -1,0 +1,22 @@
+{
+  "case_id": "case_10",
+  "way_id": "way/136343018",
+  "description": "东部联络线(161kV, 中距离)",
+  "start": [
+    23.721244899786804,
+    121.43028030017533
+  ],
+  "end": [
+    23.334594500096475,
+    121.30527559973308
+  ],
+  "real_length_km": 48.23385007533535,
+  "predicted_length_km": 48.06586012095248,
+  "length_error_pct": 0.34828228333522737,
+  "hausdorff_m": 732.9840378299617,
+  "mean_distance_m": 391.5209694802486,
+  "overlap_500m_pct": 85.79301898346601,
+  "quality_passed": true,
+  "quality_n_passed": 7,
+  "fail_reason": "NONE"
+}

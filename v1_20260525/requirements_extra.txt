@@ -1,0 +1,7 @@
+# 台湾输电线路智能路径规划 — 额外依赖
+# 核心包已安装(geopandas, rasterio, scikit-learn, matplotlib, networkx等)
+# 以下为可视化增强与辅助包
+
+folium>=0.17          # 可选: Leaflet交互地图(已内嵌HTML备用方案)
+contextily>=1.6       # 可选: 在线底图(已用山影备用)
+openpyxl>=3.1         # Excel输出

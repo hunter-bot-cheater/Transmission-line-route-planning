@@ -1,0 +1,22 @@
+{
+  "case_id": "case_07",
+  "way_id": "way/365662507",
+  "description": "南台湾联络线(345kV, 中距离)",
+  "start": [
+    22.419643099633863,
+    120.61007010024228
+  ],
+  "end": [
+    22.569954399612417,
+    120.41057320044743
+  ],
+  "real_length_km": 32.30697405479281,
+  "predicted_length_km": 31.30880906337463,
+  "length_error_pct": 3.089626994237494,
+  "hausdorff_m": 4351.832630034433,
+  "mean_distance_m": 1756.955743447559,
+  "overlap_500m_pct": 32.02195791399817,
+  "quality_passed": true,
+  "quality_n_passed": 7,
+  "fail_reason": "NONE"
+}
