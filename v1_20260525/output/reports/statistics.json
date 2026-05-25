@@ -1,0 +1,20 @@
+{
+  "path_length_km": 393.77824554989,
+  "straight_line_km": 346.455000402384,
+  "sinuosity": 1.1365927612317424,
+  "elevation_min_m": -0.2469135820865631,
+  "elevation_max_m": 2052.1728515625,
+  "elevation_mean_m": 433.7097638366001,
+  "total_ascent_m": 50624.19800788164,
+  "total_descent_m": 50601.02516776323,
+  "slope_mean_deg": 18.126726111856897,
+  "slope_max_deg": 34.999881744384766,
+  "slope_pct_gt15": 64.1328787988685,
+  "slope_pct_gt25": 31.254079930369187,
+  "slope_pct_gt35": 0.0,
+  "cost_total": 4181.054737851024,
+  "cost_mean": 0.30326066133684076,
+  "cost_max": 0.4925803244113922,
+  "hard_constraint_crossings": 0,
+  "vertices": 13806
+}

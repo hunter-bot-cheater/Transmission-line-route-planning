@@ -1,0 +1,22 @@
+{
+  "case_id": "case_09",
+  "way_id": "way/129716882",
+  "description": "北部沿海线(345kV, 中距离)",
+  "start": [
+    24.820373899701156,
+    121.19504449992695
+  ],
+  "end": [
+    25.03405839978843,
+    121.3629506003484
+  ],
+  "real_length_km": 34.03797565084753,
+  "predicted_length_km": 31.725285551476478,
+  "length_error_pct": 6.794440783124143,
+  "hausdorff_m": 3688.2287432963954,
+  "mean_distance_m": 1298.2586173383647,
+  "overlap_500m_pct": 31.69845594913715,
+  "quality_passed": true,
+  "quality_n_passed": 7,
+  "fail_reason": "NONE"
+}

@@ -1,0 +1,22 @@
+{
+  "case_id": "case_06",
+  "way_id": "way/184391013",
+  "description": "台中苗栗线(中西部, 161kV, 中距离)",
+  "start": [
+    24.263969399666628,
+    120.73799830040308
+  ],
+  "end": [
+    24.70751679978054,
+    120.93719639987317
+  ],
+  "real_length_km": 55.99732102111544,
+  "predicted_length_km": 65.99996943111954,
+  "length_error_pct": 17.862726694072215,
+  "hausdorff_m": 12308.823683840126,
+  "mean_distance_m": 6355.41406485422,
+  "overlap_500m_pct": 6.151832460732985,
+  "quality_passed": true,
+  "quality_n_passed": 7,
+  "fail_reason": "NONE"
+}
