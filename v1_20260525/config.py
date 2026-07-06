@@ -6,7 +6,7 @@ from pathlib import Path
 # ============================================================
 # 路径配置
 # ============================================================
-BASE_DIR = Path(r"D:\大创")
+BASE_DIR = Path(r"c:\Users\86133\Desktop\大创项目文件夹\Transmission-line-route-planning")
 DATA_DIR = BASE_DIR / "data"
 DOWNLOADED_DIR = DATA_DIR / "downloaded"
 PROCESSED_DIR = DATA_DIR / "processed"
@@ -16,8 +16,8 @@ OUTPUT_MAPS_DIR = OUTPUT_DIR / "maps"
 OUTPUT_DATA_DIR = OUTPUT_DIR / "data"
 OUTPUT_REPORTS_DIR = OUTPUT_DIR / "reports"
 
-DEM_PATH = Path(r"D:\地形数据\台湾省_DEM_30m分辨率_SRTM数据.tif")
-SHP_PATH = Path(r"D:\输电线数据\示例数据-中国输电线路矢量.shp")
+DEM_PATH = DATA_DIR / "dem" / "台湾.tif"
+SHP_PATH = DATA_DIR / "shp" / "示例数据-中国输电线路矢量.shp"
 
 # 自动创建所有目录
 for _d in [DATA_DIR, DOWNLOADED_DIR, PROCESSED_DIR, MODELS_DIR,
