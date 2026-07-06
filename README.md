@@ -72,19 +72,66 @@ D:\大创\
 
 ---
 
+## ⚠️ 环境配置（首次运行必读）
+
+项目中的路径配置位于 `v1_20260525/config.py` 和 `v2_20260525/config.py`，**首次运行前必须检查并修改以下三项**：
+
+```python
+BASE_DIR  = Path(r"...")    # 项目根目录的绝对路径
+DEM_PATH  = Path(r"...")    # DEM 高程数据 (.tif) 的位置
+SHP_PATH  = Path(r"...")    # 输电线矢量数据 (.shp) 的位置
+```
+
+### 如何检查和修改
+
+1. 打开 `v2_20260525/config.py`（v1 同理打开 `v1_20260525/config.py`）
+2. 确认 `BASE_DIR` 指向你的项目根目录
+3. 确认 `DEM_PATH` 指向你的 DEM 文件（推荐放在 `data/dem/` 下）
+4. 确认 `SHP_PATH` 指向你的输电线 Shapefile（推荐放在 `data/shp/` 下）
+
+### 推荐目录结构
+
+```
+项目根目录/
+├── data/
+│   ├── dem/
+│   │   └── <你的DEM文件>.tif
+│   └── shp/
+│       ├── <你的输电线文件>.shp
+│       ├── <你的输电线文件>.shx
+│       ├── <你的输电线文件>.dbf
+│       ├── <你的输电线文件>.prj
+│       └── <你的输电线文件>.cpg
+├── v1_20260525/
+├── v2_20260525/
+└── shared/
+```
+
+> **注意**：DEM（.tif）和 Shapefile（.shp/.shx/.dbf/.prj/.cpg）是外部数据文件，不会随项目仓库分发，需自行准备并放置到对应位置。
+
+### 常见问题
+
+| 现象 | 原因 | 解决 |
+|------|------|------|
+| `FileNotFoundError: D:\大创\...` | `BASE_DIR` 指向了不存在的路径 | 改为当前项目的实际路径 |
+| `RasterioIOError: No such file` | `DEM_PATH` 对应的 .tif 不存在 | 改为你的 DEM 文件实际路径 |
+| `DriverError: xxx.shp not found` | `SHP_PATH` 或附属文件 (.shx/.dbf) 缺失 | 确保 .shp/.shx/.dbf/.prj 四个文件齐全且路径正确 |
+
+---
+
 ## 快速开始
 
 ### v2 (推荐)
 
 ```bash
-cd D:\大创\v2_20260525
+cd v2_20260525
 python validate_v2.py          # 验证全部10条标准线路
 ```
 
 ### v1
 
 ```bash
-cd D:\大创\v1_20260525
+cd v1_20260525
 python main.py                 # 默认: 核三厂(屏东) → 台北
 python main.py --start-lat 22.0 --start-lon 120.5 --end-lat 25.0 --end-lon 121.5
 ```
@@ -127,10 +174,10 @@ python main.py --start-lat 22.0 --start-lon 120.5 --end-lat 25.0 --end-lon 121.5
 
 ## 输入数据
 
-| 数据 | 格式 | 路径 | 说明 |
+| 数据 | 格式 | 路径（可在 config.py 中修改） | 说明 |
 |------|------|------|------|
-| DEM | GeoTIFF 30m | `D:\地形数据\台湾省_DEM_30m分辨率_SRTM数据.tif` | SRTM 1-arcsec |
-| 输电线 | Shapefile | `D:\输电线数据\示例数据-中国输电线路矢量.shp` | 1,795条 |
+| DEM | GeoTIFF | `data/dem/<文件名>.tif` | 高程数据，支持 30m/12.5m 分辨率 |
+| 输电线 | Shapefile | `data/shp/<文件名>.shp` | 需 .shp/.shx/.dbf/.prj 四文件齐全 |
 | OSM | Overpass API → pickle缓存 | `data/downloaded/*.pkl` | 自动下载, 7天缓存 |
 
 ---
@@ -222,4 +269,4 @@ openpyxl   # Excel输出
 
 ---
 
-*项目路径: D:\大创\ | 版本: v2.20260525 | Python 3.13*
+*版本: v2.20260525 | Python 3.13*

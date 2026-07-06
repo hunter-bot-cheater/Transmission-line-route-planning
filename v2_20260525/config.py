@@ -13,7 +13,7 @@ import copy
 # ============================================================
 # 路径配置
 # ============================================================
-BASE_DIR = Path(r"D:\大创")
+BASE_DIR = Path(r"c:\Users\86133\Desktop\大创项目文件夹\Transmission-line-route-planning")
 V2_DIR = BASE_DIR / "v2_20260525"
 SHARED_DIR = BASE_DIR / "shared"
 DATA_DIR = BASE_DIR / "data"
@@ -25,8 +25,8 @@ OUTPUT_MAPS_DIR = OUTPUT_DIR / "maps"
 OUTPUT_DATA_DIR = OUTPUT_DIR / "data"
 OUTPUT_REPORTS_DIR = OUTPUT_DIR / "reports"
 
-DEM_PATH = Path(r"D:\地形数据\台湾省_DEM_30m分辨率_SRTM数据.tif")
-SHP_PATH = Path(r"D:\输电线数据\示例数据-中国输电线路矢量.shp")
+DEM_PATH = DATA_DIR / "dem" / "台湾.tif"
+SHP_PATH = DATA_DIR / "shp" / "示例数据-中国输电线路矢量.shp"
 
 for _d in [DATA_DIR, DOWNLOADED_DIR, PROCESSED_DIR, MODELS_DIR,
            OUTPUT_DIR, OUTPUT_MAPS_DIR, OUTPUT_DATA_DIR, OUTPUT_REPORTS_DIR]:
