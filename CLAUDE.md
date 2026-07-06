@@ -83,3 +83,19 @@ From `v2_20260525/docs/CODING_STANDARDS.md`:
 - The analysis resolution is 90m (downsampled from 30m or 12.5m source). Grid size is approximately 2401 × 4201 pixels for Taiwan.
 - Coordinate systems: WGS84 (EPSG:4326) for geographic, UTM 51N (EPSG:32651) for projected (meters).
 - `geo_to_grid(lat, lon, transform)` takes lat FIRST, then lon — swapping them is a common bug.
+
+## 必做事项
+
+**每次 `git commit` 并推送后，必须更新修改记录文件：**
+
+```
+C:\Users\86133\Desktop\大创项目更改说明袁润熙\<YYYY-MM-DD>_项目修改记录.txt
+```
+
+记录内容包括：
+- 提交哈希和说明
+- 修改了哪些文件
+- 新增/删除/重命名了什么
+- 修改原因（为什么改、解决什么问题）
+
+按日期命名，同一天多次提交合并在一个文件中。文件模板参考已有的 `2026-07-06_项目修改记录.txt`。
