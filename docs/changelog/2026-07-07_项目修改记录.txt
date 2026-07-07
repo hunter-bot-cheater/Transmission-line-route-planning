@@ -4,60 +4,39 @@
   协作者: 袁润熙 (yuan201644-collab)
 ================================================================================
 
-【提交 1】16e396d — 修复6项已知问题
-  时间: 2026-07-07
-
+【提交 1】16e396d — 修复6项已知问题 (2026-07-07 白天)
   修改文件 (7个):
     README.md                        → 特征表 17→18 维，补充 dist_railway 通道 17
     v2_20260525/config.py            → 删除死代码 START_POINT/END_POINT
                                        删除未使用的 URBAN_DENSITY_THRESHOLD
     v1_20260525/config.py            → 删除未使用的 URBAN_DENSITY_THRESHOLD
     v2_20260525/src/path_planning.py → 修复 KDTree 坐标空间不匹配
-                                       (像素(col,row)→地理(lon,lat)建树)
-    v2_20260525/validate_v2.py       → 修复数据泄露
-                                       (dist_existing_line排除10条测试线路)
+    v2_20260525/validate_v2.py       → 修复数据泄露（排除10条测试线路）
     v2_20260525/src/cost_model.py    → 修复坡度惩罚被clip(0,1)抵消
-                                       (去除内层clip，陡坡恢复区分度)
     CLAUDE.md                        → 同步更新已知问题列表
 
-  修复详情:
-    #1 BUILDING_DENSITY_LIMIT与URBAN_DENSITY_THRESHOLD功能重叠
-       确认 BUILDING_DENSITY_LIMIT=500 为实际生效参数
-       删除 URBAN_DENSITY_THRESHOLD=1500（v1/v2均无代码引用）
-    #3 README特征表少记dist_railway通道
-       代码N_FEATURES=18正确，纯文档遗漏
-    #4 v2 config中START_POINT/END_POINT死代码
-       v2线路起止点从TEST_CASES动态提取，无需默认值
-    #5 KDTree坐标空间不匹配
-       原: 树用(col,row)像素坐标建，查询用(lon,lat)地理坐标→结果随机
-       改: 用grid_to_geo_coords()转地理坐标后再建树，查询匹配
-    #6 数据泄露
-       原: dist_existing_line包含10条测试线路本身→伪标签不公平偏向正确路径
-       改: 在align_all_rasters前排除测试线路的way_id
-    #7 坡度额外惩罚被抵消
-       原: s_score先clip(0,1)→所有≥28°坡度值均为1.0→×1.5后仍相同
-       改: 去除内层clip，s_score可>1.0，保留陡坡间区分度，最终clip统一归一化
-
-  验证: 5个修改的.py文件均通过py_compile编译检查
+  修复详情: （详见该提交的commit message）
 
 ================================================================================
 
-【提交 2】86a4c11 — CLAUDE.md 记录已知问题
-  时间: 2026-07-06 (夜间)
+【提交 2】c949564 — 修复 Hausdorff/MeanDistance/OverlapRatio 不对称采样
+  时间: 2026-07-07 (下午)
 
-  新增文件:
-    CLAUDE.md → 新增"已知问题"章节，记录
-      - 建筑密度参数冗余且阈值矛盾
-      - 伪标签权重和软约束系数缺乏严格依据
-      - README声称17维实际18维
-      - v2 config死代码
+  修改文件:
+    v2_20260525/validate_v2.py
 
-================================================================================
+  问题:
+    compute_hausdorff / compute_mean_distance / compute_overlap_ratio
+    三个函数只对B（真实线路）做加密采样，A（预测路径）直接用原始坐标。
+    在当前使用场景下预测路径本身已加密(PATH_RESAMPLE_SPACING=30m)，
+    但接口不安全——若调用者传入稀疏坐标则会产生采样偏差。
 
-【提交 3】07783d7 — CLAUDE.md 新增必做事项
-  时间: 2026-07-06 (夜间)
-
-  修改: CLAUDE.md 末尾新增"必做事项"章节
-       每次 git commit 推送后必须更新本修改记录文件
+  修复:
+    三个函数中 coords_a 和 coords_b 均先通过 _dense_sample_line() 加密
+    到100m间距后再参与计算，保证对称处理。
 
 ================================================================================
+
+【说明】
+  本文件位于项目仓库: docs/changelog/
+  项目地址: github.com/hunter-bot-cheater/Transmission-line-route-planning
