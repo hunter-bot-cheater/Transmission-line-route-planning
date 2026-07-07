@@ -457,6 +457,16 @@ def main():
 
     terrain_factors = derive_terrain_factors(dem, transform)
     data.update(terrain_factors)
+
+    # 排除10条测试线路，防止数据泄露
+    # dist_existing_line不应包含目标线路本身，否则伪标签和成本表面会不公平地偏向正确路径
+    test_way_ids = {case["way_id"] for case in cfg.TEST_CASES}
+    taiwan_lines_all = data.get("taiwan_lines")
+    if taiwan_lines_all is not None:
+        data["taiwan_lines"] = taiwan_lines_all[~taiwan_lines_all["id"].isin(test_way_ids)].copy()
+        n_excluded = len(taiwan_lines_all) - len(data["taiwan_lines"])
+        print(f"  已排除 {n_excluded} 条测试线路, 剩余 {len(data['taiwan_lines'])} 条用于距离场计算")
+
     osm_data = {
         "osm_landuse": data.get("osm_landuse"),
         "osm_buildings": data.get("osm_buildings"),

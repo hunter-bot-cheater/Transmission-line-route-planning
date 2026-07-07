@@ -46,10 +46,10 @@ PROJECTED_CRS = "EPSG:32651"
 # ============================================================
 # 栅格参数
 # ============================================================
-BASE_RESOLUTION = 90
-RESAMPLE_METHOD = "bilinear"
-METERS_PER_DEG = 111320.0
-SRTM_NATIVE_M = 30
+BASE_RESOLUTION = 90#分析分辨率
+RESAMPLE_METHOD = "bilinear"#重采样算法：双线性插值
+METERS_PER_DEG = 111320.0#赤道处纬度 1° ≈ 111.32公里
+SRTM_NATIVE_M = 30#原始分辨率DEM
 
 def meters_to_deg(meters):
     return meters / METERS_PER_DEG
@@ -57,8 +57,8 @@ def meters_to_deg(meters):
 # ============================================================
 # 地形因子参数
 # ============================================================
-TPI_WINDOW = 300
-ROUGHNESS_WINDOW = 9
+TPI_WINDOW = 300#TPI = 当前点的高程 - 周围 300米半径内的平均高程
+ROUGHNESS_WINDOW = 9#地表粗糙度，9×9 个像元，也就是 90m × 9 = 810米 × 810米的范围
 
 # ============================================================
 # 硬约束参数 — v2_strict: 收紧阈值
@@ -90,7 +90,6 @@ COST_ANOMALY_RATIO = 3.0
 
 EXISTING_LINE_BUFFER = 30
 AIRPORT_BUFFER = 800
-URBAN_DENSITY_THRESHOLD = 1500
 
 # ============================================================
 # 伪标签生成权重 — v2_strict: 强化距现有线/坡度/粗糙度/水域
@@ -137,12 +136,6 @@ ASTAR_STRICT_ENDPOINTS = False
 
 PATH_SMOOTH_RDP_EPSILON = 90
 PATH_RESAMPLE_SPACING = 30
-
-# ============================================================
-# 默认起止点 (WGS84)
-# ============================================================
-START_POINT = (21.95, 120.75)
-END_POINT = (25.03, 121.53)
 
 # ============================================================
 # OSM下载参数
