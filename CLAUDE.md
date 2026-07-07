@@ -102,7 +102,7 @@ From `v2_20260525/docs/CODING_STANDARDS.md`:
 **每次 `git commit` 并推送后，必须更新修改记录文件：**
 
 ```
-C:\Users\86133\Desktop\大创项目更改说明袁润熙\<YYYY-MM-DD>_项目修改记录.txt
+docs/changelog/<YYYY-MM-DD>_项目修改记录.txt
 ```
 
 记录内容包括：
