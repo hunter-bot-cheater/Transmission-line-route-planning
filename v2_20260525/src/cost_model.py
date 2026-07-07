@@ -106,9 +106,10 @@ def generate_pseudo_labels(aligned, taiwan_lines, hard_mask):
     else:
         d_existing_score = np.full(shape, 0.4, dtype=np.float32)
 
-    # 2. 坡度 — v2_strict: 满分参考从40°降至28°, 陡坡额外惩罚从25°降至20°
+    # 2. 坡度 — v2_strict: 满分参考28°, 陡坡额外惩罚从20°起
+    # 不clip到[0,1], 让陡坡(>28°)自然超出1.0以保留坡度区分度, 最终clip统一归一化
     if slope is not None:
-        s_score = np.clip(slope / pp["slope_threshold"], 0, 1)
+        s_score = slope / pp["slope_threshold"]
         s_score = np.where(slope > pp["slope_extra_penalty"], s_score * 1.5, s_score)
     else:
         s_score = np.full(shape, 0.3, dtype=np.float32)

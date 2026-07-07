@@ -326,7 +326,7 @@ def _fix_violations_local(coords, hard_mask, transform, a_star_path):
     if not bad_segments:
         print(f"  硬约束验证通过, 无违规点")
         return coords
-    a_star_coords = [(c, r) for r, c in a_star_path]
+    a_star_coords = grid_to_geo_coords(a_star_path, transform)
     from scipy.spatial import cKDTree
     try:
         kd = cKDTree(a_star_coords)

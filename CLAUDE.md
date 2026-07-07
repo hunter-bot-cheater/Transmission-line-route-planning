@@ -86,17 +86,9 @@ From `v2_20260525/docs/CODING_STANDARDS.md`:
 
 ## 已知问题（待修复）
 
-### 1. 建筑密度参数重叠且阈值矛盾
+### 伪标签权重和软约束系数缺乏严格依据
 
-`config.py` 中存在两个功能重叠但阈值矛盾的参数：
-- `BUILDING_DENSITY_LIMIT = 500`（第79行，硬约束，>500栋/km²禁止）
-- `URBAN_DENSITY_THRESHOLD = 1500`（第93行，同样用于硬约束，>1500栋/km²禁止）
-
-两者做同一件事但值差3倍。需确认实际生效的是哪个，删除冗余参数，统一阈值。
-
-### 2. 伪标签权重缺乏严格依据
-
-`LABEL_WEIGHTS` 中的 7 个权重（dist_existing=0.65, slope=0.15, water=0.08, landuse=0.04, protected=0.04, road_access=0.02, railway=0.02）是经验设定的，未经过：
+`LABEL_WEIGHTS` 中的 7 个权重（dist_existing=0.65, slope=0.15, water=0.08, landuse=0.04, protected=0.04, road_access=0.02, railway=0.02）和 `LANDUSE_SOFT_COST`（8 种土地利用类型的软约束系数，0.1-0.9）是经验设定的，未经过：
 - 参数敏感性分析（每个权重±10%对结果的影响）
 - 文献定量支撑
 - 真实造价数据校准

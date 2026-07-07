@@ -182,7 +182,7 @@ python main.py --start-lat 22.0 --start-lon 120.5 --end-lat 25.0 --end-lon 121.5
 
 ---
 
-## 特征体系 (17维)
+## 特征体系 (18维)
 
 | 维度 | 特征 | 类型 | 来源 |
 |------|------|------|------|
@@ -201,6 +201,7 @@ python main.py --start-lat 22.0 --start-lon 120.5 --end-lat 25.0 --end-lon 121.5
 | 14 | typhoon_risk | 连续 | 台风暴露度代理 |
 | 15 | seismic_risk | 连续 | 地震风险代理 |
 | 16 | landslide_risk | 连续 | 滑坡敏感性代理 |
+| 17 | dist_railway | 连续 | OSM铁路EDT |
 
 ---
 
