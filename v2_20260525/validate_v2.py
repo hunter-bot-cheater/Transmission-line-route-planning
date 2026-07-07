@@ -58,10 +58,10 @@ def _dense_sample_line(coords, spacing_m=100):
     return np.array(sampled)
 
 
-def compute_hausdorff(coords_a, coords_b, sample_step=2):
-    a = np.array(coords_a)[::sample_step]
+def compute_hausdorff(coords_a, coords_b, sample_step=2):#豪斯多夫距离
+    a = _dense_sample_line(np.array(coords_a), spacing_m=100)[::sample_step]
     b = _dense_sample_line(np.array(coords_b), spacing_m=100)[::sample_step]
-    max_min_a2b = 0
+    max_min_a2b = 0#a to b
     for pa in a:
         min_d = min(haversine_m(pa[0], pa[1], pb[0], pb[1]) for pb in b)
         max_min_a2b = max(max_min_a2b, min_d)
@@ -73,7 +73,7 @@ def compute_hausdorff(coords_a, coords_b, sample_step=2):
 
 
 def compute_mean_distance(coords_a, coords_b, sample_step=2):
-    a = np.array(coords_a)[::sample_step]
+    a = _dense_sample_line(np.array(coords_a), spacing_m=100)[::sample_step]
     b = _dense_sample_line(np.array(coords_b), spacing_m=100)[::sample_step]
     total = 0
     for pa in a:
@@ -83,7 +83,7 @@ def compute_mean_distance(coords_a, coords_b, sample_step=2):
 
 
 def compute_overlap_ratio(coords_a, coords_b, threshold_m=500):
-    a = np.array(coords_a)
+    a = _dense_sample_line(np.array(coords_a), spacing_m=100)
     b = _dense_sample_line(np.array(coords_b), spacing_m=100)
     within = 0
     for pa in a:
