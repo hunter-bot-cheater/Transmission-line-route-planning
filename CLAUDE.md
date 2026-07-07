@@ -84,6 +84,27 @@ From `v2_20260525/docs/CODING_STANDARDS.md`:
 - Coordinate systems: WGS84 (EPSG:4326) for geographic, UTM 51N (EPSG:32651) for projected (meters).
 - `geo_to_grid(lat, lon, transform)` takes lat FIRST, then lon — swapping them is a common bug.
 
+## 已知问题（待修复）
+
+### 1. 建筑密度参数重叠且阈值矛盾
+
+`config.py` 中存在两个功能重叠但阈值矛盾的参数：
+- `BUILDING_DENSITY_LIMIT = 500`（第79行，硬约束，>500栋/km²禁止）
+- `URBAN_DENSITY_THRESHOLD = 1500`（第93行，同样用于硬约束，>1500栋/km²禁止）
+
+两者做同一件事但值差3倍。需确认实际生效的是哪个，删除冗余参数，统一阈值。
+
+### 2. 伪标签权重缺乏严格依据
+
+`LABEL_WEIGHTS` 中的 7 个权重（dist_existing=0.65, slope=0.15, water=0.08, landuse=0.04, protected=0.04, road_access=0.02, railway=0.02）是经验设定的，未经过：
+- 参数敏感性分析（每个权重±10%对结果的影响）
+- 文献定量支撑
+- 真实造价数据校准
+
+当前通过 10 条真实线路的 Hausdorff/重叠率间接验证了合理性，但缺乏严格论证。建议补充用 RF 特征重要性反证权重方向正确性，并对关键权重做敏感性分析。
+
+---
+
 ## 必做事项
 
 **每次 `git commit` 并推送后，必须更新修改记录文件：**
