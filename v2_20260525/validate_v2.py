@@ -94,22 +94,16 @@ def compute_overlap_ratio(coords_a, coords_b, threshold_m=500):
 
 
 def validate_single_line(case, aligned, rf, scaler, dst_transform, crs, hard_mask, soft_mask):
-    """对单条线路运行完整v2严格验证"""
-    taiwan_lines = load_taiwan_lines()
+    """对单条线路运行完整v2严格验证（真实坐标由main()预提取传入）"""
     way_id = case["way_id"]
-    rows = taiwan_lines[taiwan_lines["id"] == way_id]
-    if len(rows) == 0:
-        print(f"  警告: 未找到线路 {way_id}")
-        return None
-    row = rows.iloc[0]
-    real_coords = list(row.geometry.coords)
+    real_coords = case["real_coords"]
+    real_length = case["real_length"]
+    voltage = case["voltage"]
     real_start = real_coords[0]
     real_end = real_coords[-1]
-    real_length = compute_path_length_km([(c[0], c[1]) for c in real_coords])
 
     start_lat, start_lon = real_start[1], real_start[0]
     end_lat, end_lon = real_end[1], real_end[0]
-    voltage = row.get("voltage", "N/A")
 
     # 直线距离 (用于sinuosity计算)
     straight_km = haversine_m(start_lon, start_lat, end_lon, end_lat) / 1000.0
@@ -434,6 +428,12 @@ def main():
     for case in test_cases:
         rows = gdf[gdf["id"] == case["way_id"]]
         if len(rows) > 0:
+            row = rows.iloc[0]
+            case["real_coords"] = list(row.geometry.coords)
+            case["voltage"] = row.get("voltage", "N/A")
+            case["real_length"] = compute_path_length_km(
+                [(c[0], c[1]) for c in case["real_coords"]]
+            )
             selected.append(case)
         else:
             print(f"  警告: 未找到 {case['case_id']} — {case['way_id']}")
