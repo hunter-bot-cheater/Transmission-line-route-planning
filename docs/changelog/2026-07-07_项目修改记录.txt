@@ -37,6 +37,36 @@
 
 ================================================================================
 
+【提交 3】d2b2834 — 更新 CLAUDE.md 必做事项 + 修改记录补充
+  时间: 2026-07-07 (下午)
+
+  修改文件:
+    CLAUDE.md                            → 必做事项新增3条铁律
+    docs/changelog/2026-07-07_项目修改记录.txt → 补充提交2记录
+
+================================================================================
+
+【提交 4】657489d — 修复 Haversine 重复 + SHP 重复加载
+  时间: 2026-07-07 (下午)
+
+  修改文件:
+    v2_20260525/src/output.py        → 移除内联 Haversine，改用 compute_path_length_km()
+    v2_20260525/validate_v2.py       → main()预提取真实坐标传入 case，不再每次加载 SHP
+    CLAUDE.md                        → 清除已修复问题
+
+  问题1: output.py 的 compute_statistics() 内联实现了与 path_planning.py
+         compute_path_length_km() 完全相同的 Haversine 累加逻辑
+
+  修复1: 从 path_planning 导入 compute_path_length_km，替换内联代码
+
+  问题2: validate_single_line() 每次调用都 load_taiwan_lines() 重新读取
+         1795条输电线 SHP，main()循环10次 + 自身1次 = 11次重复读取
+
+  修复2: main()的Step1中一次性提取 real_coords/voltage/real_length 存入
+         case 字典，validate_single_line() 直接使用，不再加载 SHP
+
+================================================================================
+
 【说明】
   本文件位于项目仓库: docs/changelog/
   项目地址: github.com/hunter-bot-cheater/Transmission-line-route-planning
