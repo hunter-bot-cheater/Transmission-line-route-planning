@@ -1,0 +1,36 @@
+================================================================================
+  项目修改记录 — 2026-07-10
+  项目: 台湾输电线路智能路径规划系统
+  协作者: 袁润熙 (yuan201644-collab)
+================================================================================
+
+【提交】78a4c81 — V3 群体智能对比框架全量开发完成
+  时间: 2026-07-10 18:35
+
+  新增文件 (13个源码 + 310个输出):
+    v3_20260710/ 完整目录结构
+    config.py:           继承 v2 参数 + IPSO-SA/DBO 算法超参
+    base_planner.py:     群体智能基类(路径编码/适应度/修复/优化模板)
+    ipso_sa_planner.py:  PSO惯性递减 + SA退火机制 (申报书对照组)
+    dbo_planner.py:      蜣螂五行为模型(滚球/育雏/觅食/偷窃) (创新算法)
+    output_v3.py:        输出模块(SHP/GeoJSON/统计/质量/收敛图/对比图)
+    validate_v3.py:      三算法对比验证入口 + map overview + elevation profile
+    CHANGELOG.md:        v3 变更记录
+    docs/OUTPUT_SPEC.md: 输出文件命名规范
+
+  修改文件:
+    shared/data_acquisition.py: 新增 _resample_dem_to_standard() 适配12.5m DEM
+    CLAUDE.md:                  新增已知问题(成本表面过直) + 必做事项规则
+    v2/src/path_planning.py:     Linter 格式化
+
+  关键修复历程:
+    - 12.5m DEM 重采样到 WGS84 90m (解决 1.95GB 内存溢出)
+    - OSM 缓存从旧机器迁移 (509MB, 9个 .pkl 文件)
+    - sys.path 重复检查导致 v2 config 被优先加载 → 去掉 if _sp not in sys.path
+    - DBO fitness 初始化为 None → 修复为 np.full()
+    - map_overview DEM 马赛克 → 自适应降采样 (短边 >= 800px)
+    - map_overview 路径直线 → dbo/ipso 路径加密采样 + 发光底层 + 加粗主线
+
+  运行结果: A* 10/10, IPSO-SA 10/10, DBO 10/10 全部通过
+
+================================================================================
