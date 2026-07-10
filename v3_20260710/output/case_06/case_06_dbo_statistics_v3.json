@@ -1,0 +1,12 @@
+{
+  "case_id": "case_06",
+  "algorithm": "DBO",
+  "version": "v3",
+  "length_km": 53.28055784734302,
+  "elevation_min_m": 40.333595275878906,
+  "elevation_max_m": 526.7731323242188,
+  "elevation_mean_m": 214.33521941627447,
+  "slope_max_deg": 19.604488372802734,
+  "slope_mean_deg": 8.817053993170672,
+  "hard_constraint_violations": 0
+}

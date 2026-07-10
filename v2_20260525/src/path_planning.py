@@ -384,7 +384,7 @@ def _fix_violations_local(coords, hard_mask, transform, a_star_path):
 # ============================================================
 # 计算路径距离
 # ============================================================
-def compute_path_length_km(coords):
+def compute_path_length_km(coords):#球面三角学经典的半正矢解法，专门用于地理经纬度测距
     total = 0.0
     for i in range(len(coords) - 1):
         lon1, lat1 = coords[i]

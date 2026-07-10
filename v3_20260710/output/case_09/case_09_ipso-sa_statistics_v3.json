@@ -1,0 +1,12 @@
+{
+  "case_id": "case_09",
+  "algorithm": "IPSO-SA",
+  "version": "v3",
+  "length_km": 29.175811009527287,
+  "elevation_min_m": 120.52032470703125,
+  "elevation_max_m": 328.639892578125,
+  "elevation_mean_m": 201.14281689591698,
+  "slope_max_deg": 10.485940933227539,
+  "slope_mean_deg": 2.6037123287548343,
+  "hard_constraint_violations": 0
+}
