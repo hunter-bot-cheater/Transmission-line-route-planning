@@ -21,6 +21,7 @@ import json
 import rasterio
 from rasterio.features import rasterize
 import math
+from src.path_planning import compute_path_length_km
 
 import config as cfg
 
@@ -44,15 +45,7 @@ def export_path(coords, output_dir, case_id="optimal"):
 def compute_statistics(coords, final_cost, dem, slope, hard_mask, transform, output_dir, case_id="case"):
     """计算并保存统计指标"""
     stats = {"case_id": case_id, "version": "v2.20260525"}
-    path_len_km = 0.0
-    for i in range(len(coords) - 1):
-        lon1, lat1 = coords[i]
-        lon2, lat2 = coords[i + 1]
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(lon2 - lon1)
-        a = (math.sin(dlat/2)**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(dlon/2)**2)
-        path_len_km += 6371.0 * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    stats["length_km"] = path_len_km
+    stats["length_km"] = compute_path_length_km(coords)
 
     if dem is not None and len(coords) > 0:
         elevs = []
