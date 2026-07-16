@@ -71,7 +71,7 @@ def fuse_cost_surface(rf_cost, soft_mask, hard_mask, dist_existing=None, smooth_
 
     # 走廊偏好: 线性斜坡, 1000m内获得成本折扣
     if dist_existing is not None:
-        corridor_bonus = 0.02 + 0.98 * np.clip(dist_existing / 1000.0, 0, 1)
+        corridor_bonus = 0.3 + 0.7 * np.clip(dist_existing / 300.0, 0, 1)
         final_cost = final_cost * corridor_bonus.astype(np.float64)
         print(f"  走廊偏好已应用 (线性斜坡至1000m, 最多98%折扣)")
 

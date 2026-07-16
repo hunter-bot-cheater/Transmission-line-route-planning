@@ -16,7 +16,7 @@ OUTPUT_MAPS_DIR = OUTPUT_DIR / "maps"
 OUTPUT_DATA_DIR = OUTPUT_DIR / "data"
 OUTPUT_REPORTS_DIR = OUTPUT_DIR / "reports"
 
-DEM_PATH = DATA_DIR / "dem" / "台湾.tif"
+DEM_PATH = DATA_DIR / "dem" / "台湾省_DEM_30m分辨率_SRTM数据.tif"
 SHP_PATH = DATA_DIR / "shp" / "示例数据-中国输电线路矢量.shp"
 
 # 自动创建所有目录

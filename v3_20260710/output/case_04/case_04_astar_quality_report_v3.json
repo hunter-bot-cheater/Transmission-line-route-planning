@@ -1,23 +1,23 @@
 {
   "case_id": "case_04",
   "algorithm": "A*",
-  "passed": false,
-  "n_passed": 6,
+  "passed": true,
+  "n_passed": 7,
   "n_total": 7,
   "checks": {
     "1_slope": {
       "passed": true,
-      "value": 41.546913146972656,
+      "value": 34.32839584350586,
       "threshold": 45,
-      "detail": "最大坡度 41.5° ≤ 45°"
+      "detail": "最大坡度 34.3° ≤ 45°"
     },
     "2_water": {
-      "passed": false,
+      "passed": true,
       "value": 0.0,
       "threshold": 30,
-      "violation_rate": "28.14%",
+      "violation_rate": "9.28%",
       "p95_dist": 0.0,
-      "detail": "最小水域距离 0m, 违规率 28.14% >25% (阈值30m)"
+      "detail": "最小水域距离 0m, 违规率 9.28% ≤25% (阈值30m)"
     },
     "3_protected": {
       "passed": true,
@@ -27,27 +27,27 @@
     },
     "4_curvature": {
       "passed": true,
-      "value": 8.951644552606451,
+      "value": 16.058767218589626,
       "threshold": 50,
-      "detail": "最大转角 9.0° ≤ 50°"
+      "detail": "最大转角 16.1° ≤ 50°"
     },
     "5_sinuosity": {
       "passed": true,
-      "value": 1.072111140566806,
+      "value": 1.0783312601663797,
       "threshold": 3.0,
-      "detail": "弯曲度 1.07 ≤ 3.0 (路径69.8km/直线65.1km)"
+      "detail": "弯曲度 1.08 ≤ 3.0 (路径70.2km/直线65.1km)"
     },
     "6_elevation": {
       "passed": true,
-      "value": 563.3823089599609,
+      "value": 237.25926208496094,
       "threshold": 2500,
-      "detail": "最大连续升降 563m ≤ 2500m"
+      "detail": "最大连续升降 237m ≤ 2500m"
     },
     "7_cost": {
       "passed": true,
-      "value": 1.0732358512852886,
+      "value": 0.14996351840590927,
       "threshold": 3.0,
-      "detail": "成本比 1.07 (均值0.1493/中位0.1391) ≤ 3.0"
+      "detail": "成本比 0.15 (均值0.0208/中位0.1389) ≤ 3.0"
     }
   }
 }

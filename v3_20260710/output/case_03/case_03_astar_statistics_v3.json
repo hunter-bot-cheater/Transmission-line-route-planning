@@ -2,11 +2,11 @@
   "case_id": "case_03",
   "algorithm": "A*",
   "version": "v3",
-  "length_km": 55.08750249247544,
-  "elevation_min_m": 96.40311431884766,
-  "elevation_max_m": 2813.088134765625,
-  "elevation_mean_m": 1305.661916378197,
-  "slope_max_deg": 41.1735954284668,
-  "slope_mean_deg": 24.33814302834715,
-  "hard_constraint_violations": 0
+  "length_km": 76.79892621551211,
+  "elevation_min_m": 67.96295928955078,
+  "elevation_max_m": 1133.975341796875,
+  "elevation_mean_m": 460.6033586609603,
+  "slope_max_deg": 45.04588317871094,
+  "slope_mean_deg": 18.44266540242829,
+  "hard_constraint_violations": 2
 }

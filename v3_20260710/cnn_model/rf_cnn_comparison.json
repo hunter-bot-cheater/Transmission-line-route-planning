@@ -1,0 +1,100 @@
+{
+  "results": [
+    {
+      "case_id": "case_01",
+      "rf_hausdorff": 4518.707750477298,
+      "cnn_hausdorff": 4493.220802247245,
+      "rf_overlap": 8.085977482088024,
+      "cnn_overlap": 8.016443987667008,
+      "rf_length": 57.70115690367853,
+      "cnn_length": 57.48580017553714
+    },
+    {
+      "case_id": "case_02",
+      "rf_hausdorff": 10777.8753838964,
+      "cnn_hausdorff": 10777.611891737572,
+      "rf_overlap": 12.429378531073446,
+      "cnn_overlap": 18.789808917197455,
+      "rf_length": 113.45362115659987,
+      "cnn_length": 109.91113276444685
+    },
+    {
+      "case_id": "case_03",
+      "rf_hausdorff": 7338.293623429559,
+      "cnn_hausdorff": 3497.514865109457,
+      "rf_overlap": 26.680672268907564,
+      "cnn_overlap": 34.841628959276015,
+      "rf_length": 82.32040962335273,
+      "cnn_length": 76.92020142951661
+    },
+    {
+      "case_id": "case_04",
+      "rf_hausdorff": 3145.7266496009115,
+      "cnn_hausdorff": 2986.7255372291825,
+      "rf_overlap": 7.23793677204659,
+      "cnn_overlap": 13.243922883487008,
+      "rf_length": 70.61721594363895,
+      "cnn_length": 70.14773880438017
+    },
+    {
+      "case_id": "case_05",
+      "rf_hausdorff": 10919.50695640405,
+      "cnn_hausdorff": 13501.118817281427,
+      "rf_overlap": 1.3513513513513513,
+      "cnn_overlap": 1.2320328542094456,
+      "rf_length": 51.372981094329226,
+      "cnn_length": 56.078280031884844
+    },
+    {
+      "case_id": "case_06",
+      "rf_hausdorff": 12389.458803106956,
+      "cnn_hausdorff": 0,
+      "rf_overlap": 6.677140612725845,
+      "cnn_overlap": 0,
+      "rf_length": 72.92120716460721,
+      "cnn_length": 0
+    },
+    {
+      "case_id": "case_07",
+      "rf_hausdorff": 5187.782089418084,
+      "cnn_hausdorff": 4012.917637015456,
+      "rf_overlap": 7.166666666666667,
+      "cnn_overlap": 18.09338521400778,
+      "rf_length": 34.44982902096884,
+      "cnn_length": 29.44382407377549
+    },
+    {
+      "case_id": "case_08",
+      "rf_hausdorff": 3723.9937123791374,
+      "cnn_hausdorff": 2488.4065743799983,
+      "rf_overlap": 8.77659574468085,
+      "cnn_overlap": 48.163841807909606,
+      "rf_length": 43.22083701250115,
+      "cnn_length": 40.770294669651946
+    },
+    {
+      "case_id": "case_09",
+      "rf_hausdorff": 3511.999392297739,
+      "cnn_hausdorff": 3574.288391413354,
+      "rf_overlap": 31.970260223048324,
+      "cnn_overlap": 19.310344827586206,
+      "rf_length": 31.042714785563348,
+      "cnn_length": 33.32523489954566
+    },
+    {
+      "case_id": "case_10",
+      "rf_hausdorff": 765.5204524449213,
+      "cnn_hausdorff": 781.1819185329834,
+      "rf_overlap": 73.62637362637363,
+      "cnn_overlap": 72.14723926380368,
+      "rf_length": 48.14629300060532,
+      "cnn_length": 47.940325170176266
+    }
+  ],
+  "summary": {
+    "rf_hausdorff_mean": 6227.886481345506,
+    "cnn_hausdorff_mean": 4611.298643494667,
+    "rf_overlap_mean": 18.40023532789623,
+    "cnn_overlap_mean": 23.38386487151442
+  }
+}
