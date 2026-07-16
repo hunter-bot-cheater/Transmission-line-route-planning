@@ -25,7 +25,7 @@ OUTPUT_MAPS_DIR = OUTPUT_DIR / "maps"
 OUTPUT_DATA_DIR = OUTPUT_DIR / "data"
 OUTPUT_REPORTS_DIR = OUTPUT_DIR / "reports"
 
-DEM_PATH = DATA_DIR / "dem" / "台湾.tif"
+DEM_PATH = DATA_DIR / "dem" / "台湾省_DEM_30m分辨率_SRTM数据.tif"
 SHP_PATH = DATA_DIR / "shp" / "示例数据-中国输电线路矢量.shp"
 
 for _d in [DATA_DIR, DOWNLOADED_DIR, PROCESSED_DIR, MODELS_DIR,
@@ -107,7 +107,7 @@ LABEL_WEIGHTS = {
 
 # v2_strict: 伪标签中各因素的衰减/阈值参数
 PSEUDO_LABEL_PARAMS = {
-    "dist_existing_decay": 250,    # v1=400, 半衰从~280m缩至~173m
+    "dist_existing_decay": 2000,   # 扩大引力半径: 2km处得分0.63, 让RF感知远处走廊轮廓
     "slope_threshold": 28,          # v1=40(MAX_SLOPE), 使用28作为满分参考
     "slope_extra_penalty": 20,      # v1=25, 陡坡额外惩罚起点从25°降至20°
     "water_decay": 200,             # v1=150, 水域惩罚距离从150m扩至200m

@@ -185,3 +185,22 @@ def export_comparison_chart(all_results: list, output_dir: Path) -> Path:
     fig.savefig(png_path, dpi=cfg.FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
     return png_path
+
+
+def export_combined_convergence(conv_data: dict, output_dir: Path, case_id: str) -> Path:
+    """导出 IPSO-SA vs DBO 收敛曲线叠加对比图"""
+    fig, ax = plt.subplots(figsize=(8, 5))
+    colors = {"IPSO-SA": "#FF9800", "DBO": "#4CAF50"}
+    for algo, (curve, _) in conv_data.items():
+        if curve is None:
+            continue
+        ax.plot(range(len(curve)), curve, color=colors.get(algo, "#333"),
+                lw=1.5, label=algo, alpha=0.85)
+    ax.set_xlabel("迭代次数")
+    ax.set_ylabel("最优适应度")
+    ax.set_title(f"{case_id} — IPSO-SA vs DBO 收敛曲线对比")
+    ax.legend(); ax.grid(True, alpha=0.3)
+    png_path = output_dir / f"{case_id}_convergence_comparison_v3.png"
+    fig.savefig(png_path, dpi=cfg.FIGURE_DPI, bbox_inches="tight")
+    plt.close(fig)
+    return png_path

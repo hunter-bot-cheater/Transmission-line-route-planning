@@ -1,19 +1,19 @@
 # 大文件数据目录
 data/
 
+# 输出产物
+v1_20260525/output/
+v2_20260525/output/
+v3_20260710/output/
+
+# 本地文档（申报书/计划书等）
+docs/proposals/
+docs/changelog/
+
 # Python 缓存
 __pycache__/
 *.py[cod]
 *.so
-
-# v1 输出和缓存
-v1_20260525/__pycache__/
-
-# v2 输出和缓存
-v2_20260525/__pycache__/
-
-# shared 缓存
-shared/__pycache__/
 
 # IDE 和系统文件
 .vscode/
