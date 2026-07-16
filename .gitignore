@@ -1,6 +1,11 @@
 # 大文件数据目录
 data/
 
+# CNN 训练数据 (大文件)
+v3_20260710/cnn_model/*.npy
+v3_20260710/cnn_model/*.pth
+v3_20260710/cnn_model/*.log
+
 # 输出产物
 v1_20260525/output/
 v2_20260525/output/

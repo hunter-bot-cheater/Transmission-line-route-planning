@@ -11,11 +11,11 @@
     120.41057320044743
   ],
   "real_length_km": 32.30697405479281,
-  "predicted_length_km": 31.30880906337463,
-  "length_error_pct": 3.089626994237494,
-  "hausdorff_m": 4351.832630034433,
-  "mean_distance_m": 1756.955743447559,
-  "overlap_500m_pct": 32.02195791399817,
+  "predicted_length_km": 34.44982902096884,
+  "length_error_pct": 6.632793781744267,
+  "hausdorff_m": 5187.782089418084,
+  "mean_distance_m": 2652.648197136891,
+  "overlap_500m_pct": 7.249999999999999,
   "quality_passed": true,
   "quality_n_passed": 7,
   "fail_reason": "NONE"

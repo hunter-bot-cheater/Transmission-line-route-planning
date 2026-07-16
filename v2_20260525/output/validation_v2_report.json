@@ -11,20 +11,20 @@
       "description": "屏东恒春线(南台湾, 345kV, 短距离)",
       "voltage": "345000",
       "real_length_km": 57.371457578532045,
-      "predicted_length_km": 57.05214232266856,
-      "length_error_pct": 0.5565751147709583,
-      "hausdorff_m": 4534.750498850926,
-      "mean_distance_m": 1568.0226041026906,
-      "overlap_500m_pct": 29.627714581178903,
-      "overlap_1km_pct": 53.92967942088936,
-      "overlap_2km_pct": 71.25129265770424,
+      "predicted_length_km": 57.70115690367853,
+      "length_error_pct": 0.574674827975534,
+      "hausdorff_m": 4514.80129610093,
+      "mean_distance_m": 1911.2875572450944,
+      "overlap_500m_pct": 8.597748208802457,
+      "overlap_1km_pct": 35.15864892528147,
+      "overlap_2km_pct": 61.15660184237461,
       "quality_passed": true,
       "quality_n_passed": 7,
       "quality_n_total": 7,
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 158,
-      "n_predicted_vertices": 1934,
+      "n_predicted_vertices": 1954,
       "start": [
         22.418346399995453,
         120.61039009990938
@@ -44,9 +44,9 @@
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "18.05%",
+          "violation_rate": "18.83%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 18.05% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 18.83% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -56,27 +56,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 35.48935933798089,
+          "value": 19.130407813046713,
           "threshold": 50,
-          "detail": "最大转角 35.5° ≤ 50°"
+          "detail": "最大转角 19.1° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.0771253835846322,
+          "value": 1.0893785620116345,
           "threshold": 3.0,
-          "detail": "弯曲度 1.08 ≤ 3.0 (路径57.1km/直线53.0km)"
+          "detail": "弯曲度 1.09 ≤ 3.0 (路径57.7km/直线53.0km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 320.16048431396484,
+          "value": 452.0987854003906,
           "threshold": 2500,
-          "detail": "最大连续升降 320m ≤ 2500m"
+          "detail": "最大连续升降 452m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.31254201724775443,
+          "value": 0.200918300823297,
           "threshold": 3.0,
-          "detail": "成本比 0.31 (均值0.0435/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.20 (均值0.0278/中位0.1382) ≤ 3.0"
         }
       }
     },
@@ -86,20 +86,20 @@
       "description": "嘉义台中纵贯线(中台湾, 345kV, 长距离)",
       "voltage": "345000",
       "real_length_km": 109.83631826857658,
-      "predicted_length_km": 108.56256951643125,
-      "length_error_pct": 1.1596790316939585,
-      "hausdorff_m": 12374.80380652163,
-      "mean_distance_m": 5311.922394487148,
-      "overlap_500m_pct": 13.597199784598816,
-      "overlap_1km_pct": 20.678513731825525,
-      "overlap_2km_pct": 28.67528271405493,
+      "predicted_length_km": 113.45362115659987,
+      "length_error_pct": 3.293357739084172,
+      "hausdorff_m": 10777.917452008309,
+      "mean_distance_m": 3064.655621856793,
+      "overlap_500m_pct": 12.946313896737735,
+      "overlap_1km_pct": 27.38248137683021,
+      "overlap_2km_pct": 58.59234523503724,
       "quality_passed": true,
       "quality_n_passed": 7,
       "quality_n_total": 7,
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 284,
-      "n_predicted_vertices": 3714,
+      "n_predicted_vertices": 3893,
       "start": [
         23.06512890000635,
         120.42671319971616
@@ -111,17 +111,17 @@
       "quality_checks": {
         "1_slope": {
           "passed": true,
-          "value": 44.955196380615234,
+          "value": 44.5339241027832,
           "threshold": 45,
-          "detail": "最大坡度 45.0° ≤ 45°"
+          "detail": "最大坡度 44.5° ≤ 45°"
         },
         "2_water": {
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "21.08%",
+          "violation_rate": "20.88%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 21.08% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 20.88% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -131,27 +131,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 12.902762333544487,
+          "value": 20.639421027595414,
           "threshold": 50,
-          "detail": "最大转角 12.9° ≤ 50°"
+          "detail": "最大转角 20.6° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.1052801996711297,
+          "value": 1.155076207241024,
           "threshold": 3.0,
-          "detail": "弯曲度 1.11 ≤ 3.0 (路径108.6km/直线98.2km)"
+          "detail": "弯曲度 1.16 ≤ 3.0 (路径113.5km/直线98.2km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 567.0987548828125,
+          "value": 382.0493927001953,
           "threshold": 2500,
-          "detail": "最大连续升降 567m ≤ 2500m"
+          "detail": "最大连续升降 382m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.4004045439964438,
+          "value": 0.22119447052780225,
           "threshold": 3.0,
-          "detail": "成本比 0.40 (均值0.0557/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.22 (均值0.0306/中位0.1382) ≤ 3.0"
         }
       }
     },
@@ -161,20 +161,20 @@
       "description": "新竹桃园线(西北台湾, 161kV, 中距离)",
       "voltage": "161000",
       "real_length_km": 73.74618475725168,
-      "predicted_length_km": 75.67428170116058,
-      "length_error_pct": 2.614503991298753,
-      "hausdorff_m": 3617.9440854065597,
-      "mean_distance_m": 782.5475435717696,
-      "overlap_500m_pct": 54.68509984639017,
-      "overlap_1km_pct": 76.61290322580645,
-      "overlap_2km_pct": 90.82181259600614,
+      "predicted_length_km": 82.32040962335273,
+      "length_error_pct": 11.626669087119003,
+      "hausdorff_m": 7336.278758455553,
+      "mean_distance_m": 2023.312270357075,
+      "overlap_500m_pct": 31.19747899159664,
+      "overlap_1km_pct": 45.65826330532213,
+      "overlap_2km_pct": 59.73389355742297,
       "quality_passed": true,
       "quality_n_passed": 7,
       "quality_n_total": 7,
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 192,
-      "n_predicted_vertices": 2604,
+      "n_predicted_vertices": 2856,
       "start": [
         24.69162919962348,
         120.98572839962902
@@ -186,17 +186,17 @@
       "quality_checks": {
         "1_slope": {
           "passed": true,
-          "value": 44.37613296508789,
+          "value": 43.62228775024414,
           "threshold": 45,
-          "detail": "最大坡度 44.4° ≤ 45°"
+          "detail": "最大坡度 43.6° ≤ 45°"
         },
         "2_water": {
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "20.47%",
+          "violation_rate": "18.31%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 20.47% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 18.31% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -206,27 +206,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 21.95088396116666,
+          "value": 22.412168850867324,
           "threshold": 50,
-          "detail": "最大转角 22.0° ≤ 50°"
+          "detail": "最大转角 22.4° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.4186343720994046,
+          "value": 1.5432265756835026,
           "threshold": 3.0,
-          "detail": "弯曲度 1.42 ≤ 3.0 (路径75.7km/直线53.3km)"
+          "detail": "弯曲度 1.54 ≤ 3.0 (路径82.3km/直线53.3km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 568.6913452148438,
+          "value": 527.8889770507812,
           "threshold": 2500,
-          "detail": "最大连续升降 569m ≤ 2500m"
+          "detail": "最大连续升降 528m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.32422018726267193,
+          "value": 0.17568537527117312,
           "threshold": 3.0,
-          "detail": "成本比 0.32 (均值0.0451/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.18 (均值0.0243/中位0.1382) ≤ 3.0"
         }
       }
     },
@@ -236,20 +236,20 @@
       "description": "台东花东纵谷线(东台湾, 161kV, 中距离)",
       "voltage": "161000",
       "real_length_km": 70.61967789727485,
-      "predicted_length_km": 70.2794908827407,
-      "length_error_pct": 0.48171702939370015,
-      "hausdorff_m": 2826.0899004837247,
-      "mean_distance_m": 718.2363203372182,
-      "overlap_500m_pct": 35.953177257525084,
-      "overlap_1km_pct": 82.35785953177258,
-      "overlap_2km_pct": 96.53010033444816,
+      "predicted_length_km": 70.61721594363895,
+      "length_error_pct": 0.003486214762240067,
+      "hausdorff_m": 3144.9803067598327,
+      "mean_distance_m": 997.7513689889881,
+      "overlap_500m_pct": 8.236272878535774,
+      "overlap_1km_pct": 67.97004991680532,
+      "overlap_2km_pct": 95.00831946755409,
       "quality_passed": true,
       "quality_n_passed": 7,
       "quality_n_total": 7,
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 209,
-      "n_predicted_vertices": 2392,
+      "n_predicted_vertices": 2404,
       "start": [
         22.783302300041026,
         121.0900276002206
@@ -261,17 +261,17 @@
       "quality_checks": {
         "1_slope": {
           "passed": true,
-          "value": 33.32123565673828,
+          "value": 34.53048324584961,
           "threshold": 45,
-          "detail": "最大坡度 33.3° ≤ 45°"
+          "detail": "最大坡度 34.5° ≤ 45°"
         },
         "2_water": {
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "8.44%",
+          "violation_rate": "9.07%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 8.44% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 9.07% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -281,27 +281,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 20.53702527789033,
+          "value": 20.055761854382883,
           "threshold": 50,
-          "detail": "最大转角 20.5° ≤ 50°"
+          "detail": "最大转角 20.1° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.078956288548867,
+          "value": 1.0841411664368512,
           "threshold": 3.0,
-          "detail": "弯曲度 1.08 ≤ 3.0 (路径70.3km/直线65.1km)"
+          "detail": "弯曲度 1.08 ≤ 3.0 (路径70.6km/直线65.1km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 223.43209838867188,
+          "value": 182.54319763183594,
           "threshold": 2500,
-          "detail": "最大连续升降 223m ≤ 2500m"
+          "detail": "最大连续升降 183m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.3828401515771757,
+          "value": 0.24505195310481634,
           "threshold": 3.0,
-          "detail": "成本比 0.38 (均值0.0533/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.25 (均值0.0339/中位0.1382) ≤ 3.0"
         }
       }
     },
@@ -311,20 +311,20 @@
       "description": "台中山线(中台湾山区, 345kV, 中距离)",
       "voltage": "345000",
       "real_length_km": 53.37743561102881,
-      "predicted_length_km": 56.357581731756106,
-      "length_error_pct": 5.583157164844281,
-      "hausdorff_m": 13331.668608975986,
-      "mean_distance_m": 6784.9473906070225,
-      "overlap_500m_pct": 2.1461420541645375,
-      "overlap_1km_pct": 4.087889626980071,
-      "overlap_2km_pct": 7.869187531936637,
+      "predicted_length_km": 51.372981094329226,
+      "length_error_pct": 3.7552469386247975,
+      "hausdorff_m": 10929.524315722838,
+      "mean_distance_m": 6188.4411069274165,
+      "overlap_500m_pct": 2.364864864864865,
+      "overlap_1km_pct": 4.504504504504505,
+      "overlap_2km_pct": 8.67117117117117,
       "quality_passed": true,
       "quality_n_passed": 7,
       "quality_n_total": 7,
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 122,
-      "n_predicted_vertices": 1957,
+      "n_predicted_vertices": 1776,
       "start": [
         23.89023299968606,
         120.76991649976493
@@ -344,9 +344,9 @@
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "14.26%",
+          "violation_rate": "15.32%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 14.26% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 15.32% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -356,27 +356,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 11.948910362410343,
+          "value": 10.085806807030329,
           "threshold": 50,
-          "detail": "最大转角 11.9° ≤ 50°"
+          "detail": "最大转角 10.1° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.3459802101329648,
+          "value": 1.226933693103078,
           "threshold": 3.0,
-          "detail": "弯曲度 1.35 ≤ 3.0 (路径56.4km/直线41.9km)"
+          "detail": "弯曲度 1.23 ≤ 3.0 (路径51.4km/直线41.9km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 375.7654113769531,
+          "value": 413.9506072998047,
           "threshold": 2500,
-          "detail": "最大连续升降 376m ≤ 2500m"
+          "detail": "最大连续升降 414m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.32104271356948677,
+          "value": 0.18288306661120823,
           "threshold": 3.0,
-          "detail": "成本比 0.32 (均值0.0447/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.18 (均值0.0253/中位0.1382) ≤ 3.0"
         }
       }
     },
@@ -386,20 +386,20 @@
       "description": "台中苗栗线(中西部, 161kV, 中距离)",
       "voltage": "161000",
       "real_length_km": 55.99732102111544,
-      "predicted_length_km": 65.99996943111954,
-      "length_error_pct": 17.862726694072215,
-      "hausdorff_m": 12308.823683840126,
-      "mean_distance_m": 6355.41406485422,
-      "overlap_500m_pct": 6.151832460732985,
-      "overlap_1km_pct": 8.289703315881326,
-      "overlap_2km_pct": 15.008726003490402,
+      "predicted_length_km": 72.92120716460721,
+      "length_error_pct": 30.22267107583615,
+      "hausdorff_m": 12390.336014424835,
+      "mean_distance_m": 6481.136339120845,
+      "overlap_500m_pct": 6.640471512770138,
+      "overlap_1km_pct": 8.172888015717092,
+      "overlap_2km_pct": 11.119842829076621,
       "quality_passed": true,
       "quality_n_passed": 7,
       "quality_n_total": 7,
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 180,
-      "n_predicted_vertices": 2292,
+      "n_predicted_vertices": 2545,
       "start": [
         24.263969399666628,
         120.73799830040308
@@ -411,17 +411,17 @@
       "quality_checks": {
         "1_slope": {
           "passed": true,
-          "value": 39.56654739379883,
+          "value": 41.16740036010742,
           "threshold": 45,
-          "detail": "最大坡度 39.6° ≤ 45°"
+          "detail": "最大坡度 41.2° ≤ 45°"
         },
         "2_water": {
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "19.24%",
+          "violation_rate": "18.98%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 19.24% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 18.98% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -431,27 +431,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 12.777909419274566,
+          "value": 20.637387644596725,
           "threshold": 50,
-          "detail": "最大转角 12.8° ≤ 50°"
+          "detail": "最大转角 20.6° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.2387255649278652,
+          "value": 1.368627354206151,
           "threshold": 3.0,
-          "detail": "弯曲度 1.24 ≤ 3.0 (路径66.0km/直线53.3km)"
+          "detail": "弯曲度 1.37 ≤ 3.0 (路径72.9km/直线53.3km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 433.629638671875,
+          "value": 328.95062255859375,
           "threshold": 2500,
-          "detail": "最大连续升降 434m ≤ 2500m"
+          "detail": "最大连续升降 329m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.2549000012259474,
+          "value": 0.16484740537972212,
           "threshold": 3.0,
-          "detail": "成本比 0.25 (均值0.0355/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.16 (均值0.0228/中位0.1382) ≤ 3.0"
         }
       }
     },
@@ -461,20 +461,20 @@
       "description": "南台湾联络线(345kV, 中距离)",
       "voltage": "345000",
       "real_length_km": 32.30697405479281,
-      "predicted_length_km": 31.30880906337463,
-      "length_error_pct": 3.089626994237494,
-      "hausdorff_m": 4351.832630034433,
-      "mean_distance_m": 1756.955743447559,
-      "overlap_500m_pct": 32.02195791399817,
-      "overlap_1km_pct": 51.78408051235132,
-      "overlap_2km_pct": 58.5544373284538,
+      "predicted_length_km": 34.44982902096884,
+      "length_error_pct": 6.632793781744267,
+      "hausdorff_m": 5187.782089418084,
+      "mean_distance_m": 2652.648197136891,
+      "overlap_500m_pct": 7.249999999999999,
+      "overlap_1km_pct": 13.5,
+      "overlap_2km_pct": 36.333333333333336,
       "quality_passed": true,
       "quality_n_passed": 7,
       "quality_n_total": 7,
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 95,
-      "n_predicted_vertices": 1093,
+      "n_predicted_vertices": 1200,
       "start": [
         22.419643099633863,
         120.61007010024228
@@ -494,9 +494,9 @@
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "10.43%",
+          "violation_rate": "7.25%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 10.43% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 7.25% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -506,27 +506,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 13.947251249277379,
+          "value": 16.818127783676385,
           "threshold": 50,
-          "detail": "最大转角 13.9° ≤ 50°"
+          "detail": "最大转角 16.8° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.1838633566855281,
+          "value": 1.3026330749104127,
           "threshold": 3.0,
-          "detail": "弯曲度 1.18 ≤ 3.0 (路径31.3km/直线26.4km)"
+          "detail": "弯曲度 1.30 ≤ 3.0 (路径34.4km/直线26.4km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 52.41975402832031,
+          "value": 58.61728525161743,
           "threshold": 2500,
-          "detail": "最大连续升降 52m ≤ 2500m"
+          "detail": "最大连续升降 59m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.3620561909523346,
+          "value": 0.215287183515892,
           "threshold": 3.0,
-          "detail": "成本比 0.36 (均值0.0504/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.22 (均值0.0297/中位0.1382) ≤ 3.0"
         }
       }
     },
@@ -536,20 +536,20 @@
       "description": "中部横贯线(345kV, 长距离山区)",
       "voltage": "345000",
       "real_length_km": 42.16136500325234,
-      "predicted_length_km": 41.247413027186454,
-      "length_error_pct": 2.1677475954476,
-      "hausdorff_m": 2184.5399700722305,
-      "mean_distance_m": 820.4928338438809,
-      "overlap_500m_pct": 44.52198185624564,
-      "overlap_1km_pct": 61.82833217027216,
-      "overlap_2km_pct": 94.4870900209351,
+      "predicted_length_km": 43.22083701250115,
+      "length_error_pct": 2.5128977896400637,
+      "hausdorff_m": 3723.0297351866375,
+      "mean_distance_m": 1928.3623238595947,
+      "overlap_500m_pct": 8.649367930805056,
+      "overlap_1km_pct": 18.62940785096474,
+      "overlap_2km_pct": 52.82767797737857,
       "quality_passed": true,
       "quality_n_passed": 7,
       "quality_n_total": 7,
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 109,
-      "n_predicted_vertices": 1433,
+      "n_predicted_vertices": 1503,
       "start": [
         23.89151650023054,
         120.76841830031387
@@ -561,17 +561,17 @@
       "quality_checks": {
         "1_slope": {
           "passed": true,
-          "value": 25.142114639282227,
+          "value": 22.553085327148438,
           "threshold": 45,
-          "detail": "最大坡度 25.1° ≤ 45°"
+          "detail": "最大坡度 22.6° ≤ 45°"
         },
         "2_water": {
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "12.14%",
+          "violation_rate": "16.23%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 12.14% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 16.23% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -581,27 +581,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 10.112968424959089,
+          "value": 16.282074623148567,
           "threshold": 50,
-          "detail": "最大转角 10.1° ≤ 50°"
+          "detail": "最大转角 16.3° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.0467308278313947,
+          "value": 1.0968101799703833,
           "threshold": 3.0,
-          "detail": "弯曲度 1.05 ≤ 3.0 (路径41.2km/直线39.4km)"
+          "detail": "弯曲度 1.10 ≤ 3.0 (路径43.2km/直线39.4km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 135.30865478515625,
+          "value": 182.6913604736328,
           "threshold": 2500,
-          "detail": "最大连续升降 135m ≤ 2500m"
+          "detail": "最大连续升降 183m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.24613032692120682,
+          "value": 0.16957067786071148,
           "threshold": 3.0,
-          "detail": "成本比 0.25 (均值0.0342/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.17 (均值0.0234/中位0.1382) ≤ 3.0"
         }
       }
     },
@@ -611,20 +611,20 @@
       "description": "北部沿海线(345kV, 中距离)",
       "voltage": "345000",
       "real_length_km": 34.03797565084753,
-      "predicted_length_km": 31.725285551476478,
-      "length_error_pct": 6.794440783124143,
-      "hausdorff_m": 3688.2287432963954,
-      "mean_distance_m": 1298.2586173383647,
-      "overlap_500m_pct": 31.69845594913715,
-      "overlap_1km_pct": 55.858310626703,
-      "overlap_2km_pct": 72.20708446866485,
+      "predicted_length_km": 31.042714785563348,
+      "length_error_pct": 8.799762054032728,
+      "hausdorff_m": 3501.510676613325,
+      "mean_distance_m": 1266.7338350174252,
+      "overlap_500m_pct": 32.71375464684015,
+      "overlap_1km_pct": 48.79182156133829,
+      "overlap_2km_pct": 75.55762081784387,
       "quality_passed": true,
       "quality_n_passed": 7,
       "quality_n_total": 7,
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 110,
-      "n_predicted_vertices": 1101,
+      "n_predicted_vertices": 1076,
       "start": [
         24.820373899701156,
         121.19504449992695
@@ -636,17 +636,17 @@
       "quality_checks": {
         "1_slope": {
           "passed": true,
-          "value": 22.187950134277344,
+          "value": 24.963685989379883,
           "threshold": 45,
-          "detail": "最大坡度 22.2° ≤ 45°"
+          "detail": "最大坡度 25.0° ≤ 45°"
         },
         "2_water": {
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "10.17%",
+          "violation_rate": "7.90%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 10.17% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 7.90% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -656,27 +656,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 22.301934969995077,
+          "value": 8.822199488909515,
           "threshold": 50,
-          "detail": "最大转角 22.3° ≤ 50°"
+          "detail": "最大转角 8.8° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.0873833505306356,
+          "value": 1.063988254993715,
           "threshold": 3.0,
-          "detail": "弯曲度 1.09 ≤ 3.0 (路径31.7km/直线29.2km)"
+          "detail": "弯曲度 1.06 ≤ 3.0 (路径31.0km/直线29.2km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 71.96298217773438,
+          "value": 125.77777862548828,
           "threshold": 2500,
-          "detail": "最大连续升降 72m ≤ 2500m"
+          "detail": "最大连续升降 126m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.2832642100019875,
+          "value": 0.13904070422480533,
           "threshold": 3.0,
-          "detail": "成本比 0.28 (均值0.0394/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.14 (均值0.0192/中位0.1382) ≤ 3.0"
         }
       }
     },
@@ -686,11 +686,11 @@
       "description": "东部联络线(161kV, 中距离)",
       "voltage": "161000",
       "real_length_km": 48.23385007533535,
-      "predicted_length_km": 48.06586012095248,
-      "length_error_pct": 0.34828228333522737,
-      "hausdorff_m": 732.9840378299617,
-      "mean_distance_m": 391.5209694802486,
-      "overlap_500m_pct": 85.79301898346601,
+      "predicted_length_km": 48.14629300060532,
+      "length_error_pct": 0.1815261991179956,
+      "hausdorff_m": 765.5204524449213,
+      "mean_distance_m": 326.2581222982189,
+      "overlap_500m_pct": 85.09468540012217,
       "overlap_1km_pct": 100.0,
       "overlap_2km_pct": 100.0,
       "quality_passed": true,
@@ -699,7 +699,7 @@
       "acceptable": true,
       "fail_reason": "NONE",
       "n_real_vertices": 143,
-      "n_predicted_vertices": 1633,
+      "n_predicted_vertices": 1637,
       "start": [
         23.721244899786804,
         121.43028030017533
@@ -719,9 +719,9 @@
           "passed": true,
           "value": 0.0,
           "threshold": 30,
-          "violation_rate": "11.76%",
+          "violation_rate": "10.63%",
           "p95_dist": 0.0,
-          "detail": "最小水域距离 0m, 违规率 11.76% ≤25% (阈值30m)"
+          "detail": "最小水域距离 0m, 违规率 10.63% ≤25% (阈值30m)"
         },
         "3_protected": {
           "passed": true,
@@ -731,27 +731,27 @@
         },
         "4_curvature": {
           "passed": true,
-          "value": 20.38334173017994,
+          "value": 20.149252024486184,
           "threshold": 50,
-          "detail": "最大转角 20.4° ≤ 50°"
+          "detail": "最大转角 20.1° ≤ 50°"
         },
         "5_sinuosity": {
           "passed": true,
-          "value": 1.0718781813674922,
+          "value": 1.0736718504820673,
           "threshold": 3.0,
           "detail": "弯曲度 1.07 ≤ 3.0 (路径48.1km/直线44.8km)"
         },
         "6_elevation": {
           "passed": true,
-          "value": 384.0617370605469,
+          "value": 429.08642578125,
           "threshold": 2500,
-          "detail": "最大连续升降 384m ≤ 2500m"
+          "detail": "最大连续升降 429m ≤ 2500m"
         },
         "7_cost": {
           "passed": true,
-          "value": 0.3774495934227567,
+          "value": 0.24392089752174384,
           "threshold": 3.0,
-          "detail": "成本比 0.38 (均值0.0525/中位0.1391) ≤ 3.0"
+          "detail": "成本比 0.24 (均值0.0337/中位0.1382) ≤ 3.0"
         }
       }
     }

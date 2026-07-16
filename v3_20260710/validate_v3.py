@@ -142,8 +142,10 @@ def validate_single_line_v3(
         import numpy as np
         cnn_cost_raw = np.load(cnn_path)  # (H, W), 已含 hard_mask=inf
         dist_existing = aligned.get("dist_existing_line")
+        # CNN 输出已平滑, 不做高斯滤波 (smooth_sigma=0), 避免inf边缘极值
         final_cost = fuse_cost_surface(
             cnn_cost_raw, soft_mask, hard_mask, dist_existing=dist_existing,
+            smooth_sigma=0.0,
         )
         print("  [CNN] 使用 CNN 成本表面")
     else:

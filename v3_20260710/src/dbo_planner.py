@@ -41,8 +41,8 @@ class DBOPlanner(BaseSwarmPlanner):
     在更宽的 30km 走廊内独立探索。
     """
 
-    # DBO 不走 A* 热启动，全随机初始化 + 独立惩罚权重以区别于 IPSO-SA
-    _USE_ASTAR_HOTSTART = False
+    # DBO 在 CNN 表面使用 A* 热启动 (复杂表面需要起点), 独立惩罚权重保持差异
+    _USE_ASTAR_HOTSTART = True
 
     def __init__(
         self,
