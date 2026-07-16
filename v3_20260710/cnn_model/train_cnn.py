@@ -15,10 +15,10 @@ import time
 # ── 超参数 ──
 BATCH_SIZE = 8
 LR = 1e-3
-EPOCHS = 30
-TILE_SIZE = 128          # 滑动窗口大小
-TRAIN_RATIO = 0.8         # 训练/验证比例
-MAX_TRAIN_SAMPLES = 20000 # 最多训练样本数
+EPOCHS = 80
+TILE_SIZE = 128
+TRAIN_RATIO = 0.8
+MAX_TRAIN_SAMPLES = 20000
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ── U-Net 模型 ──
