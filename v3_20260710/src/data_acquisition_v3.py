@@ -24,6 +24,49 @@ import config as cfg
 
 
 # ============================================================
+# DEM 重采样辅助函数
+# ============================================================
+def _resample_dem_to_standard(dem, src_transform, src_crs):
+    """将任意分辨率/CRS的DEM重采样到WGS84 90m标准网格"""
+    from rasterio.warp import reproject, Resampling, transform_bounds
+    from rasterio.transform import from_origin
+
+    target_crs = "EPSG:4326"
+    target_res_deg = cfg.BASE_RESOLUTION / cfg.METERS_PER_DEG
+    bbox = cfg.TAIWAN_BBOX
+
+    target_width = int((bbox[2] - bbox[0]) / target_res_deg)
+    target_height = int((bbox[3] - bbox[1]) / target_res_deg)
+    target_transform = from_origin(bbox[0], bbox[3], target_res_deg, target_res_deg)
+
+    if "WGS84" not in str(src_crs).upper() and "4326" not in str(src_crs):
+        dem_bounds = transform_bounds(
+            src_crs, target_crs,
+            src_transform.c,
+            src_transform.f + src_transform.e * dem.shape[0],
+            src_transform.c + src_transform.a * dem.shape[1],
+            src_transform.f,
+        )
+    else:
+        dem_bounds = (
+            src_transform.c,
+            src_transform.f + src_transform.e * dem.shape[0],
+            src_transform.c + src_transform.a * dem.shape[1],
+            src_transform.f,
+        )
+
+    dem_wgs = np.zeros((target_height, target_width), dtype=np.float32)
+    reproject(
+        dem.astype(np.float32), dem_wgs,
+        src_transform=src_transform, dst_transform=target_transform,
+        src_crs=src_crs, dst_crs=target_crs,
+        resampling=Resampling.bilinear,
+    )
+    print(f"  DEM重采样: {dem.shape}({src_crs}) → {dem_wgs.shape}(WGS84 90m)")
+    return dem_wgs, target_transform, target_crs
+
+
+# ============================================================
 # DEM 加载
 # ============================================================
 def load_dem():
@@ -400,8 +443,9 @@ def acquire_all():
     """获取所有原始数据，返回字典"""
     result = {}
 
-    # 1. DEM
-    dem, transform, crs, meta = load_dem()
+    # 1. DEM — 加载后立即重采样到WGS84 90m标准网格
+    dem_raw, transform_raw, crs_raw, meta = load_dem()
+    dem, transform, crs = _resample_dem_to_standard(dem_raw, transform_raw, crs_raw)
     result["dem"] = dem
     result["dem_transform"] = transform
     result["dem_crs"] = crs

@@ -56,16 +56,23 @@ except ImportError:
 # ============================================================
 # 成本表面融合
 # ============================================================
-def fuse_cost_surface(rf_cost, soft_mask, hard_mask, dist_existing=None, smooth_sigma=1.0):
-    """融合成本表面"""
+def fuse_cost_surface(rf_cost, soft_mask, hard_mask, dist_existing=None, smooth_sigma=1.0,
+                      corridor_min: float = 0.02, corridor_range: float = 1000.0):
+    """融合成本表面
+
+    Args:
+        corridor_min: 最低折扣底线 (默认0.02=98%折扣)
+        corridor_range: 折扣影响半径(米) (默认1000m)
+    """
     print("[Phase4] 融合成本表面...")
     rf_cost = np.nan_to_num(rf_cost, nan=np.nanmean(rf_cost[rf_cost < np.inf]) if (rf_cost < np.inf).any() else 0.5)
     rf_cost = np.clip(rf_cost, 0, None)
     final_cost = rf_cost.copy().astype(np.float64)
     if dist_existing is not None:
-        corridor_bonus = 0.02 + 0.98 * np.clip(dist_existing / 1000.0, 0, 1)
+        corridor_strength = 1.0 - corridor_min
+        corridor_bonus = corridor_min + corridor_strength * np.clip(dist_existing / corridor_range, 0, 1)
         final_cost = final_cost * corridor_bonus.astype(np.float64)
-        print(f"  走廊偏好已应用 (线性斜坡至1000m, 最多98%折扣)")
+        print(f"  走廊偏好已应用 (线性斜坡至300m, 最多70%折扣)")
     if soft_mask is not None:
         soft_mask = np.nan_to_num(soft_mask, nan=1.0)
         soft_mask = np.clip(soft_mask, 0.01, 1.0)

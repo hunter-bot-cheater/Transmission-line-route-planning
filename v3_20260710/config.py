@@ -29,16 +29,20 @@ OUTPUT_DIR = V3_DIR / "output"
 # 通用群体智能参数
 # ============================================================
 # 路标点密度 (每公里直线距离的路标点数)
-SWARM_WAYPOINTS_PER_KM = 1.5
+SWARM_WAYPOINTS_PER_KM = 3.0
 
 # 搜索走廊宽度 (km, 限制种群在起终点连线附近)
-SWARM_CORRIDOR_WIDTH_KM = 15.0
+SWARM_CORRIDOR_WIDTH_KM = 30.0
 
 # 硬约束惩罚系数 (适应度 = 平均成本 + 硬约束违规比例 * HARD_PENALTY)
 SWARM_HARD_PENALTY = 100.0
 
 # 回退惩罚系数 (路标点顺序倒退的惩罚)
 SWARM_BACKWARD_PENALTY = 10.0
+
+# DBO 独立惩罚参数 — 更低硬约束惩罚鼓励探索禁区边缘, 更高回退惩罚保持方向
+DBO_HARD_PENALTY = 50.0
+DBO_BACKWARD_PENALTY = 30.0
 
 # 收敛早停代数 (连续多少代最优解无改进则停止)
 SWARM_EARLY_STOP_STALL = 50
