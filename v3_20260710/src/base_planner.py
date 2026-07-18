@@ -321,15 +321,9 @@ class BaseSwarmPlanner:
     # ============================================================
     @staticmethod
     def create(algo_type: str, **kwargs):
-        """工厂方法: 根据算法类型创建规划器实例
-
-        Args:
-            algo_type: "A*" | "IPSO-SA" | "DBO"
-            **kwargs: 传递给具体规划器的参数
-        """
+        """工厂方法: 根据算法类型创建规划器实例"""
         from ipso_sa_planner import IPSOSAPlanner
         from dbo_planner import DBOPlanner
-
         planners = {
             "ipso_sa": IPSOSAPlanner,
             "IPSO-SA": IPSOSAPlanner,

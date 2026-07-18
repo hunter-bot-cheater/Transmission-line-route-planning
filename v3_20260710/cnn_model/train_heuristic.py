@@ -10,9 +10,9 @@ _shared_dir = _v3_dir.parent / "shared"
 for _d in reversed([str(_v3_dir / "src"), str(_v3_dir), str(_v2_dir), str(_v2_src), str(_shared_dir)]):
     sys.path.insert(0, _d)
 
-import numpy as np
+import numpy as np, math
 import torch, torch.nn as nn, torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 import time
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -24,7 +24,7 @@ import config as cfg
 from data_acquisition_v3 import load_taiwan_lines, acquire_all
 from preprocessing import derive_terrain_factors, generate_hard_mask, generate_soft_mask, align_all_rasters
 from cost_model import build_feature_stack, generate_pseudo_labels, train_random_forest, predict_cost_surface
-from path_planning import fuse_cost_surface, astar_search, smooth_path, compute_path_length_km, haversine_m, geo_to_grid
+from path_planning import fuse_cost_surface, astar_search, haversine_m, geo_to_grid
 
 # 预处理 (复用管线)
 t0 = time.time()
@@ -59,18 +59,16 @@ for case in cfg.TEST_CASES[:5]:  # 只用前5条线路训练
     elat, elon = rc[-1][1], rc[-1][0]
     start_rc = geo_to_grid(slat, slon, dst_transform)
     end_rc = geo_to_grid(elat, elon, dst_transform)
-    end_latlon = (elat, elon)
 
     path = astar_search(final_cost, start_rc, end_rc)
     if path is None: continue
 
     # 从终点向前回溯, 计算每步的真实剩余代价
-    H, W, C = feature_stack.shape
     total_cost = 0.0
-    for i in range(len(path)-2, -1, -1):  # 从倒数第二步回溯到起点
+    for i in range(len(path)-2, -1, -1):
         r, c = path[i]
         nr, nc = path[i+1]
-        step_cost = final_cost[nr, nc] * (np.sqrt(2) if r!=nr and c!=nc else 1.0)
+        step_cost = final_cost[nr, nc] * (math.sqrt(2) if r!=nr and c!=nc else 1.0)
         total_cost += step_cost
         feat = feature_stack[r, c, :]  # (18,)
         dist_to_goal = haversine_m(elon, elat, dst_transform.c + c*dst_transform.a, dst_transform.f + r*dst_transform.e)

@@ -137,7 +137,7 @@ def validate_single_line_v3(
     case_output.mkdir(parents=True, exist_ok=True)
 
     # 成本表面 — 优先使用 CNN 模型 (如果存在)
-    cnn_path = Path(__file__).resolve().parent / "cnn_model" / "cnn_cost_surface.npy"
+    cnn_path = cfg.CNN_COST_SURFACE_PATH
     if cnn_path.exists():
         import numpy as np
         cnn_cost_raw = np.load(cnn_path)  # (H, W), 已含 hard_mask=inf
@@ -241,7 +241,7 @@ def validate_single_line_v3(
     # ── 算法 3: DBO ──
     print("\n  [DBO] 运行中...")
     t0 = time.time()
-    # DBO 使用与 A*/IPSO-SA 相同的成本表面 (CNN 或 RF)
+    # DBO 使用统一成本表面 (CNN或RF), 通过独立惩罚权重+种群参数保持差异化
     try:
         dbo_path, dbo_quality, dbo_info = dbo_plan_path(
             cost_surface=final_cost,
