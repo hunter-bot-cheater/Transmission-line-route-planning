@@ -37,7 +37,9 @@ def _resample_dem_to_standard(dem, src_transform, src_crs):
 
     target_width = int((bbox[2] - bbox[0]) / target_res_deg)
     target_height = int((bbox[3] - bbox[1]) / target_res_deg)
-    target_transform = from_origin(bbox[0], bbox[3], target_res_deg, target_res_deg)
+    # from_origin y_step应为负值(north-up栅格)
+    target_transform = from_origin(bbox[0], bbox[3], target_res_deg, -target_res_deg)
+    print(f"  DEM重采样目标: {target_width}x{target_height} (90m WGS84)")
 
     if "WGS84" not in str(src_crs).upper() and "4326" not in str(src_crs):
         dem_bounds = transform_bounds(

@@ -2,7 +2,7 @@
   "case_id": "case_07",
   "algorithm": "DBO",
   "passed": false,
-  "n_passed": 6,
+  "n_passed": 5,
   "n_total": 7,
   "checks": {
     "1_slope": {
@@ -15,9 +15,9 @@
       "passed": true,
       "value": 0.0,
       "threshold": 30,
-      "violation_rate": "8.83%",
+      "violation_rate": "9.12%",
       "p95_dist": 0.0,
-      "detail": "最小水域距离 0m, 违规率 8.83% ≤25% (阈值30m)"
+      "detail": "最小水域距离 0m, 违规率 9.12% ≤25% (阈值30m)"
     },
     "3_protected": {
       "passed": true,
@@ -27,27 +27,27 @@
     },
     "4_curvature": {
       "passed": false,
-      "value": 164.6233179778405,
+      "value": 167.1067688775736,
       "threshold": 50,
-      "detail": "最大转角 164.6° > 50°"
+      "detail": "最大转角 167.1° > 50°"
     },
     "5_sinuosity": {
       "passed": true,
-      "value": 1.801079592876078,
+      "value": 1.7461123737642674,
       "threshold": 3.0,
-      "detail": "弯曲度 1.80 ≤ 3.0 (路径47.6km/直线26.4km)"
+      "detail": "弯曲度 1.75 ≤ 3.0 (路径46.2km/直线26.4km)"
     },
     "6_elevation": {
       "passed": true,
-      "value": 55.950618743896484,
+      "value": 54.246914863586426,
       "threshold": 2500,
-      "detail": "最大连续升降 56m ≤ 2500m"
+      "detail": "最大连续升降 54m ≤ 2500m"
     },
     "7_cost": {
-      "passed": true,
-      "value": 0.21664473978181628,
+      "passed": false,
+      "value": 8.701274903905652e+33,
       "threshold": 3.0,
-      "detail": "成本比 0.22 (均值0.0301/中位0.1389) ≤ 3.0"
+      "detail": "成本比 8701274903905651558347951161999360.00 (均值1208818271649741891224346979991552.0000/中位0.1389) > 3.0"
     }
   }
 }

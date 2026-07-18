@@ -2,11 +2,11 @@
   "case_id": "case_01",
   "algorithm": "IPSO-SA",
   "version": "v3",
-  "length_km": 57.53249156718803,
-  "elevation_min_m": 12.0,
-  "elevation_max_m": 656.2963256835938,
-  "elevation_mean_m": 221.53592291883453,
-  "slope_max_deg": 46.76726531982422,
-  "slope_mean_deg": 16.963152312456717,
-  "hard_constraint_violations": 3
+  "length_km": 52.96704592914095,
+  "elevation_min_m": 0.0,
+  "elevation_max_m": 233.8518524169922,
+  "elevation_mean_m": 26.365096001745886,
+  "slope_max_deg": 31.949281692504883,
+  "slope_mean_deg": 4.4709746701775686,
+  "hard_constraint_violations": 0
 }
