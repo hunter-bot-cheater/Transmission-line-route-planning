@@ -147,7 +147,7 @@ class IPSOSAPlanner(BaseSwarmPlanner):
     # ============================================================
     # 重写: 初始化 (额外初始化速度和个体最优)
     # ============================================================
-    def optimize(self, verbose: bool = True, use_astar_hotstart: bool = True):
+    def optimize(self, verbose: bool = True):
         """运行 IPSO-SA 优化 (初始化速度+个体最优后调用父类主循环)"""
         # 先调父类初始化种群
         import time
@@ -155,7 +155,7 @@ class IPSOSAPlanner(BaseSwarmPlanner):
 
         if verbose:
             print(f"[{self.algorithm_name}] 初始化种群...")
-        self.population = self._initialize_population(use_astar_hotstart=use_astar_hotstart)
+        self.population = self._initialize_population()
 
         # 初始化速度为零
         self.velocity = np.zeros_like(self.population)

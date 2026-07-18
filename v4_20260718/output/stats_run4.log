@@ -1,0 +1,89 @@
+============================================================
+  V3 统计显著性检验 — 10次独立运行
+============================================================
+
+[Phase 1-2] 数据获取 + 预处理...
+[Phase1] 加载台湾DEM...
+  DEM加载完成: (12600, 7200), 范围: (120.0, 21.9, 122.0, 25.4)
+  DEM重采样: (12600, 7200)(EPSG:4326) → (4329, 2473)(WGS84 90m)
+[Phase1] 加载输电线数据...
+  原始输电线: 1795 条
+  台湾地区输电线: 1795 条
+  使用缓存: taiwan_roads
+  OSM道路: 71028 条
+  使用缓存: taiwan_water
+  OSM水域: 106933 条
+  使用缓存: taiwan_protected
+  OSM保护区: 145 个
+  使用缓存: taiwan_landuse
+  OSM土地利用: 207717 个
+  使用缓存: taiwan_buildings
+  OSM建筑: 568464 个
+  使用缓存: taiwan_railways
+  OSM铁路: 8527 条
+  使用缓存: taiwan_airports
+  OSM机场: 19 个
+[Phase1] 生成台风风险层...
+  台风风险层完成
+[Phase1] 生成地震风险层...
+  地震风险层完成
+[Phase1] 生成滑坡风险层...
+  滑坡风险层完成
+[Phase1] 数据获取完成
+
+[Phase2] 提取地形因子...
+  - 坡度完成
+  - 坡向完成
+  - TRI完成
+  - TPI完成
+  - 曲率完成
+  - 粗糙度完成
+[Phase2] 栅格对齐至统一分辨率...
+  目标分辨率: 90m, 网格: 825x1443
+  对齐: dem
+  对齐: slope
+  对齐: aspect_cos
+  对齐: aspect_sin
+  对齐: tri
+  对齐: tpi
+  对齐: profile_curvature
+  对齐: plan_curvature
+  对齐: roughness
+  对齐: typhoon_risk
+  对齐: seismic_risk
+  对齐: landslide_risk
+  计算距离栅格...
+  机场栅格化: 698 像元
+  栅格化土地利用分类...
+    类别1: 60443个面
+    类别2: 43389个面
+    类别3: 560个面
+    类别4: 82591个面
+    类别5: 16190个面
+    类别6: 530个面
+    类别7: 360个面
+    类别8: 3654个面
+    分类分布: [      0       0       0       0       0       0       0 1190475]
+  计算建筑密度...
+    密度范围: 0 - 14 栋/km^2
+[Phase2] 栅格对齐完成
+
+[Phase2] 生成硬约束掩膜 (v2_strict)...
+  坡度>45°禁止: 1281 像元
+  水域未纳入硬约束(WATER_BUFFER=0)
+  自然保护区+200m缓冲区禁止: 0 像元
+  高程>3000m禁止: 6502 像元
+  建筑密度>500栋/km2禁止: 0 像元
+  硬约束禁止区域: 7771 像元 (0.7%)
+[Phase2] 生成软约束掩膜...
+  土地利用软约束已应用 (基于预计算栅格)
+  软约束完成
+[Phase4] 融合成本表面...
+Traceback (most recent call last):
+  File "C:\Users\86133\Desktop\大创项目文件夹\Transmission-line-route-planning\v3_20260710\validate_stats.py", line 57, in <module>
+    final_cost = fuse_cost_surface(cnn_cost_raw, soft_mask, hard_mask, dist_existing=dist_existing, smooth_sigma=0.0)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86133\Desktop\大创项目文件夹\Transmission-line-route-planning\v2_20260525\src\path_planning.py", line 74, in fuse_cost_surface
+    final_cost = final_cost * corridor_bonus.astype(np.float64)
+                 ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ValueError: operands could not be broadcast together with shapes (4201,2401) (1443,825) 

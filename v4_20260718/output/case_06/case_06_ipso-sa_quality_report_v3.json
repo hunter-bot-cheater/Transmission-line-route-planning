@@ -1,0 +1,53 @@
+{
+  "case_id": "case_06",
+  "algorithm": "IPSO-SA",
+  "passed": false,
+  "n_passed": 6,
+  "n_total": 7,
+  "checks": {
+    "1_slope": {
+      "passed": true,
+      "value": 31.3609561920166,
+      "threshold": 45,
+      "detail": "最大坡度 31.4° ≤ 45°"
+    },
+    "2_water": {
+      "passed": true,
+      "value": 0.0,
+      "threshold": 30,
+      "violation_rate": "18.74%",
+      "p95_dist": 0.0,
+      "detail": "最小水域距离 0m, 违规率 18.74% ≤25% (阈值30m)"
+    },
+    "3_protected": {
+      "passed": true,
+      "value": 0,
+      "threshold": 0,
+      "detail": "硬约束违规 0 点 =0 ✓"
+    },
+    "4_curvature": {
+      "passed": true,
+      "value": 1.4787793334710982e-06,
+      "threshold": 50,
+      "detail": "最大转角 0.0° ≤ 50°"
+    },
+    "5_sinuosity": {
+      "passed": true,
+      "value": 1.0000002983031966,
+      "threshold": 3.0,
+      "detail": "弯曲度 1.00 ≤ 3.0 (路径53.3km/直线53.3km)"
+    },
+    "6_elevation": {
+      "passed": true,
+      "value": 192.51852416992188,
+      "threshold": 2500,
+      "detail": "最大连续升降 193m ≤ 2500m"
+    },
+    "7_cost": {
+      "passed": false,
+      "value": 1.1439154164387348e+34,
+      "threshold": 3.0,
+      "detail": "成本比 11439154164387347705751620701650944.00 (均值1589176151637605792364195903176704.0000/中位0.1389) > 3.0"
+    }
+  }
+}
