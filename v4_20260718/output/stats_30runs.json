@@ -1,0 +1,236 @@
+{
+  "cost": "CNN",
+  "n_runs": 30,
+  "results": {
+    "case_01": {
+      "A*": {
+        "hausdorff_mean": 4483.841805364868,
+        "hausdorff_std": 1.8189894035458565e-12,
+        "overlap_mean": 8.053007135575942,
+        "overlap_std": 0.0,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 4469.439949845906,
+        "hausdorff_std": 9.094947017729282e-13,
+        "overlap_mean": 8.11921891058582,
+        "overlap_std": 3.552713678800501e-15,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 20072.30939804726,
+        "hausdorff_std": 16750.362875938015,
+        "overlap_mean": 15.13738861486401,
+        "overlap_std": 20.595100729806628,
+        "n_valid": 30
+      }
+    },
+    "case_02": {
+      "A*": {
+        "hausdorff_mean": 10612.727946862677,
+        "hausdorff_std": 3.637978807091713e-12,
+        "overlap_mean": 17.440081591024985,
+        "overlap_std": 0.0,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 10689.26986008896,
+        "hausdorff_std": 363.3064458037488,
+        "overlap_mean": 17.46490275197124,
+        "overlap_std": 0.774385171699671,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 11874.100456690154,
+        "hausdorff_std": 4554.483974851586,
+        "overlap_mean": 20.386193658979476,
+        "overlap_std": 11.039459621332966,
+        "n_valid": 30
+      }
+    },
+    "case_03": {
+      "A*": {
+        "hausdorff_mean": 3291.9992606428173,
+        "hausdorff_std": 4.547473508864641e-13,
+        "overlap_mean": 33.35854765506807,
+        "overlap_std": 7.105427357601002e-15,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 3256.066033838821,
+        "hausdorff_std": 9.094947017729282e-13,
+        "overlap_mean": 33.69065849923432,
+        "overlap_std": 1.4210854715202004e-14,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 15041.232336571102,
+        "hausdorff_std": 9529.710246700519,
+        "overlap_mean": 6.687415106171191,
+        "overlap_std": 9.637556644144297,
+        "n_valid": 30
+      }
+    },
+    "case_04": {
+      "A*": {
+        "hausdorff_mean": 2640.7587118785136,
+        "hausdorff_std": 4.547473508864641e-13,
+        "overlap_mean": 16.973244147157185,
+        "overlap_std": 3.552713678800501e-15,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 2632.184714641923,
+        "hausdorff_std": 235.68765131707582,
+        "overlap_mean": 17.97943372776278,
+        "overlap_std": 2.3011650384361064,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 3521.9097288875214,
+        "hausdorff_std": 848.0373790562411,
+        "overlap_mean": 23.786313313780493,
+        "overlap_std": 11.319365589660011,
+        "n_valid": 30
+      }
+    },
+    "case_05": {
+      "A*": {
+        "hausdorff_mean": 13490.468934466719,
+        "hausdorff_std": 1.8189894035458565e-12,
+        "overlap_mean": 1.2108980827447027,
+        "overlap_std": 4.440892098500626e-16,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 5855.446477213658,
+        "hausdorff_std": 9.531104460971985,
+        "overlap_mean": 15.036348760225486,
+        "overlap_std": 1.015422969647531,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 11183.115076248567,
+        "hausdorff_std": 8281.079378877792,
+        "overlap_mean": 4.896119961170248,
+        "overlap_std": 6.143078449847162,
+        "n_valid": 30
+      }
+    },
+    "case_06": {
+      "A*": {
+        "hausdorff_mean": 12131.93079885877,
+        "hausdorff_std": 1.8189894035458565e-12,
+        "overlap_mean": 5.712050078247263,
+        "overlap_std": 1.7763568394002505e-15,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 2516.661559009805,
+        "hausdorff_std": 358.0877452268406,
+        "overlap_mean": 40.15675478140111,
+        "overlap_std": 1.7442477152492706,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 13151.149972572464,
+        "hausdorff_std": 8437.778921504208,
+        "overlap_mean": 4.910494358399262,
+        "overlap_std": 3.902211156496927,
+        "n_valid": 30
+      }
+    },
+    "case_07": {
+      "A*": {
+        "hausdorff_mean": 2627.038320278701,
+        "hausdorff_std": 9.094947017729282e-13,
+        "overlap_mean": 49.192100538599625,
+        "overlap_std": 1.4210854715202004e-14,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 5151.836073332435,
+        "hausdorff_std": 9.094947017729282e-13,
+        "overlap_mean": 38.58823529411764,
+        "overlap_std": 7.105427357601002e-15,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 5533.573769528093,
+        "hausdorff_std": 2176.6373709370023,
+        "overlap_mean": 24.940392892469696,
+        "overlap_std": 17.135985673176947,
+        "n_valid": 30
+      }
+    },
+    "case_08": {
+      "A*": {
+        "hausdorff_mean": 3881.698274372478,
+        "hausdorff_std": 9.094947017729282e-13,
+        "overlap_mean": 8.48563968668407,
+        "overlap_std": 1.7763568394002505e-15,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 3277.9001973071668,
+        "hausdorff_std": 199.78713261324012,
+        "overlap_mean": 23.06151219546753,
+        "overlap_std": 0.8682857700209082,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 7685.710847279978,
+        "hausdorff_std": 7391.380148580573,
+        "overlap_mean": 17.090544982820347,
+        "overlap_std": 12.210674861869462,
+        "n_valid": 30
+      }
+    },
+    "case_09": {
+      "A*": {
+        "hausdorff_mean": 3515.6799460040193,
+        "hausdorff_std": 0.0,
+        "overlap_mean": 28.911564625850346,
+        "overlap_std": 7.105427357601002e-15,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 3602.101692880798,
+        "hausdorff_std": 86.44728177847107,
+        "overlap_mean": 5.031892114053194,
+        "overlap_std": 0.4597782351325466,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 7823.604900893264,
+        "hausdorff_std": 6745.138054453312,
+        "overlap_mean": 13.139253455209653,
+        "overlap_std": 8.048521458770889,
+        "n_valid": 30
+      }
+    },
+    "case_10": {
+      "A*": {
+        "hausdorff_mean": 718.9125081783318,
+        "hausdorff_std": 1.1368683772161603e-13,
+        "overlap_mean": 83.98533007334966,
+        "overlap_std": 2.842170943040401e-14,
+        "n_valid": 30
+      },
+      "IPSO-SA": {
+        "hausdorff_mean": 877.8160460619251,
+        "hausdorff_std": 629.9911825699357,
+        "overlap_mean": 80.87749346365652,
+        "overlap_std": 9.646013634409714,
+        "n_valid": 30
+      },
+      "DBO": {
+        "hausdorff_mean": 1973.1208074839822,
+        "hausdorff_std": 608.2278129639456,
+        "overlap_mean": 50.29578098605953,
+        "overlap_std": 17.52266555294932,
+        "n_valid": 30
+      }
+    }
+  }
+}

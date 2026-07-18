@@ -2,9 +2,9 @@
 data/
 
 # CNN 训练数据 (大文件)
-v3_20260710/cnn_model/*.npy
-v3_20260710/cnn_model/*.pth
-v3_20260710/cnn_model/*.log
+**/cnn_model/*.npy
+**/cnn_model/*.pth
+**/cnn_model/*.log
 
 # 输出产物
 v1_20260525/output/

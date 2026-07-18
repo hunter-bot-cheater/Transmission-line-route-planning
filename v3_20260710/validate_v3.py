@@ -44,7 +44,7 @@ from ipso_sa_planner import ipso_sa_plan_path
 from dbo_planner import dbo_plan_path
 from output_v3 import (
     export_path, export_statistics, export_quality_report,
-    export_convergence, export_comparison_chart, export_combined_convergence,
+    export_convergence, export_comparison_chart,
 )
 
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "Arial"]
@@ -136,25 +136,13 @@ def validate_single_line_v3(
     case_output = cfg.OUTPUT_DIR / case_id
     case_output.mkdir(parents=True, exist_ok=True)
 
-    # 成本表面 — 优先使用 CNN 模型 (如果存在)
-    cnn_path = cfg.CNN_COST_SURFACE_PATH
-    if cnn_path.exists():
-        import numpy as np
-        cnn_cost_raw = np.load(cnn_path)  # (H, W), 已含 hard_mask=inf
-        dist_existing = aligned.get("dist_existing_line")
-        # CNN 输出已平滑, 不做高斯滤波 (smooth_sigma=0), 避免inf边缘极值
-        final_cost = fuse_cost_surface(
-            cnn_cost_raw, soft_mask, hard_mask, dist_existing=dist_existing,
-            smooth_sigma=0.0,
-        )
-        print("  [CNN] 使用 CNN 成本表面")
-    else:
-        feature_stack = build_feature_stack(aligned)
-        predicted_cost = predict_cost_surface(rf, scaler, feature_stack, hard_mask)
-        dist_existing = aligned.get("dist_existing_line")
-        final_cost = fuse_cost_surface(
-            predicted_cost, soft_mask, hard_mask, dist_existing=dist_existing,
-        )
+    # 成本表面 (复用 v2)
+    feature_stack = build_feature_stack(aligned)
+    predicted_cost = predict_cost_surface(rf, scaler, feature_stack, hard_mask)
+    dist_existing = aligned.get("dist_existing_line")
+    final_cost = fuse_cost_surface(
+        predicted_cost, soft_mask, hard_mask, dist_existing=dist_existing,
+    )
 
     start_rc = geo_to_grid(start_lat, start_lon, dst_transform)
     end_rc = geo_to_grid(end_lat, end_lon, dst_transform)
@@ -179,7 +167,6 @@ def validate_single_line_v3(
 
     if a_star_smoothed:
         results["algorithms"]["A*"] = {
-            "_coords": a_star_smoothed,
             "time_s": t_astar,
             "path_length_km": compute_path_length_km(a_star_smoothed),
             "hausdorff_m": compute_hausdorff(a_star_smoothed, real_coords),
@@ -193,6 +180,11 @@ def validate_single_line_v3(
         export_path(a_star_smoothed, case_output, case_id, "A*")
         export_statistics(a_star_smoothed, aligned, hard_mask, dst_transform, case_output, case_id, "A*")
         export_quality_report(a_star_quality, case_output, case_id, "A*")
+        _create_case_map(case_id, case["description"], real_coords, a_star_smoothed,
+                        a_star_quality["passed"], f"{a_star_quality.get('n_passed', 0)}/{a_star_quality.get('n_total', 7)}",
+                        aligned, dst_transform, case_output)
+        _create_elevation_profile(case_id, a_star_smoothed, a_star_quality["passed"],
+                                 aligned, dst_transform, case_output)
         print(f"  [A*] 完成 ({t_astar:.1f}s), 质量: {'通过' if a_star_quality['passed'] else '不通过'}")
     else:
         results["algorithms"]["A*"] = {"time_s": t_astar, "status": "failed"}
@@ -215,7 +207,6 @@ def validate_single_line_v3(
         )
         t_ipso = time.time() - t0
         results["algorithms"]["IPSO-SA"] = {
-            "_coords": ipso_path,
             "time_s": t_ipso,
             "path_length_km": compute_path_length_km(ipso_path),
             "hausdorff_m": compute_hausdorff(ipso_path, real_coords),
@@ -231,6 +222,11 @@ def validate_single_line_v3(
         export_quality_report(ipso_quality, case_output, case_id, "IPSO-SA")
         export_convergence(ipso_info["convergence_curve"], ipso_info["best_fitness"],
                           case_output, case_id, "IPSO-SA")
+        _create_case_map(case_id, case["description"], real_coords, ipso_path,
+                        ipso_quality["passed"], f"{ipso_quality.get('n_passed', 0)}/{ipso_quality.get('n_total', 7)}",
+                        aligned, dst_transform, case_output)
+        _create_elevation_profile(case_id, ipso_path, ipso_quality["passed"],
+                                 aligned, dst_transform, case_output)
         print(f"  [IPSO-SA] 完成 ({t_ipso:.1f}s), 适应度={ipso_info['best_fitness']:.4f}, "
               f"质量: {'通过' if ipso_quality['passed'] else '不通过'}")
     except Exception as e:
@@ -241,7 +237,6 @@ def validate_single_line_v3(
     # ── 算法 3: DBO ──
     print("\n  [DBO] 运行中...")
     t0 = time.time()
-    # DBO 使用统一成本表面 (CNN或RF), 通过独立惩罚权重+种群参数保持差异化
     try:
         dbo_path, dbo_quality, dbo_info = dbo_plan_path(
             cost_surface=final_cost,
@@ -256,7 +251,6 @@ def validate_single_line_v3(
         )
         t_dbo = time.time() - t0
         results["algorithms"]["DBO"] = {
-            "_coords": dbo_path,
             "time_s": t_dbo,
             "path_length_km": compute_path_length_km(dbo_path),
             "hausdorff_m": compute_hausdorff(dbo_path, real_coords),
@@ -272,31 +266,17 @@ def validate_single_line_v3(
         export_quality_report(dbo_quality, case_output, case_id, "DBO")
         export_convergence(dbo_info["convergence_curve"], dbo_info["best_fitness"],
                           case_output, case_id, "DBO")
+        _create_case_map(case_id, case["description"], real_coords, dbo_path,
+                        dbo_quality["passed"], f"{dbo_quality.get('n_passed', 0)}/{dbo_quality.get('n_total', 7)}",
+                        aligned, dst_transform, case_output)
+        _create_elevation_profile(case_id, dbo_path, dbo_quality["passed"],
+                                 aligned, dst_transform, case_output)
         print(f"  [DBO] 完成 ({t_dbo:.1f}s), 适应度={dbo_info['best_fitness']:.4f}, "
               f"质量: {'通过' if dbo_quality['passed'] else '不通过'}")
     except Exception as e:
         t_dbo = time.time() - t0
         results["algorithms"]["DBO"] = {"time_s": t_dbo, "status": "failed", "error": str(e)}
         print(f"  [DBO] 异常: {e}")
-
-    # 合成三算法地图
-    algo_paths = {}
-    for algo in ["A*", "IPSO-SA", "DBO"]:
-        ad = results["algorithms"].get(algo, {})
-        if ad.get("_coords"):
-            algo_paths[algo] = ad["_coords"]
-    if algo_paths:
-        _create_case_map(case_id, case["description"], real_coords, algo_paths,
-                        aligned, dst_transform, case_output)
-
-    # IPSO-SA vs DBO 收敛曲线叠加对比
-    conv_data = {}
-    for algo in ["IPSO-SA", "DBO"]:
-        ad = results["algorithms"].get(algo, {})
-        if ad.get("convergence") and ad.get("best_fitness"):
-            conv_data[algo] = (ad["convergence"], ad["best_fitness"])
-    if len(conv_data) == 2:
-        export_combined_convergence(conv_data, case_output, case_id)
 
     # 导出对比报告
     report_path = case_output / f"{case_id}_comparison_v3.json"
@@ -309,12 +289,13 @@ def validate_single_line_v3(
 # ============================================================
 # 可视化辅助函数
 # ============================================================
-def _create_case_map(case_id, description, real_coords, algo_paths,
-                     aligned, dst_transform, output_dir):
-    """创建三算法合成概览图 (dem背景 + 真实线路 + A*/IPSO-SA/DBO三条预测路径叠加)"""
+def _create_case_map(case_id, description, real_coords, predicted_coords,
+                     quality_passed, quality_n, aligned, dst_transform, output_dir):
+    """创建单条线路概览图 (自适应dem背景 + 真实线路 + 加密预测路径)"""
     fig, ax = plt.subplots(figsize=(14, 12), dpi=200)
     dem = aligned.get("dem")
     if dem is not None:
+        # 自适应降采样: 短边至少800像素, 防止马赛克
         target_pixels = 800
         sample = max(1, min(dem.shape) // target_pixels)
         dem_sub = dem[::sample, ::sample]
@@ -328,22 +309,20 @@ def _create_case_map(case_id, description, real_coords, algo_paths,
         extent = (dst_transform.c, dst_transform.c + dst_transform.a * dem.shape[1],
                   dst_transform.f + dst_transform.e * dem.shape[0], dst_transform.f)
         ax.imshow(np.clip(hill * 255, 0, 255), extent=extent, cmap="gray", alpha=0.4, origin="upper")
-    # 真实线路 (蓝色粗线)
     if real_coords:
         ax.plot([c[0] for c in real_coords], [c[1] for c in real_coords],
                 color="#3498db", lw=2.5, label="真实线路", alpha=0.9)
-    # 三算法路径 (不同颜色 + 发光底层)
-    algo_colors = {"A*": ("#e74c3c", "红色"), "IPSO-SA": ("#2ecc71", "绿色"), "DBO": ("#f39c12", "橙色")}
-    for algo, (color, label_cn) in algo_colors.items():
-        coords = algo_paths.get(algo)
-        if not coords:
-            continue
-        dense = _dense_sample_line(np.array(coords), spacing_m=100)
-        ax.plot([p[0] for p in dense], [p[1] for p in dense],
-                color=color, lw=4.0, alpha=0.2, solid_capstyle="round")
-        ax.plot([p[0] for p in dense], [p[1] for p in dense],
-                color=color, lw=1.5, linestyle="--", label=f"{algo}({label_cn})", alpha=0.85)
-    ax.set_title(f"{case_id}: {description}\n三算法路径对比 (A* 红 / IPSO-SA 绿 / DBO 橙)", fontsize=12, fontweight="bold")
+    if predicted_coords:
+        # 加密路径点: RDP简化后的稀疏拐点 → 100m间距密集采样, 曲线不再变形为直线
+        dense_pred = _dense_sample_line(np.array(predicted_coords), spacing_m=100)
+        # 发光底层: 宽半透明线让路径从hillshade背景中浮出来
+        ax.plot([p[0] for p in dense_pred], [p[1] for p in dense_pred],
+                color="#e74c3c", lw=5.0, alpha=0.25, solid_capstyle="round")
+        # 主线: 红色虚线
+        ax.plot([p[0] for p in dense_pred], [p[1] for p in dense_pred],
+                color="#e74c3c", lw=2.0, linestyle="--", label="预测路径", alpha=0.9)
+    status_str = "通过" if quality_passed else "不通过"
+    ax.set_title(f"{case_id}: {description}\n质量门控: {status_str} ({quality_n})", fontsize=12, fontweight="bold")
     ax.set_xlabel("经度 (°E)"); ax.set_ylabel("纬度 (°N)")
     ax.legend(loc="upper right"); ax.grid(True, alpha=0.3)
     fig.savefig(output_dir / f"{case_id}_map_overview.png", dpi=200, bbox_inches="tight")
@@ -529,22 +508,6 @@ def main():
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(all_results, f, ensure_ascii=False, indent=2)
     print(f"\n  汇总报告: {summary_path}")
-
-    # 统计显著性检验
-    from scipy import stats as scipy_stats
-    print("\n  --- 统计显著性检验 (配对t检验) ---")
-    for metric, name in [("hausdorff_m", "Hausdorff"), ("overlap_500m_pct", "重叠率")]:
-        for algo in ["IPSO-SA", "DBO"]:
-            a_vals = []; b_vals = []
-            for r in all_results:
-                av = r["algorithms"].get("A*", {}).get(metric)
-                bv = r["algorithms"].get(algo, {}).get(metric)
-                if av is not None and bv is not None:
-                    a_vals.append(av); b_vals.append(bv)
-            if len(a_vals) >= 5:
-                t_stat, p_val = scipy_stats.ttest_rel(a_vals, b_vals)
-                sig = "***" if p_val < 0.001 else ("**" if p_val < 0.01 else ("*" if p_val < 0.05 else "n.s."))
-                print(f"  A* vs {algo:<8} {name}: t={t_stat:.2f}, p={p_val:.4f} {sig}")
 
     # 导出对比图表
     chart_path = export_comparison_chart(all_results, cfg.OUTPUT_DIR)

@@ -36,13 +36,7 @@ class DBOPlanner(BaseSwarmPlanner):
         k: 滚球偏转系数 (默认 0.1, 控制转向幅度)
         b: 育雏区域半径系数 (默认 0.3)
         S: 觅食区域半径系数 (默认 0.5)
-
-    DBO 不使用 A* 热启动——全种群随机初始化以区别于 IPSO-SA,
-    在更宽的 30km 走廊内独立探索。
     """
-
-    # DBO 在 CNN 表面使用 A* 热启动 (复杂表面需要起点), 独立惩罚权重保持差异
-    _USE_ASTAR_HOTSTART = True
 
     def __init__(
         self,
@@ -74,10 +68,6 @@ class DBOPlanner(BaseSwarmPlanner):
             random_seed=random_seed,
             algorithm_name="DBO",
         )
-
-        # DBO 独立惩罚权重 — 更低hard_penalty鼓励探索, 更高backward_penalty保持方向
-        self.hard_penalty = cfg.DBO_HARD_PENALTY
-        self.backward_penalty = cfg.DBO_BACKWARD_PENALTY
 
         # 行为比例
         p_roll = cfg.DBO_P_ROLL

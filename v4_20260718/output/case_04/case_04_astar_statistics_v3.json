@@ -1,0 +1,12 @@
+{
+  "case_id": "case_04",
+  "algorithm": "A*",
+  "version": "v3",
+  "length_km": 70.43672932314291,
+  "elevation_min_m": 65.48148345947266,
+  "elevation_max_m": 374.629638671875,
+  "elevation_mean_m": 231.02564370845843,
+  "slope_max_deg": 34.32839584350586,
+  "slope_mean_deg": 5.915564806523945,
+  "hard_constraint_violations": 0
+}

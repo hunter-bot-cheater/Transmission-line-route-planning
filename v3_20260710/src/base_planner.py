@@ -121,12 +121,8 @@ class BaseSwarmPlanner:
     # ============================================================
     # 种群初始化
     # ============================================================
-    def _initialize_population(self, use_astar_hotstart: bool = True) -> np.ndarray:
-        """初始化种群: 直线 + 可选A*热启动 + 走廊随机
-
-        Args:
-            use_astar_hotstart: 是否使用A*路径作为个体1的热启动, False则全部随机
-        """
+    def _initialize_population(self) -> np.ndarray:
+        """初始化种群: 直线 + A*热启动 + 走廊随机"""
         pop = np.zeros(
             (self.num_individuals, self.num_waypoints, 2),
             dtype=np.float64,
@@ -134,6 +130,7 @@ class BaseSwarmPlanner:
         slat, slon = self.start_ll
         elat, elon = self.end_ll
 
+        # 直线上的基准位置
         base_lats = np.linspace(slat, elat, self.num_waypoints + 2)[1:-1]
         base_lons = np.linspace(slon, elon, self.num_waypoints + 2)[1:-1]
 
@@ -142,19 +139,31 @@ class BaseSwarmPlanner:
                 # 个体 0: 直线路径
                 pop[i, :, 0] = base_lats
                 pop[i, :, 1] = base_lons
-            elif use_astar_hotstart and i == 1 and self.a_star_path is not None and len(self.a_star_path) > 2:
+            elif i == 1 and self.a_star_path is not None and len(self.a_star_path) > 2:
                 # 个体 1: A* 路径降采样 (热启动)
                 a_coords = np.array(self.a_star_path)
                 n_a = len(a_coords)
-                indices = np.linspace(0, n_a - 1, self.num_waypoints + 2, dtype=int)[1:-1]
-                pop[i, :, 1] = a_coords[indices, 0]
-                pop[i, :, 0] = a_coords[indices, 1]
+                indices = np.linspace(
+                    0, n_a - 1, self.num_waypoints + 2, dtype=int,
+                )[1:-1]
+                pop[i, :, 1] = a_coords[indices, 0]  # lon
+                pop[i, :, 0] = a_coords[indices, 1]  # lat
             else:
-                # 走廊内随机扰动 (扩大范围以增加多样性)
-                noise_lat = self.rng.uniform(-self.corridor_deg * 0.8, self.corridor_deg * 0.8, self.num_waypoints)
-                noise_lon = self.rng.uniform(-self.corridor_deg * 0.8, self.corridor_deg * 0.8, self.num_waypoints)
-                pop[i, :, 0] = np.clip(base_lats + noise_lat, self.lat_min, self.lat_max)
-                pop[i, :, 1] = np.clip(base_lons + noise_lon, self.lon_min, self.lon_max)
+                # 其余: 走廊内随机扰动
+                noise_lat = self.rng.uniform(
+                    -self.corridor_deg * 0.5, self.corridor_deg * 0.5,
+                    self.num_waypoints,
+                )
+                noise_lon = self.rng.uniform(
+                    -self.corridor_deg * 0.5, self.corridor_deg * 0.5,
+                    self.num_waypoints,
+                )
+                pop[i, :, 0] = np.clip(
+                    base_lats + noise_lat, self.lat_min, self.lat_max,
+                )
+                pop[i, :, 1] = np.clip(
+                    base_lons + noise_lon, self.lon_min, self.lon_max,
+                )
 
         return pop
 
@@ -317,24 +326,6 @@ class BaseSwarmPlanner:
         return coords
 
     # ============================================================
-    # 工厂函数
-    # ============================================================
-    @staticmethod
-    def create(algo_type: str, **kwargs):
-        """工厂方法: 根据算法类型创建规划器实例"""
-        from ipso_sa_planner import IPSOSAPlanner
-        from dbo_planner import DBOPlanner
-        planners = {
-            "ipso_sa": IPSOSAPlanner,
-            "IPSO-SA": IPSOSAPlanner,
-            "dbo": DBOPlanner,
-            "DBO": DBOPlanner,
-        }
-        if algo_type not in planners:
-            raise ValueError(f"未知算法类型: {algo_type}。支持: {list(planners.keys())}")
-        return planners[algo_type](**kwargs)
-
-    # ============================================================
     # 位置更新 (子类实现)
     # ============================================================
     def _update_positions(self, iteration: int, max_iterations: int):
@@ -344,19 +335,20 @@ class BaseSwarmPlanner:
     # ============================================================
     # 主优化循环
     # ============================================================
-    def optimize(self, verbose: bool = True, use_astar_hotstart: bool = True) -> tuple:
+    def optimize(self, verbose: bool = True) -> tuple:
         """
         运行优化主循环
 
-        Args:
-            verbose: 是否输出日志
-            use_astar_hotstart: 是否使用A*热启动 (DBO建议False以增加差异化)
+        Returns:
+            best_path:      最优路径坐标 [(lon, lat), ...]
+            best_fitness:   最优适应度值
+            convergence:    收敛曲线 [fitness, ...]
         """
         t0 = time.time()
 
         if verbose:
             print(f"[{self.algorithm_name}] 初始化种群...")
-        self.population = self._initialize_population(use_astar_hotstart=use_astar_hotstart)
+        self.population = self._initialize_population()
         self.fitness = np.full(self.num_individuals, np.inf)
 
         for i in range(self.num_individuals):
@@ -438,8 +430,7 @@ class BaseSwarmPlanner:
             quality_report:  7项质量门控结果 dict
             info:            附加信息 dict
         """
-        use_hs = getattr(self, '_USE_ASTAR_HOTSTART', True)
-        raw_path, best_fitness, convergence = self.optimize(verbose=verbose, use_astar_hotstart=use_hs)
+        raw_path, best_fitness, convergence = self.optimize(verbose=verbose)
 
         # 路径平滑
         if apply_smoothing and len(raw_path) > 2:
