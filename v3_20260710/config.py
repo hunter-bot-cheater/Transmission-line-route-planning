@@ -79,5 +79,8 @@ DBO_S = 0.5                     # 觅食区域半径系数
 COMPARISON_N_RUNS = 30          # 每个算法独立运行次数
 COMPARISON_RANDOM_SEED = 42     # 基准随机种子
 
+# CNN 模型路径
+CNN_COST_SURFACE_PATH = _v3_dir / "cnn_model" / "cnn_cost_surface.npy"
+
 # 自动创建输出目录
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
