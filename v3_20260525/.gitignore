@@ -1,0 +1,5 @@
+# v3 specific
+output/
+__pycache__/
+*.pyc
+data/models/v3_dl/*.pt
