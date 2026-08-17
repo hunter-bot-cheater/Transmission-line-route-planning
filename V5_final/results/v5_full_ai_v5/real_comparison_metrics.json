@@ -1,0 +1,434 @@
+[
+  {
+    "case": "TW173",
+    "VIN-Grad": {
+      "length_km": 55.403,
+      "dev_hausdorff_km": 0.433,
+      "dev_p90_km": 0.153,
+      "dev_mean_km": 0.051,
+      "dev_max_km": 0.433,
+      "len_err_pct": 0.441,
+      "haus_pct": 0.785,
+      "worst_err_pct": 0.785,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 55.635,
+      "dev_hausdorff_km": 0.459,
+      "dev_p90_km": 0.217,
+      "dev_mean_km": 0.122,
+      "dev_max_km": 0.459,
+      "len_err_pct": 0.861,
+      "haus_pct": 0.832,
+      "worst_err_pct": 0.861,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 53.865,
+      "dev_hausdorff_km": 0.342,
+      "dev_p90_km": 0.217,
+      "dev_mean_km": 0.114,
+      "dev_max_km": 0.342,
+      "len_err_pct": 2.348,
+      "haus_pct": 0.62,
+      "worst_err_pct": 2.348,
+      "pass8": true
+    }
+  },
+  {
+    "case": "TW58",
+    "VIN-Grad": {
+      "length_km": 34.393,
+      "dev_hausdorff_km": 0.42,
+      "dev_p90_km": 0.116,
+      "dev_mean_km": 0.053,
+      "dev_max_km": 0.42,
+      "len_err_pct": 1.043,
+      "haus_pct": 1.234,
+      "worst_err_pct": 1.234,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 34.364,
+      "dev_hausdorff_km": 0.349,
+      "dev_p90_km": 0.165,
+      "dev_mean_km": 0.088,
+      "dev_max_km": 0.349,
+      "len_err_pct": 0.958,
+      "haus_pct": 1.025,
+      "worst_err_pct": 1.025,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 32.904,
+      "dev_hausdorff_km": 0.329,
+      "dev_p90_km": 0.26,
+      "dev_mean_km": 0.115,
+      "dev_max_km": 0.329,
+      "len_err_pct": 3.332,
+      "haus_pct": 0.967,
+      "worst_err_pct": 3.332,
+      "pass8": true
+    }
+  },
+  {
+    "case": "天輪~龍潭線",
+    "VIN-Grad": {
+      "length_km": 88.801,
+      "dev_hausdorff_km": 0.6,
+      "dev_p90_km": 0.212,
+      "dev_mean_km": 0.113,
+      "dev_max_km": 0.6,
+      "len_err_pct": 1.001,
+      "haus_pct": 0.682,
+      "worst_err_pct": 1.001,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 88.676,
+      "dev_hausdorff_km": 0.424,
+      "dev_p90_km": 0.212,
+      "dev_mean_km": 0.084,
+      "dev_max_km": 0.424,
+      "len_err_pct": 0.859,
+      "haus_pct": 0.482,
+      "worst_err_pct": 0.859,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 87.663,
+      "dev_hausdorff_km": 0.424,
+      "dev_p90_km": 0.3,
+      "dev_mean_km": 0.14,
+      "dev_max_km": 0.424,
+      "len_err_pct": 0.293,
+      "haus_pct": 0.482,
+      "worst_err_pct": 0.482,
+      "pass8": true
+    }
+  },
+  {
+    "case": "TW59",
+    "VIN-Grad": {
+      "length_km": 60.734,
+      "dev_hausdorff_km": 0.363,
+      "dev_p90_km": 0.181,
+      "dev_mean_km": 0.094,
+      "dev_max_km": 0.363,
+      "len_err_pct": 0.287,
+      "haus_pct": 0.596,
+      "worst_err_pct": 0.596,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 61.595,
+      "dev_hausdorff_km": 0.363,
+      "dev_p90_km": 0.181,
+      "dev_mean_km": 0.056,
+      "dev_max_km": 0.363,
+      "len_err_pct": 1.126,
+      "haus_pct": 0.596,
+      "worst_err_pct": 1.126,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 60.14,
+      "dev_hausdorff_km": 0.363,
+      "dev_p90_km": 0.181,
+      "dev_mean_km": 0.118,
+      "dev_max_km": 0.363,
+      "len_err_pct": 1.263,
+      "haus_pct": 0.596,
+      "worst_err_pct": 1.263,
+      "pass8": true
+    }
+  },
+  {
+    "case": "深美～冬山線",
+    "VIN-Grad": {
+      "length_km": 49.248,
+      "dev_hausdorff_km": 1.896,
+      "dev_p90_km": 0.298,
+      "dev_mean_km": 0.148,
+      "dev_max_km": 1.896,
+      "len_err_pct": 0.501,
+      "haus_pct": 3.831,
+      "worst_err_pct": 3.831,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 80.004,
+      "dev_hausdorff_km": 3.16,
+      "dev_p90_km": 2.317,
+      "dev_mean_km": 0.709,
+      "dev_max_km": 3.16,
+      "len_err_pct": 61.637,
+      "haus_pct": 6.384,
+      "worst_err_pct": 61.637,
+      "pass8": false
+    },
+    "A*(baseline)": {
+      "length_km": 48.868,
+      "dev_hausdorff_km": 0.333,
+      "dev_p90_km": 0.149,
+      "dev_mean_km": 0.062,
+      "dev_max_km": 0.333,
+      "len_err_pct": 1.269,
+      "haus_pct": 0.673,
+      "worst_err_pct": 1.269,
+      "pass8": true
+    }
+  },
+  {
+    "case": "TW102",
+    "VIN-Grad": {
+      "length_km": 49.647,
+      "dev_hausdorff_km": 1.905,
+      "dev_p90_km": 1.188,
+      "dev_mean_km": 0.322,
+      "dev_max_km": 1.905,
+      "len_err_pct": 2.929,
+      "haus_pct": 3.949,
+      "worst_err_pct": 3.949,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 70.778,
+      "dev_hausdorff_km": 0.78,
+      "dev_p90_km": 0.221,
+      "dev_mean_km": 0.127,
+      "dev_max_km": 0.78,
+      "len_err_pct": 46.739,
+      "haus_pct": 1.617,
+      "worst_err_pct": 46.739,
+      "pass8": false
+    },
+    "A*(baseline)": {
+      "length_km": 47.397,
+      "dev_hausdorff_km": 0.349,
+      "dev_p90_km": 0.156,
+      "dev_mean_km": 0.082,
+      "dev_max_km": 0.349,
+      "len_err_pct": 1.735,
+      "haus_pct": 0.724,
+      "worst_err_pct": 1.735,
+      "pass8": true
+    }
+  },
+  {
+    "case": "TW766",
+    "VIN-Grad": {
+      "length_km": 57.485,
+      "dev_hausdorff_km": 0.552,
+      "dev_p90_km": 0.153,
+      "dev_mean_km": 0.097,
+      "dev_max_km": 0.552,
+      "len_err_pct": 0.199,
+      "haus_pct": 0.962,
+      "worst_err_pct": 0.962,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 58.405,
+      "dev_hausdorff_km": 0.459,
+      "dev_p90_km": 0.153,
+      "dev_mean_km": 0.085,
+      "dev_max_km": 0.459,
+      "len_err_pct": 1.802,
+      "haus_pct": 0.8,
+      "worst_err_pct": 1.802,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 56.823,
+      "dev_hausdorff_km": 0.306,
+      "dev_p90_km": 0.153,
+      "dev_mean_km": 0.066,
+      "dev_max_km": 0.306,
+      "len_err_pct": 0.955,
+      "haus_pct": 0.533,
+      "worst_err_pct": 0.955,
+      "pass8": true
+    }
+  },
+  {
+    "case": "TW252",
+    "VIN-Grad": {
+      "length_km": 54.125,
+      "dev_hausdorff_km": 0.593,
+      "dev_p90_km": 0.233,
+      "dev_mean_km": 0.096,
+      "dev_max_km": 0.593,
+      "len_err_pct": 0.024,
+      "haus_pct": 1.096,
+      "worst_err_pct": 1.096,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 54.095,
+      "dev_hausdorff_km": 0.368,
+      "dev_p90_km": 0.233,
+      "dev_mean_km": 0.129,
+      "dev_max_km": 0.368,
+      "len_err_pct": 0.031,
+      "haus_pct": 0.68,
+      "worst_err_pct": 0.68,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 53.863,
+      "dev_hausdorff_km": 0.465,
+      "dev_p90_km": 0.329,
+      "dev_mean_km": 0.11,
+      "dev_max_km": 0.465,
+      "len_err_pct": 0.46,
+      "haus_pct": 0.859,
+      "worst_err_pct": 0.859,
+      "pass8": true
+    }
+  },
+  {
+    "case": "TW769",
+    "VIN-Grad": {
+      "length_km": 50.129,
+      "dev_hausdorff_km": 0.46,
+      "dev_p90_km": 0.153,
+      "dev_mean_km": 0.104,
+      "dev_max_km": 0.46,
+      "len_err_pct": 0.451,
+      "haus_pct": 0.922,
+      "worst_err_pct": 0.922,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 50.263,
+      "dev_hausdorff_km": 0.46,
+      "dev_p90_km": 0.307,
+      "dev_mean_km": 0.118,
+      "dev_max_km": 0.46,
+      "len_err_pct": 0.719,
+      "haus_pct": 0.922,
+      "worst_err_pct": 0.922,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 49.61,
+      "dev_hausdorff_km": 0.307,
+      "dev_p90_km": 0.153,
+      "dev_mean_km": 0.059,
+      "dev_max_km": 0.307,
+      "len_err_pct": 0.589,
+      "haus_pct": 0.615,
+      "worst_err_pct": 0.615,
+      "pass8": true
+    }
+  },
+  {
+    "case": "TW345",
+    "VIN-Grad": {
+      "length_km": 50.784,
+      "dev_hausdorff_km": 0.29,
+      "dev_p90_km": 0.205,
+      "dev_mean_km": 0.133,
+      "dev_max_km": 0.29,
+      "len_err_pct": 0.591,
+      "haus_pct": 0.568,
+      "worst_err_pct": 0.591,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 51.12,
+      "dev_hausdorff_km": 0.29,
+      "dev_p90_km": 0.145,
+      "dev_mean_km": 0.055,
+      "dev_max_km": 0.29,
+      "len_err_pct": 0.067,
+      "haus_pct": 0.568,
+      "worst_err_pct": 0.568,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 50.494,
+      "dev_hausdorff_km": 0.649,
+      "dev_p90_km": 0.29,
+      "dev_mean_km": 0.129,
+      "dev_max_km": 0.649,
+      "len_err_pct": 1.159,
+      "haus_pct": 1.27,
+      "worst_err_pct": 1.27,
+      "pass8": true
+    }
+  },
+  {
+    "case": "明潭-鳳林線",
+    "VIN-Grad": {
+      "length_km": 71.064,
+      "dev_hausdorff_km": 0.395,
+      "dev_p90_km": 0.197,
+      "dev_mean_km": 0.04,
+      "dev_max_km": 0.395,
+      "len_err_pct": 0.662,
+      "haus_pct": 0.56,
+      "worst_err_pct": 0.662,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 73.23,
+      "dev_hausdorff_km": 0.395,
+      "dev_p90_km": 0.197,
+      "dev_mean_km": 0.075,
+      "dev_max_km": 0.395,
+      "len_err_pct": 3.73,
+      "haus_pct": 0.56,
+      "worst_err_pct": 3.73,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 68.533,
+      "dev_hausdorff_km": 0.592,
+      "dev_p90_km": 0.197,
+      "dev_mean_km": 0.063,
+      "dev_max_km": 0.592,
+      "len_err_pct": 2.924,
+      "haus_pct": 0.839,
+      "worst_err_pct": 2.924,
+      "pass8": true
+    }
+  },
+  {
+    "case": "TW311",
+    "VIN-Grad": {
+      "length_km": 72.985,
+      "dev_hausdorff_km": 0.56,
+      "dev_p90_km": 0.198,
+      "dev_mean_km": 0.068,
+      "dev_max_km": 0.56,
+      "len_err_pct": 2.56,
+      "haus_pct": 0.787,
+      "worst_err_pct": 2.56,
+      "pass8": true
+    },
+    "PPO": {
+      "length_km": 71.364,
+      "dev_hausdorff_km": 0.885,
+      "dev_p90_km": 0.28,
+      "dev_mean_km": 0.132,
+      "dev_max_km": 0.885,
+      "len_err_pct": 0.282,
+      "haus_pct": 1.244,
+      "worst_err_pct": 1.244,
+      "pass8": true
+    },
+    "A*(baseline)": {
+      "length_km": 70.206,
+      "dev_hausdorff_km": 0.56,
+      "dev_p90_km": 0.198,
+      "dev_mean_km": 0.084,
+      "dev_max_km": 0.56,
+      "len_err_pct": 1.345,
+      "haus_pct": 0.787,
+      "worst_err_pct": 1.345,
+      "pass8": true
+    }
+  }
+]

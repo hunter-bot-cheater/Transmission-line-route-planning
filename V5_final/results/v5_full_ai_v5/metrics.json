@@ -1,0 +1,19 @@
+{
+  "length_km": 55.403,
+  "cum_relief_m": 7989.9,
+  "net_relief_m": -176.6,
+  "mean_cost": 2.9737,
+  "sinuosity": 1.139,
+  "hard_violations": 0,
+  "n_points": 635,
+  "time_s": 26.24,
+  "dev_hausdorff_km": 0.433,
+  "dev_mean_km": 0.051,
+  "dev_p90_km": 0.153,
+  "dev_max_km": 0.433,
+  "len_err_pct": 0.441,
+  "haus_pct": 0.785,
+  "haus_fwd_pct": 0.785,
+  "worst_err_pct": 0.785,
+  "pass8": true
+}
