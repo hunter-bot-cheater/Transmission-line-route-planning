@@ -26,3 +26,9 @@ __pycache__/
 *.swp
 Thumbs.db
 .DS_Store
+
+# 双 Agent 工作流：运行期状态文件（每轮交接都会变，不进 git；提示词与 tools/ 脚本进 git）
+.workflow/status.json
+.workflow/task.md
+.workflow/plan.md
+.workflow/test_report.md
