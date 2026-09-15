@@ -13,10 +13,10 @@ import copy
 # ============================================================
 # 路径配置
 # ============================================================
-BASE_DIR = Path(r"c:\Users\86133\Desktop\大创项目文件夹\Transmission-line-route-planning")
+BASE_DIR = Path(__file__).resolve().parent.parent   # 动态定位仓库根（2026-09-15 迁至 D:\大创\repo）
 V2_DIR = BASE_DIR / "v2_20260525"
 SHARED_DIR = BASE_DIR / "shared"
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = Path(r"D:\大创\data")   # 统一数据根（2026-09-15 归集）
 DOWNLOADED_DIR = DATA_DIR / "downloaded"
 PROCESSED_DIR = DATA_DIR / "processed"
 MODELS_DIR = DATA_DIR / "models"
