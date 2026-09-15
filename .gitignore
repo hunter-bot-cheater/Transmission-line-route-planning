@@ -19,6 +19,8 @@ v3_20260710/output/
 # 2026-09-15: 申报书与计划书已迁出仓库至 D:\大创\docs\申报书与计划书\；保留规则作为兜底
 docs/proposals/
 docs/changelog/
+# 2026-09-15: changelog 迁至 docs/测试运维/变更记录/，沿用同等级别的忽略保护
+docs/测试运维/变更记录/
 
 # Python 缓存
 __pycache__/
