@@ -12,12 +12,12 @@
 
 | 目录 | 定位 | 说明 |
 |------|------|------|
-| `v1_20260525/` | 宽松约束原型 | 6 条线路，单一硬约束 |
-| `v2_20260525/` | 严格质量门控（稳定版） | 7 项门控，10/10 通过 |
-| `v3_20260710/` | 三算法对比框架 | A* / IPSO-SA / DBO，RF 成本面 |
-| `v4_20260718/` | CNN 增强版 | U-Net 成本预测 + MLP 启发式 |
+| `archive/历史版本/v1_20260525/` | 宽松约束原型 | 6 条线路，单一硬约束 |
+| `archive/历史版本/v2_20260525/` | 严格质量门控（稳定版） | 7 项门控，10/10 通过 |
+| `archive/历史版本/v3_20260710/` | 三算法对比框架 | A* / IPSO-SA / DBO，RF 成本面 |
+| `archive/历史版本/v4_20260718/` | CNN 增强版 | U-Net 成本预测 + MLP 启发式 |
 | `V5_final/` | **当前交付主线** | VIN-Grad / PPO / A* 三方法 + 真值验收 ≤8% |
-| `shared/` | 公共模块 | data_acquisition.py 等 |
+| `archive/历史版本/shared/` | 公共模块 | data_acquisition.py 等 |
 | `docs/` | 文档/结果汇总 | changelog/ 与 proposals/ 为本地文件（git 排除） |
 | `data/` | 数据 | git 排除 |
 
@@ -36,12 +36,12 @@
 - 无 pytest 测试套件（研究项目，未建 test_*.py）
 - `./tools/test_backend.sh`：py_compile 全量语法 + shared 冒烟（可 PYTHON= 指定解释器）
 - `./tools/run_all_tests.sh`：全量汇总（test_frontend.sh / test_typescript.sh 未实现，自动跳过 N/A）
-- 冒烟 import 说明：`shared/data_acquisition.py` 顶层 `import config` 依赖项目外 config 模块，
+- 冒烟 import 说明：`archive/历史版本/shared/data_acquisition.py` 顶层 `import config` 依赖项目外 config 模块，
   import 失败多为环境问题而非代码问题
 
 ## 5. 版本规范
 
-- **无版本号常量**（非 Web 服务）；版本 = git 提交 + docs/changelog/ 里程碑
+- **无版本号常量**（非 Web 服务）；版本 = git 提交 + docs/测试运维/变更记录/ 里程碑
 - 版本标注（脚本头 docstring 的 "vX.2026xxxx"）只由**用户**指派，工程师/架构师不得擅自改
 - ⚠️ 已知版本标注混乱（交付物历史问题）：`V5_final/README.md` 是旧 v3 文档；
   `V5_final/scripts/ai_path_planning_v5.py` 文件头自称为 `ai_path_planning_v4.py`/"v4 升级版"。
@@ -67,7 +67,7 @@
   （286 项，字节级清单），配合 `gh api ... --jq .size` 双向比对。
 - 版本标注混乱见上节；处理前与用户确认。
 - CLAUDE.md 项目规则：代码 snake_case / 类型标注 / Google docstring / 4 空格缩进；
-  commit 后必须更新 docs/changelog/ 和桌面备份；改动前确认「本地修复 vs 推送 GitHub」。
+  commit 后必须更新 docs/测试运维/变更记录/ 和桌面备份；改动前确认「本地修复 vs 推送 GitHub」。
 
 ## 7. 工作流约定（.workflow/）
 

@@ -14,7 +14,7 @@ D:\大创\
 ├── requirements_extra.txt            # Python额外依赖
 ├── .gitignore
 │
-├── shared/                           # 公共模块 (v1/v2共享)
+├── archive/历史版本/shared/                           # 公共模块 (v1/v2共享)
 │   ├── __init__.py
 │   └── data_acquisition.py           # OSM下载、DEM加载、输电线过滤、风险代理层
 │
@@ -23,20 +23,20 @@ D:\大创\
 │   ├── processed/                    #   处理后栅格
 │   └── models/                       #   训练好的RF模型及标准化器
 │
-├── v1_20260525/                      # v1: 宽松约束版本
+├── archive/历史版本/v1_20260525/                      # v1: 宽松约束版本
 │   ├── config.py                     #   全局配置
 │   ├── main.py                       #   单线路入口
 │   ├── validate.py                   #   单线路验证
 │   ├── validate_multi.py             #   多线路验证
 │   ├── src/                          #   源代码
-│   │   ├── data_acquisition.py       #   (旧版, 已迁移至shared/)
+│   │   ├── data_acquisition.py       #   (旧版, 已迁移至archive/历史版本/shared/)
 │   │   ├── preprocessing.py          #   地形因子 + 栅格对齐 + 约束掩膜
 │   │   ├── cost_model.py             #   特征工程 + 伪标签 + 随机森林
 │   │   ├── path_planning.py          #   成本融合 + A*搜索 + 路径平滑
 │   │   └── output.py                 #   SHP/GeoJSON + 统计 + 可视化
 │   └── output/                       #   输出成果
 │
-└── v2_20260525/                      # v2: 严格质量门控版本
+└── archive/历史版本/v2_20260525/                      # v2: 严格质量门控版本
     ├── config.py                     #   全局配置 (收紧阈值)
     ├── validate_v2.py                #   10条标准线路严格验证
     ├── CHANGELOG.md                  #   变更记录
@@ -74,7 +74,7 @@ D:\大创\
 
 ## ⚠️ 环境配置（首次运行必读）
 
-项目中的路径配置位于 `v1_20260525/config.py` 和 `v2_20260525/config.py`，**首次运行前必须检查并修改以下三项**：
+项目中的路径配置位于 `archive/历史版本/v1_20260525/config.py` 和 `archive/历史版本/v2_20260525/config.py`，**首次运行前必须检查并修改以下三项**：
 
 ```python
 BASE_DIR  = Path(r"...")    # 项目根目录的绝对路径
@@ -84,7 +84,7 @@ SHP_PATH  = Path(r"...")    # 输电线矢量数据 (.shp) 的位置
 
 ### 如何检查和修改
 
-1. 打开 `v2_20260525/config.py`（v1 同理打开 `v1_20260525/config.py`）
+1. 打开 `archive/历史版本/v2_20260525/config.py`（v1 同理打开 `archive/历史版本/v1_20260525/config.py`）
 2. 确认 `BASE_DIR` 指向你的项目根目录
 3. 确认 `DEM_PATH` 指向你的 DEM 文件（推荐放在 `data/dem/` 下）
 4. 确认 `SHP_PATH` 指向你的输电线 Shapefile（推荐放在 `data/shp/` 下）
@@ -102,9 +102,9 @@ SHP_PATH  = Path(r"...")    # 输电线矢量数据 (.shp) 的位置
 │       ├── <你的输电线文件>.dbf
 │       ├── <你的输电线文件>.prj
 │       └── <你的输电线文件>.cpg
-├── v1_20260525/
-├── v2_20260525/
-└── shared/
+├── archive/历史版本/v1_20260525/
+├── archive/历史版本/v2_20260525/
+└── archive/历史版本/shared/
 ```
 
 > **注意**：DEM（.tif）和 Shapefile（.shp/.shx/.dbf/.prj/.cpg）是外部数据文件，不会随项目仓库分发，需自行准备并放置到对应位置。
@@ -124,14 +124,14 @@ SHP_PATH  = Path(r"...")    # 输电线矢量数据 (.shp) 的位置
 ### v2 (推荐)
 
 ```bash
-cd v2_20260525
+cd archive/历史版本/v2_20260525
 python validate_v2.py          # 验证全部10条标准线路
 ```
 
 ### v1
 
 ```bash
-cd v1_20260525
+cd archive/历史版本/v1_20260525
 python main.py                 # 默认: 核三厂(屏东) → 台北
 python main.py --start-lat 22.0 --start-lon 120.5 --end-lat 25.0 --end-lon 121.5
 ```
@@ -142,7 +142,7 @@ python main.py --start-lat 22.0 --start-lon 120.5 --end-lat 25.0 --end-lon 121.5
 
 ```
                 ┌─────────────────────────────────┐
-                │  shared/data_acquisition.py     │
+                │  archive/历史版本/shared/data_acquisition.py     │
                 │  DEM + OSM + 输电线 + 风险代理    │
                 └──────────────┬──────────────────┘
                                │
@@ -318,7 +318,7 @@ V4 在 V3 基础上新增 AI 增强：U-Net 像素级成本预测 (7.8M参数, R
 ### V3 架构
 
 ```
-v3_20260710/
+archive/历史版本/v3_20260710/
 ├── config.py                # 继承v2参数 + 算法超参
 ├── validate_v3.py           # 三算法对比验证入口
 └── src/
@@ -329,7 +329,7 @@ v3_20260710/
 ```
 
 ```bash
-cd v3_20260710
+cd archive/历史版本/v3_20260710
 python validate_v3.py   # 运行三算法对比验证
 ```
 
