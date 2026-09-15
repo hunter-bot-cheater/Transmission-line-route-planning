@@ -49,10 +49,22 @@
 
 ## 6. 已知缺陷 / 注意事项
 
-- ✅ `V5_final/scripts/ai_path_planning.py` 的语法错误**已于 2026-08-19 修复**（原为远端交付物
-  自带：`export_route` 的 GeoJSON 回退分支在 `"features": [{` 处被截断，已补全为完整
-  FeatureCollection + json.dump 写出）。该文件是旧版脚本副本，非 V5 主脚本
-  （主脚本 `ai_path_planning_v5.py` 不受影响）。
+- ⚠️ **2026-09-15 更正（推翻 08-19 的结论）**：`V5_final/scripts/ai_path_planning.py`
+  此前被认为"远端交付物自带语法错误、已修复"，该判断**有误**。真实情况：
+  1) 远端原版（提交 b5fb35d，62656 B / 1458 行）**一直完整且 py_compile 通过**；
+  2) 08-19 报出的编译错误来自**本地下载副本被截断**，而非远端文件缺陷；
+  3) 08-19 的"补全"在截断点后自行收尾，**连带丢掉了原版尾部 203 行**（原版 1256-1458 行，
+     含整个 `def main()` 主流程与 `if __name__ == "__main__"` 入口），使该脚本实际**不可运行**；
+  4) 该损坏版本已被推送到远端（bf96acd）。
+  已于 2026-09-15 用远端原版逐字节恢复（blob `8cdd65a6a77a90a18f4612d54b9ff7e7cb914439`，
+  62656 B / 1458 行，py_compile 通过）。该文件是旧版脚本副本，非 V5 主脚本
+  （主脚本 `ai_path_planning_v5.py` 全程未受影响）。
+- **下载截断风险（2026-09-15 发现）**：V5 结果文件经 GitHub API 下载时可能被静默截断，
+  症状为 PNG 缺 IEND 结束标记、JSON 在字符中途报解析错误、字节数恰为整 KB 边界
+  （如 640KB / 736KB）。已修复 3 个文件：
+  `results/v5_full_ai_v5/path_comparison.png`、`results/v5_full_ai_v5/value_map.png`、
+  `results/v5_full_ai_v5/明潭-鳳林線/paths.json`。核对手册：工作区根 `_v5_sizes.txt`
+  （286 项，字节级清单），配合 `gh api ... --jq .size` 双向比对。
 - 版本标注混乱见上节；处理前与用户确认。
 - CLAUDE.md 项目规则：代码 snake_case / 类型标注 / Google docstring / 4 空格缩进；
   commit 后必须更新 docs/changelog/ 和桌面备份；改动前确认「本地修复 vs 推送 GitHub」。
