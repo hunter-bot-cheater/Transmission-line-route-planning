@@ -1246,15 +1246,213 @@ def export_route(planned_ll, dem_crs, shp_path, geojson_path):
         "features": [{
             "type": "Feature",
             "properties": {"name": "planned_route"},
-            "geometry": {
-                "type": "LineString",
-                "coordinates": [[lon, lat] for (lon, lat) in planned_ll],
-            },
+            "geometry": {"type": "LineString", "coordinates": [[lon, lat] for lon, lat in planned_ll]},
         }],
     }
-    if os.path.exists(geojson_path):
-        print(f"  [提示] 输出文件已存在, 将覆盖: {geojson_path}")
     with open(geojson_path, "w", encoding="utf-8") as f:
         json.dump(feat, f, ensure_ascii=False, indent=2)
-    print(f"  矢量路径已保存(GeoJSON): {geojson_path}")
+    print(f"  [回退] geopandas 不可用, 已写 GeoJSON: {geojson_path}")
     return geojson_path
+
+
+# ============================================================================
+# 13. 主流程
+# ============================================================================
+def main():
+    t0 = time.time()
+    ap = argparse.ArgumentParser(description="基于 AI 的复杂山区输电线路路径规划")
+    ap.add_argument("--dem", type=str, default=None, help="DEM .tif 路径 (默认自动检测)")
+    ap.add_argument("--line", type=str, default=None, help="原始线路 .shp 路径 (默认自动检测重叠线)")
+    ap.add_argument("--start", type=str, default=None, help="起点 lat,lon (如 22.0,120.5)")
+    ap.add_argument("--end", type=str, default=None, help="终点 lat,lon")
+    ap.add_argument("--method", type=str, default="auto", choices=["auto", "unet", "heuristic"])
+    ap.add_argument("--use-dijkstra", action="store_true", help="使用 Dijkstra 而非 A*")
+    ap.add_argument("--alpha", type=float, default=4.0, help="代价图权重 α (cost_grid = 1 + α*cost)")
+    ap.add_argument("--max-side", type=int, default=2200, help="DEM 下采样最长边(像元)")
+    ap.add_argument("--out-dir", type=str, default=None, help="输出目录")
+    args = ap.parse_args()
+
+    OUT_DIR = Path(args.out_dir) if args.out_dir else OUTPUTS_DIR
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    print("=" * 64)
+    print("  复杂山区输电线路 AI 路径规划 (独立脚本)")
+    print("=" * 64)
+
+    # ---- 1. 探测 DEM ----
+    dem_path = Path(args.dem) if args.dem else None
+    if dem_path is None:
+        dems = find_dem_files()
+        if not dems:
+            sys.exit("[FATAL] 未找到任何 DEM .tif，请用 --dem 指定。")
+        # 默认优先台湾 SRTM (文件名含 台湾/taiwan)，否则取第一个
+        dem_path = next((p for p in dems if "台湾" in p.name or "taiwan" in p.name.lower()), dems[0])
+    print(f"[1/6] DEM: {dem_path}")
+
+    # ---- 2. 探测线路 ----
+    line_files = []
+    if args.line:
+        line_files = [Path(args.line)]
+    else:
+        line_files = find_line_files()
+    print(f"[2/6] 候选线路 SHP 数: {len(line_files)}")
+
+    # ---- 3. 读取 DEM (全幅, 后续裁剪到走廊) ----
+    print("[3/6] 读取 DEM ...")
+    dem, transform, dem_crs, pixel_m, _ = load_dem(dem_path, max_side=args.max_side)
+
+    # ---- 4. 探测原始线路与起终点 ----
+    print("[4/6] 探测原始线路与起终点 ...")
+    orig_ll, s_ll, e_ll, src = (None, None, None, None)
+    if args.line:
+        try:
+            gdf = gpd.read_file(args.line)
+            if dem_crs and gdf.crs and str(gdf.crs) != str(dem_crs):
+                gdf = gdf.to_crs(dem_crs)
+            first = gdf.geometry.iloc[0]
+            if first.geom_type == "MultiLineString":
+                first = max(first.geoms, key=lambda g: g.length)
+            coords = list(first.coords)
+            orig_ll = [(x, y) for (x, y) in coords]
+            s_ll = (coords[0][1], coords[0][0]); e_ll = (coords[-1][1], coords[-1][0])
+            src = Path(args.line).name
+        except Exception as ex:
+            print(f"    [warn] 读取指定线路失败: {ex}")
+    else:
+        orig_ll, s_ll, e_ll, src = select_original_line(find_line_files(), dem, transform, dem_crs)
+
+    if args.start and args.end:
+        slat, slon = map(float, args.start.split(","))
+        elat, elon = map(float, args.end.split(","))
+        s_ll, e_ll = (slat, slon), (elat, elon)
+        orig_ll = None  # 自定义起终点 -> 不强制要求原始线
+
+    if s_ll is None or e_ll is None:
+        H, W = dem.shape
+        s_ll = (transform.f + transform.e * (H - 1) + transform.e / 2, transform.c + transform.a / 2)
+        e_ll = (transform.f + transform.e / 2, transform.c + transform.a * (W - 1) + transform.a / 2)
+        print("    [warn] 未定位原始线路, 使用 DEM 对角作为演示起终点")
+
+    # ---- 5. 裁剪 DEM 到走廊区域 (聚焦山区, 降低海洋占比) ----
+    print("[5/6] 裁剪 DEM 到走廊并生成代价图 ...")
+    dem, transform = crop_dem_to_bbox(dem, transform, s_ll[1], s_ll[0], e_ll[1], e_ll[0], margin_deg=0.2)
+    H, W = dem.shape
+    pixel_m = _deg_pixel_m(transform.a, (transform.f + transform.e * H) / 2.0)
+    print(f"    走廊网格 {W}x{H}  像元≈{pixel_m:.0f}m")
+
+    terrain = compute_terrain_factors(dem, pixel_m)
+    line_mask = np.zeros((H, W), dtype=bool)
+    if orig_ll is not None:
+        for (lon, lat) in orig_ll:
+            r, c = geo_to_grid(lat, lon, transform)
+            if 0 <= r < H and 0 <= c < W:
+                line_mask[r, c] = True
+
+    # OSM / 风险特征波段 (接入 shared/data_acquisition.py, 补齐 26 维 13-25)
+    da = _import_shared_data_acquisition()
+    osm = None
+    if da is not None:
+        try:
+            bbox = _dem_bounds(transform, H, W)
+            osm = compute_osm_feature_bands(dem, transform, bbox, da, terrain=terrain)
+            lu_codes = np.unique(osm["landuse_code"])
+            print(f"    [OSM] 波段已补齐: 建筑密度峰值 {np.nanmax(osm['building_density']):.1f}"
+                  f"  土地利用类别 {lu_codes.tolist()}")
+        except Exception as ex:
+            print(f"    [warn] OSM 波段计算异常: {ex}; 回退全零")
+            osm = None
+    else:
+        print("    [OSM] shared 模块不可用, 波段 13-25 以 0 近似")
+
+    # 代价图 (优先 U-Net, 回退启发式)
+    method = args.method
+    cost = None
+    used_unet = False
+    if method in ("auto", "unet"):
+        wpath = find_model_weights()
+        if HAS_TORCH and wpath is not None and CostUNet is not None:
+            try:
+                model = load_costunet(wpath)
+                stack = build_feature_stack(dem, terrain, line_mask, osm)
+                cost = model.predict_cost_surface(stack)
+                used_unet = True
+                print(f"    [AI] 已加载 CostUNet 权重: {wpath.name} -> 代价图 [{cost.min():.3f},{cost.max():.3f}]"
+                      f"  (OSM 波段{'已' if osm is not None else '未'}补齐)")
+            except Exception as ex:
+                print(f"    [warn] U-Net 推理失败: {ex}; 回退启发式")
+                cost = None
+        else:
+            if method == "unet":
+                print("    [warn] 未找到 torch 或权重, 但指定 --method unet; 回退启发式")
+            cost = None
+    if cost is None:
+        cost = heuristic_cost_map(dem, terrain, osm)
+        print(f"    [启发式] 坡度/曲率(+OSM)代价图 [{cost.min():.3f},{cost.max():.3f}]"
+              f"  (OSM 波段{'已' if osm is not None else '未'}融合)")
+
+    # 寻路代价栅格 (硬约束: 坡度>60° 或 NaN -> 不可通行)
+    cost_grid = (1.0 + args.alpha * cost).astype(np.float64)
+    slope_deg = terrain["slope"]
+    impassable = (~np.isfinite(dem)) | (slope_deg > 60.0)
+    cost_grid = np.where(impassable, np.inf, cost_grid)
+
+    # ---- 6. 寻路 ----
+    print("[6/6] 路径搜索 ...")
+    sr, sc = geo_to_grid(s_ll[0], s_ll[1], transform)
+    er, ec = geo_to_grid(e_ll[0], e_ll[1], transform)
+    sr = min(max(sr, 0), H - 1); sc = min(max(sc, 0), W - 1)
+    er = min(max(er, 0), H - 1); ec = min(max(ec, 0), W - 1)
+
+    grid_path = astar_search(cost_grid, (sr, sc), (er, ec), use_dijkstra=args.use_dijkstra)
+    if grid_path is None:
+        sys.exit("[FATAL] 未找到可行路径 (代价栅格可能被硬约束完全阻断)。")
+    print(f"    A* 路径像元数: {len(grid_path)}")
+
+    planned_ll = smooth_path(grid_path, transform, spacing_m=max(pixel_m, 90.0))
+
+    # ---- 6. 输出 & 指标 ----
+    print("[6/6] 输出与指标 ...")
+    # 原始线路几何用于对比绘图/指标 (若 orig_ll 来自文件则使用; 否则用 None)
+    if orig_ll is None:
+        # 尝试从 DEM 内最近的现有线路再定位一次 (已在上文处理)
+        pass
+    route_out = export_route(planned_ll, dem_crs,
+                             OUT_DIR / ROUTE_SHP_NAME,
+                             OUT_DIR / ROUTE_GEOJSON_NAME)
+    plot_comparison(dem, transform, planned_ll, orig_ll, s_ll, e_ll,
+                    OUT_DIR / COMPARISON_PNG_NAME)
+    metrics = compute_metrics(planned_ll, orig_ll, dem, transform)
+
+    # 控制台打印
+    print("\n" + "=" * 64)
+    print("  结果摘要")
+    print("=" * 64)
+    method_label = "Attention U-Net (CostUNet)" if used_unet else "启发式代价图 (坡度/曲率)"
+    print(f"  方法            : {method_label}")
+    print(f"  规划路径长度    : {metrics['planned_length_km']:.2f} km")
+    if orig_ll:
+        print(f"  原始路径长度    : {metrics['orig_length_km']:.2f} km")
+        print(f"  长度变化率      : {metrics['length_change_pct']:+.2f} %  "
+              f"(负=更短)")
+    print(f"  规划累计高差    : {metrics['planned_cum_relief_m']:.1f} m  "
+          f"(净高差 {metrics['planned_net_relief_m']:+.1f} m)")
+    if orig_ll:
+        print(f"  原始累计高差    : {metrics['orig_cum_relief_m']:.1f} m")
+        print(f"  高差改善率      : {metrics['elev_improve_pct']:+.2f} %  "
+              f"(正=更平缓)")
+    print(f"  矢量输出        : {route_out}")
+    print(f"  对比图          : {OUT_DIR / COMPARISON_PNG_NAME}")
+    print(f"  总耗时          : {time.time()-t0:.1f}s")
+    print("=" * 64)
+
+    # 同时落一份指标 JSON 便于复核
+    try:
+        with open(OUT_DIR / "metrics.json", "w", encoding="utf-8") as f:
+            json.dump({k: (None if (isinstance(v, float) and math.isnan(v)) else v)
+                       for k, v in metrics.items()}, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+if __name__ == "__main__":
+    main()
