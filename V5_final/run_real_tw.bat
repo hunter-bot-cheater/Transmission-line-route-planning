@@ -45,11 +45,9 @@ echo [RUN] 启动评测 ...
   --real-cases-csv "%CSV%" ^
   --dem "%DEM%" ^
   --out-dir "%OUT%" ^
-  --real-attract 0.4 ^
-  --corridor-w 2.5 ^
-  --corridor-band 1200 %EXTRA%
+  --guide-mode none %EXTRA%
 
-set RC=errorlevel
+set "RC=%ERRORLEVEL%"
 echo.
 echo 完成. 结果见 %OUT%\real_comparison_metrics.json
 echo 若 PPO 崩溃, 请用文本编辑器打开本文件, 在末尾 %%EXTRA%% 位置直接加 --no-ppp
