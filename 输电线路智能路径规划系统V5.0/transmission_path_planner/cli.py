@@ -339,6 +339,9 @@ def main():
             cost_grid = (1.0 + 4.0 * cost).astype(np.float64)
             cost_grid = np.where(hard_mask == 0, np.inf, cost_grid)
             cost_finite = np.where(np.isfinite(cost), cost, 1.0).astype(np.float32)
+            cost_vin = np.where(hard_mask > 0, cost_grid, 0.0).astype(np.float32)
+            lat_center = transform.f + transform.e * (H / 2.0)
+            route_pixel_spacing = pixel_spacing_meters(transform, lat_center, crs)
 
             methods = {}
             grade_reports = {}
@@ -354,7 +357,8 @@ def main():
                 last_Vc = None
                 for vin_attempt in range(3 if guide_enabled else 1):
                     torch.manual_seed(RANDOM_SEED + vin_attempt * 10)
-                    V = train_vin(cost_finite, goal_mask, extra, n_steps=80)
+                    V = train_vin(cost_vin, goal_mask, extra, hard_mask,
+                                  route_pixel_spacing, n_steps=80)
                     Vc = np.nan_to_num(V, nan=1e6, posinf=1e6, neginf=1e6)
                     last_Vc = Vc
                     if not np.isfinite(Vc).all():
@@ -405,8 +409,11 @@ def main():
             # --- 基线对照: 无走廊引导的 VIN-Grad(展示优化前与真实路径的差距) ---
             if args.baseline and guide_enabled and corridor_w > 0 and real_geo and HAS_TORCH:
                 try:
+                    cost_grid_base = (1.0 + 4.0 * cost_base).astype(np.float32)
+                    cost_vin_base = np.where(hard_mask > 0, cost_grid_base, 0.0).astype(np.float32)
                     cost_finite_base = np.where(np.isfinite(cost_base), cost_base, 1.0).astype(np.float32)
-                    Vb = train_vin(cost_finite_base, goal_mask, extra, n_steps=80)
+                    Vb = train_vin(cost_vin_base, goal_mask, extra, hard_mask,
+                                   route_pixel_spacing, n_steps=80)
                     Vb = np.nan_to_num(Vb, nan=1e6, posinf=1e6, neginf=1e6)
                     geo_vin_base = gradient_track_path(Vb, cost_finite_base, hard_mask, (sr, sc), (er, ec), transform)
                     geo_vin_base = smooth_path_with_constraints(geo_vin_base, transform, hard_mask)
@@ -474,8 +481,6 @@ def main():
 
             # --- 基准: A* (仅作传统方法对照) ---
             t_a = time.time()
-            lat_center = transform.f + transform.e * (H / 2.0)
-            route_pixel_spacing = pixel_spacing_meters(transform, lat_center, crs)
             a_path = astar_search(cost_grid, (sr, sc), (er, ec), elevation=dem, pixel_m=pm,
                                   grade_penalty_weight=args.grade_penalty_weight,
                                   max_ground_grade=args.max_ground_grade,

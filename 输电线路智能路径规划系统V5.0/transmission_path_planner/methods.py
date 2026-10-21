@@ -9,27 +9,48 @@ from .cost import *
 
 if HAS_TORCH:
     class DifferentiableMinPool(nn.Module):
-        def __init__(self, T=0.5):
-            super().__init__()
-            self.T = T
+        def forward(self, value, cost, traversable, pixel_spacing):
+            """Return the masked 8-neighbor Bellman target and its active cells."""
+            _, _, height, width = value.shape
+            row_m, col_m = map(float, pixel_spacing)
+            scale = min(row_m, col_m)
+            if not math.isfinite(row_m) or not math.isfinite(col_m) or scale <= 0:
+                raise ValueError("pixel spacing must be positive")
 
-        def forward(self, value):
-            B, C, H, W = value.shape
-            pad = F.pad(value, [1, 1, 1, 1], mode="replicate")
-            patches = F.unfold(pad, 3, 1).view(B, 9, H, W)
-            w = F.softmin(patches / self.T, dim=1)
-            return (w * patches).sum(1, keepdim=True)
+            value_pad = F.pad(value, (1, 1, 1, 1), mode="constant", value=float("inf"))
+            cost_pad = F.pad(cost, (1, 1, 1, 1), mode="constant", value=float("inf"))
+            valid_pad = F.pad(traversable, (1, 1, 1, 1), mode="constant", value=0.0)
+
+            def shifted(padded, dr, dc):
+                return padded[:, :, 1 + dr:1 + dr + height, 1 + dc:1 + dc + width]
+
+            moves = ((-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0),
+                     (1, -1), (0, -1), (-1, -1))
+            valid = traversable > 0.5
+            candidates = []
+            active = torch.zeros_like(valid)
+            for dr, dc in moves:
+                legal = valid & (shifted(valid_pad, dr, dc) > 0.5)
+                if dr and dc:
+                    legal &= (shifted(valid_pad, dr, 0) > 0.5)
+                    legal &= (shifted(valid_pad, 0, dc) > 0.5)
+                step = math.hypot(dr * row_m, dc * col_m) / scale
+                candidate = shifted(value_pad, dr, dc)
+                candidate = candidate + shifted(cost_pad, dr, dc) * step
+                candidates.append(torch.where(legal, candidate, torch.full_like(candidate, float("inf"))))
+                active |= legal
+            best = torch.stack(candidates, dim=1).amin(dim=1)
+            return torch.where(active, best, torch.zeros_like(best)), active
 
 
     class VIN(nn.Module):
         """神经值传播网络：可微 Bellman 迭代生成代价-到此为止值图 V(s)。
         输入: cost(1) + goal(1) + extra(n_extra)；输出 V(1, H, W)。"""
-        def __init__(self, n_extra=8, K=15, hidden=32, gamma=0.99):
+        def __init__(self, n_extra=8, K=15, hidden=32):
             super().__init__()
             self.K = K
-            self.gamma = gamma
             self.enc = nn.Sequential(
-                nn.Conv2d(2 + n_extra, hidden, 3, padding=1, bias=False),
+                nn.Conv2d(3 + n_extra, hidden, 3, padding=1, bias=False),
                 nn.BatchNorm2d(hidden), nn.ReLU(),
                 nn.Conv2d(hidden, hidden, 3, padding=1, bias=False),
                 nn.BatchNorm2d(hidden), nn.ReLU())
@@ -45,44 +66,50 @@ if HAS_TORCH:
                 nn.Conv2d(hidden, 32, 3, padding=1), nn.ReLU(),
                 nn.Conv2d(32, 1, 1), nn.Softplus())
 
-        def forward(self, cost, goal, extra):
-            state = torch.cat([cost, goal, extra], 1)
+        def forward(self, cost, goal, extra, traversable, pixel_spacing):
+            state = torch.cat([cost, goal, traversable, extra], 1)
             s = self.enc(state)
             V = torch.zeros_like(cost)
             for _ in range(self.K):
-                mn = self.minpool(V)
-                target = cost + self.gamma * mn
+                target, _ = self.minpool(V, cost, traversable, pixel_spacing)
                 x = torch.cat([s, V], 1)          # hidden + 1 通道
                 x = self.trans(x)                 # -> hidden 通道
                 delta = self.value_head(x)        # -> 1 通道 (非负)
                 V = V + 0.1 * (target - V) + 0.05 * delta
-                # 终端态锚定：目标点价值为 0（全局最小），使 -∇V 自然指向目标
                 V = torch.where(goal > 0, torch.zeros_like(V), V)
+                V = torch.where(traversable > 0.5, V, torch.zeros_like(V))
             return V
 
 
-    def train_vin(cost_surface, goal_mask, extra, n_steps=250, lr=5e-4, gamma=0.99):
-        """自监督 Bellman 训练 VIN（无需 Dijkstra 标签）。返回 V numpy(H,W)。"""
-        H, W = cost_surface.shape
-        cost_t = torch.from_numpy(cost_surface).float().unsqueeze(0).unsqueeze(0).to(DEVICE)
-        goal_t = torch.from_numpy(goal_mask.astype(np.float32)).float().unsqueeze(0).unsqueeze(0).to(DEVICE)
+    def train_vin(cost_surface, goal_mask, extra, hard_mask=None, pixel_spacing=(1.0, 1.0),
+                  n_steps=250, lr=5e-4):
+        """Train a masked, metric-weighted Bellman value field; return V numpy(H,W)."""
+        cost_surface = np.asarray(cost_surface, dtype=np.float32)
+        goal_mask = np.asarray(goal_mask, dtype=np.float32)
+        traversable = np.isfinite(cost_surface) if hard_mask is None else np.asarray(hard_mask) > 0
+        traversable &= np.isfinite(cost_surface)
+        if not np.any(goal_mask > 0) or np.any((goal_mask > 0) & ~traversable):
+            raise ValueError("VIN goal must be inside the traversable grid")
+        cost_surface = np.where(traversable, cost_surface, 0.0).astype(np.float32)
+        cost_t = torch.from_numpy(cost_surface).unsqueeze(0).unsqueeze(0).to(DEVICE)
+        goal_t = torch.from_numpy(goal_mask).unsqueeze(0).unsqueeze(0).to(DEVICE)
+        traversable_t = torch.from_numpy(traversable.astype(np.float32)).unsqueeze(0).unsqueeze(0).to(DEVICE)
         extra_t = torch.from_numpy(extra).float().permute(2, 0, 1).unsqueeze(0).to(DEVICE)
-        model = VIN(n_extra=extra.shape[2], K=15, gamma=gamma).to(DEVICE)
+        model = VIN(n_extra=extra.shape[2], K=15).to(DEVICE)
         opt = torch.optim.Adam(model.parameters(), lr=lr)
         mpool = DifferentiableMinPool()
-        for step in range(n_steps):
-            V = model(cost_t, goal_t, extra_t)
-            mn = mpool(V)
-            target = cost_t + gamma * mn
-            diff = (V - target) ** 2
-            goal_cons = ((V * goal_t) - (cost_t * goal_t)).abs().mean()
-            loss = diff.mean() + 0.1 * goal_cons
+        for _ in range(n_steps):
+            V = model(cost_t, goal_t, extra_t, traversable_t, pixel_spacing)
+            target, active = mpool(V, cost_t, traversable_t, pixel_spacing)
+            train_mask = active & (goal_t <= 0)
+            weight = train_mask.to(V.dtype)
+            loss = (((V - target) ** 2) * weight).sum() / weight.sum().clamp_min(1.0)
             opt.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
         with torch.no_grad():
-            V = model(cost_t, goal_t, extra_t).squeeze().cpu().numpy().astype(np.float32)
+            V = model(cost_t, goal_t, extra_t, traversable_t, pixel_spacing).squeeze().cpu().numpy().astype(np.float32)
         return V
 
 
