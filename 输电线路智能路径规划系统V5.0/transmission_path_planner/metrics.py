@@ -56,9 +56,10 @@ def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_
     # 平均代价
     H, W = cost_surface.shape
     costs = []
-    for lon, lat in geo:
+    for lon, lat in densify_path_for_raster(geo, transform):
         r, c = geo_to_rowcol(lat, lon, transform)
-        r = min(max(r, 0), H - 1); c = min(max(c, 0), W - 1)
+        if not (0 <= r < H and 0 <= c < W):
+            continue
         v = cost_surface[r, c]
         if np.isfinite(v):
             costs.append(float(v))

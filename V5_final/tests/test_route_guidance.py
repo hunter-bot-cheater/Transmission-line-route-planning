@@ -37,7 +37,10 @@ class RouteGuidanceTests(unittest.TestCase):
 
     def test_unguided_selection_ignores_posthoc_reference_errors(self):
         methods = {"VIN-Grad": [1], "A*(baseline)": [2]}
-        metrics = {"VIN-Grad": {"worst_err_pct": 1.0}, "A*(baseline)": {"worst_err_pct": 5.0}}
+        metrics = {
+            "VIN-Grad": {"worst_err_pct": 1.0, "hard_violations": 0},
+            "A*(baseline)": {"worst_err_pct": 5.0, "hard_violations": 0},
+        }
 
         method, rule = _select_final_route(methods, metrics, False)
 
@@ -45,7 +48,10 @@ class RouteGuidanceTests(unittest.TestCase):
 
     def test_guided_selection_uses_reference_error(self):
         methods = {"VIN-Grad": [1], "A*(baseline)": [2]}
-        metrics = {"VIN-Grad": {"worst_err_pct": 1.0}, "A*(baseline)": {"worst_err_pct": 5.0}}
+        metrics = {
+            "VIN-Grad": {"worst_err_pct": 1.0, "hard_violations": 0},
+            "A*(baseline)": {"worst_err_pct": 5.0, "hard_violations": 0},
+        }
 
         method, rule = _select_final_route(methods, metrics, True)
 

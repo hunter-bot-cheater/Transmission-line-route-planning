@@ -2030,9 +2030,10 @@ def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_
     # 平均代价
     H, W = cost_surface.shape
     costs = []
-    for lon, lat in geo:
+    for lon, lat in densify_path_for_raster(geo, transform):
         r, c = geo_to_rowcol(lat, lon, transform)
-        r = min(max(r, 0), H - 1); c = min(max(c, 0), W - 1)
+        if not (0 <= r < H and 0 <= c < W):
+            continue
         v = cost_surface[r, c]
         if np.isfinite(v):
             costs.append(float(v))
@@ -2549,9 +2550,15 @@ def _resolve_guidance_weights(guide_enabled, corridor_weight, attract_weight):
 
 
 def _select_final_route(methods, case_metrics, guide_enabled):
+    valid_methods = [
+        method for method, path in methods.items()
+        if path and method in case_metrics
+        and case_metrics[method].get("hard_violations") == 0
+    ]
     if guide_enabled:
         best_method, best_err = None, float("inf")
-        for method, metrics in case_metrics.items():
+        for method in valid_methods:
+            metrics = case_metrics[method]
             error = metrics.get("worst_err_pct")
             if error is not None and error < best_err:
                 best_method, best_err = method, error
@@ -2561,9 +2568,11 @@ def _select_final_route(methods, case_metrics, guide_enabled):
     else:
         fallback_rule = "astar_baseline"
 
-    best_method = "A*(baseline)" if methods.get("A*(baseline)") else next(
-        (method for method, path in methods.items() if path), None)
-    return best_method, fallback_rule
+    if "A*(baseline)" in valid_methods:
+        return "A*(baseline)", fallback_rule
+    if valid_methods:
+        return valid_methods[0], "valid_candidate_fallback"
+    return None, "no_hard_constraint_compliant_route"
 
 
 def attach_station_endpoints(geo, station_task):
@@ -2580,6 +2589,28 @@ def attach_station_endpoints(geo, station_task):
     adjusted = list(geo)
     adjusted[0], adjusted[-1] = start_point, end_point
     return adjusted, offsets
+
+
+def _validate_route_hard_constraints(geo, transform, hard_mask):
+    """Reject a candidate whose exported geometry crosses a blocked grid cell."""
+    if not geo:
+        return None, {"hard_constraint_status": "no_path", "hard_violations": 0}
+    violations = _path_hard_violations(geo, transform, hard_mask)
+    report = {
+        "hard_constraint_status": "pass" if violations == 0 else "fail",
+        "hard_violations": int(violations),
+    }
+    return (geo if violations == 0 else None), report
+
+
+def _screening_data_quality(osm_layer_metadata):
+    """Describe missing settlement proxy layers without treating them as empty land."""
+    required_layers = ("buildings", "landuse")
+    missing = [
+        name for name in required_layers
+        if osm_layer_metadata.get(name, {}).get("status") != "available"
+    ]
+    return ("incomplete_osm_proxies" if missing else "osm_proxy_features_observed"), missing
 
 
 def main():
@@ -2990,6 +3021,7 @@ def main():
                     print(f"  [POST-EVAL] 已生成候选路线；加载参考线用于事后指标: {len(real_geo)}条折线")
 
             station_offsets_by_method = {}
+            hard_violation_reports = {}
             if station_task:
                 for method, geo in list(methods.items()):
                     if not geo:
@@ -2997,10 +3029,15 @@ def main():
                     geo, offsets = attach_station_endpoints(geo, station_task)
                     geo, grade_report = filter_path_by_ground_grade(
                         geo, dem, transform, args.max_ground_grade, crs)
+                    geo, hard_report = _validate_route_hard_constraints(geo, transform, hard_mask)
                     methods[method] = geo
                     grade_reports[method] = grade_report
+                    hard_violation_reports[method] = hard_report
+                    station_offsets_by_method[method] = offsets
                     if geo:
-                        station_offsets_by_method[method] = offsets
+                        print(f"  [{method}] 站点端点恢复后的硬约束复核通过")
+                    elif hard_report["hard_constraint_status"] == "fail":
+                        print(f"  [{method}] 站点端点恢复后穿越硬禁区，拒绝该候选")
 
             # 指标
             start_ll = (slat, slon); end_ll = (elat, elon)
@@ -3015,6 +3052,10 @@ def main():
                     continue
                 if m in grade_reports:
                     met.update(grade_reports[m])
+                met.update(hard_violation_reports.get(m, {}))
+                if geo and "hard_constraint_status" not in met:
+                    met["hard_constraint_status"] = (
+                        "pass" if met.get("hard_violations", 0) == 0 else "fail")
                 met.update(station_offsets_by_method.get(m, {}))
                 if geo and real_geo:
                     dev = compute_deviation(geo, real_geo, transform, real_dist_m)
@@ -3039,12 +3080,27 @@ def main():
             final_geo = methods.get(best_method) if best_method else None
             best_err = case_metrics.get(best_method, {}).get("worst_err_pct") if best_method else None
             final_is_ai = best_method in ("VIN-Grad", "PPO")
+            osm_data_quality, missing_osm_layers = _screening_data_quality(osm_layer_metadata)
+            selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
+            planning_status = (
+                "no_hard_constraint_compliant_route" if not final_geo else
+                "screening_candidate_data_incomplete" if missing_osm_layers else
+                "screening_candidate")
             case_metrics[FINAL_ROUTE_LABEL] = {
                 "method": best_method, "worst_err_pct": round(best_err, 3) if best_err is not None else None,
                 "pass8": best_err <= ERROR_TOL_PCT if best_err is not None else None,
                 "is_ai_method": final_is_ai,
                 "selection_rule": selection_rule,
+                "planning_status": planning_status,
+                "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
+                "hard_violations": selected_metrics.get("hard_violations"),
+                "osm_data_quality": osm_data_quality,
+                "missing_osm_screening_layers": missing_osm_layers,
                 "length_km": round(path_length_km(final_geo), 3) if final_geo else None}
+            case_metrics[FINAL_ROUTE_LABEL].update({
+                key: value for key, value in selected_metrics.items()
+                if key not in {"worst_err_pct", "pass8"}
+            })
             if best_method in grade_reports:
                 case_metrics[FINAL_ROUTE_LABEL].update(grade_reports[best_method])
             case_metrics[FINAL_ROUTE_LABEL].update(station_offsets_by_method.get(best_method, {}))
@@ -3104,6 +3160,16 @@ def main():
                             "properties": {"case": cname, "method": best_method,
                                            "selection_rule": selection_rule,
                                            "worst_err_pct": round(best_err, 3) if best_err is not None else None,
+                                           "planning_status": planning_status,
+                                           "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
+                                           "hard_violations": selected_metrics.get("hard_violations"),
+                                           "osm_data_quality": osm_data_quality,
+                                           "missing_osm_screening_layers": missing_osm_layers,
+                                           "length_km": selected_metrics.get("length_km"),
+                                           "mean_cost": selected_metrics.get("mean_cost"),
+                                           "sinuosity": selected_metrics.get("sinuosity"),
+                                           "cum_relief_m": selected_metrics.get("cum_relief_m"),
+                                           "net_relief_m": selected_metrics.get("net_relief_m"),
                                            "from_station_id": station_task["from_station"]["station_id"] if station_task else None,
                                            "to_station_id": station_task["to_station"]["station_id"] if station_task else None,
                                            "from_station_name": station_task["from_station"]["name"] if station_task else None,

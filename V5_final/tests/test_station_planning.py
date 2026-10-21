@@ -7,9 +7,14 @@ import numpy as np
 from affine import Affine
 
 from ai_path_planning_v5 import (
+    _path_hard_violations,
+    _screening_data_quality,
+    _select_final_route,
+    _validate_route_hard_constraints,
     astar_search,
     attach_station_endpoints,
     build_route_cost,
+    compute_metrics,
     load_station_tasks,
     route_profile_metrics,
     rowcol_to_geo,
@@ -143,6 +148,70 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(adjusted[-1], (120.0048, 24.9983))
         self.assertGreater(offsets["from_station_to_grid_center_offset_m"], 0)
         self.assertGreater(offsets["to_station_to_grid_center_offset_m"], 0)
+
+    def test_station_endpoint_restore_rejects_new_hard_obstacle_crossing(self):
+        transform = Affine.identity()
+        hard_mask = np.ones((6, 6), dtype=np.uint8)
+        hard_mask[2, 1] = 0
+        raster_route = [(2.5, 2.5), (1.5, 0.5)]
+        station_task = {
+            "from_station": {"lon": 2.038894157, "lat": 2.302094932},
+            "to_station": {"lon": 1.5, "lat": 0.5},
+        }
+
+        self.assertEqual(_path_hard_violations(raster_route, transform, hard_mask), 0)
+        restored, _ = attach_station_endpoints(raster_route, station_task)
+        self.assertGreater(_path_hard_violations(restored, transform, hard_mask), 0)
+
+        accepted, report = _validate_route_hard_constraints(restored, transform, hard_mask)
+
+        self.assertIsNone(accepted)
+        self.assertEqual(report["hard_constraint_status"], "fail")
+        self.assertGreater(report["hard_violations"], 0)
+
+    def test_final_route_selection_skips_hard_constraint_violations(self):
+        path = [(0.0, 0.0), (1.0, 1.0)]
+        methods = {"A*(baseline)": path, "VIN-Grad": path}
+        metrics = {
+            "A*(baseline)": {"hard_violations": 1},
+            "VIN-Grad": {"hard_violations": 0},
+        }
+
+        self.assertEqual(
+            _select_final_route(methods, metrics, guide_enabled=False),
+            ("VIN-Grad", "valid_candidate_fallback"),
+        )
+
+    def test_final_route_selection_fails_closed_without_valid_candidate(self):
+        path = [(0.0, 0.0), (1.0, 1.0)]
+
+        self.assertEqual(
+            _select_final_route(
+                {"A*(baseline)": path},
+                {"A*(baseline)": {"hard_violations": 2}},
+                guide_enabled=False,
+            ),
+            (None, "no_hard_constraint_compliant_route"),
+        )
+
+    def test_missing_osm_proxy_layers_mark_data_quality_incomplete(self):
+        status, missing = _screening_data_quality({"buildings": {"status": "available"}})
+
+        self.assertEqual(status, "incomplete_osm_proxies")
+        self.assertEqual(missing, ["landuse"])
+
+    def test_mean_cost_samples_route_interior_cells(self):
+        transform = Affine(1.0, 0.0, 0.0, 0.0, -1.0, 5.0)
+        dem = np.zeros((5, 5), dtype=float)
+        cost = np.zeros((5, 5), dtype=float)
+        cost[2, 2] = 10.0
+        hard_mask = np.ones((5, 5), dtype=np.uint8)
+        route = [rowcol_to_geo(2, col, transform) for col in (0, 4)]
+
+        metrics = compute_metrics(route, dem, transform, cost, hard_mask,
+                                  start_ll=(2.5, 0.5), end_ll=(2.5, 4.5))
+
+        self.assertEqual(metrics["mean_cost"], 2.0)
 
 
 if __name__ == "__main__":

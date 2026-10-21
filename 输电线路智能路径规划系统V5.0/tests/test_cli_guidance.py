@@ -32,8 +32,8 @@ class GuidanceModeTests(unittest.TestCase):
     def test_unguided_selection_ignores_reference_errors(self):
         methods = {"VIN-Grad": [(1, 1)], "A*(baseline)": [(1, 1)]}
         metrics = {
-            "VIN-Grad": {"worst_err_pct": 1.0},
-            "A*(baseline)": {"worst_err_pct": 9.0},
+            "VIN-Grad": {"worst_err_pct": 1.0, "hard_violations": 0},
+            "A*(baseline)": {"worst_err_pct": 9.0, "hard_violations": 0},
         }
         self.assertEqual(
             _select_final_route(methods, metrics, guide_enabled=False),
@@ -43,8 +43,8 @@ class GuidanceModeTests(unittest.TestCase):
     def test_reference_mode_selects_lowest_reference_error(self):
         methods = {"VIN-Grad": [(1, 1)], "A*(baseline)": [(1, 1)]}
         metrics = {
-            "VIN-Grad": {"worst_err_pct": 1.0},
-            "A*(baseline)": {"worst_err_pct": 9.0},
+            "VIN-Grad": {"worst_err_pct": 1.0, "hard_violations": 0},
+            "A*(baseline)": {"worst_err_pct": 9.0, "hard_violations": 0},
         }
         self.assertEqual(
             _select_final_route(methods, metrics, guide_enabled=True),
@@ -53,7 +53,10 @@ class GuidanceModeTests(unittest.TestCase):
 
     def test_reference_mode_falls_back_when_no_score_exists(self):
         methods = {"VIN-Grad": [(1, 1)], "A*(baseline)": [(1, 1)]}
-        metrics = {"VIN-Grad": {}, "A*(baseline)": {"worst_err_pct": None}}
+        metrics = {
+            "VIN-Grad": {"hard_violations": 0},
+            "A*(baseline)": {"worst_err_pct": None, "hard_violations": 0},
+        }
         self.assertEqual(
             _select_final_route(methods, metrics, guide_enabled=True),
             ("A*(baseline)", None, "astar_fallback_no_reference_score"),
