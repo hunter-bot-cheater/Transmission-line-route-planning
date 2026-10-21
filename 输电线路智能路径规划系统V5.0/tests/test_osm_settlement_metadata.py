@@ -1,3 +1,4 @@
+import json
 import pickle
 import tempfile
 import unittest
@@ -85,6 +86,36 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertEqual(mask[0, 0], 1)
         self.assertEqual(mask[2, 2], 0)
         self.assertGreater(cost[0, 0], cost[2, 2])
+
+    def test_user_geojson_constraints_rasterize_hard_and_soft_polygons(self):
+        features = [
+            {"type": "Feature", "properties": {"mode": "hard", "source": "official zoning",
+                                                   "category": "no_build"},
+             "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [0, 2], [2, 2], [2, 0], [0, 0]]]}},
+            {"type": "Feature", "properties": {"mode": "soft", "source": "survey", "weight": 0.75,
+                                                   "category": "settlement"},
+             "geometry": {"type": "Polygon", "coordinates": [[[2, 2], [2, 4], [4, 4], [4, 2], [2, 2]]]}},
+            {"type": "Feature", "properties": {"mode": "soft", "source": "planning brief", "weight": 0.25},
+             "geometry": {"type": "Polygon", "coordinates": [[[2, 2], [2, 4], [4, 4], [4, 2], [2, 2]]]}}]
+        path = Path(self.temp_dir.name) / "constraints.geojson"
+        path.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+
+        result = osm.load_user_constraint_overlays(path, Affine(1, 0, 0, 0, -1, 4), (4, 4))
+
+        self.assertGreater(result["hard_mask"].sum(), 0)
+        self.assertAlmostEqual(float(result["soft_cost"].max()), 1.0)
+        self.assertEqual(result["metadata"]["hard_feature_count"], 1)
+        self.assertEqual(result["metadata"]["soft_feature_count"], 2)
+        self.assertEqual(result["metadata"]["sources"], ["official zoning", "planning brief", "survey"])
+
+    def test_user_geojson_soft_feature_requires_source_and_weight(self):
+        feature = {"type": "Feature", "properties": {"mode": "soft"},
+                   "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]]}}
+        path = Path(self.temp_dir.name) / "invalid.geojson"
+        path.write_text(json.dumps({"type": "FeatureCollection", "features": [feature]}), encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "source"):
+            osm.load_user_constraint_overlays(path, Affine.identity(), (2, 2))
 
 
 if __name__ == "__main__":

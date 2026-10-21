@@ -1,8 +1,7 @@
 输电线路智能路径规划系统 V5.0 —— 源程序鉴别材料
-登记源代码范围：transmission_path_planner/ 下 15 个 Python 文件，共 3781 行（含空行，不含本稿页眉）。
-整理方式：完整源码按文件名排序连续编排，共 61 个逻辑页，每页 61 至 62 行源码。
-页眉不计入源码行；本稿是文本逻辑分页稿，不等同正式 A4 页数。提交前按版权中心要求排版并核验实际页数、每页行数和代码连续性；若正式排版不足 60 页，应提交全文。
-
+登记源代码范围：transmission_path_planner/ 下 15 个 Python 文件，共 3936 行原始源码（含空行）。
+整理方式：按文件名排序编排；保留源码自带的 13 条文件路径注释，并为其余 2 个文件补充路径标记，共 3938 行合并内容，分为 64 个逻辑页，每页 61 至 62 行。
+页眉和分页分隔不计入合并内容行；本稿是文本逻辑分页稿，不等同正式 A4 页数。提交前按版权中心要求排版并核验实际页数、每页行数和代码连续性；若正式排版不足 60 页，应提交全文。
 ========== 第 1 页 / 合并源码行 1-62 / __init__.py、__main__.py、cli.py ==========
 # transmission_path_planner/__init__.py
 """输电线路智能路径规划系统 V5.0
@@ -124,14 +123,16 @@ def main():
                     help="站点表: station_id,name,lat,lon,voltage_kv; 坐标应为线路接入点")
     ap.add_argument("--route-tasks-csv", type=str, default=None,
                     help="站间任务表: route_id,from_station_id,to_station_id")
+    ap.add_argument("--constraint-geojson", type=str, default=None,
+                    help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight")
     ap.add_argument("--settlement-weight", type=float, default=2.0,
                     help="OSM建筑密度代理的软避让权重(方案筛选参数, 默认2.0)")
     ap.add_argument("--building-clearance-m", type=float, default=0.0,
                     help="建筑物栅格硬避让距离(米); 0仅屏蔽已映射建筑足迹，不代表规范净距")
-    ap.add_argument("--grade-penalty-weight", type=float, default=1.0,
-                    help="沿线相邻DEM高差软惩罚权重(以30%%地面坡度作为一个参考级)")
 
 ========== 第 3 页 / 合并源码行 125-186 / cli.py ==========
+    ap.add_argument("--grade-penalty-weight", type=float, default=1.0,
+                    help="沿线相邻DEM高差软惩罚权重(以30%%地面坡度作为一个参考级)")
     ap.add_argument("--max-ground-grade", type=float, default=None,
                     help="可选地面相邻栅格最大坡度比，如0.30; 属于筛选阈值，不是线路设计限值")
     ap.add_argument("--max-surface-slope-deg", type=float, default=None,
@@ -192,10 +193,10 @@ def main():
 
     if args.rebuild_osm_cache:
         print("[OSM] 请求重建台湾 OSM 缓存 ...")
-        try:
-            from . import rebuild_osm_cache as _roc
 
 ========== 第 4 页 / 合并源码行 187-248 / cli.py ==========
+        try:
+            from . import rebuild_osm_cache as _roc
             _roc.rebuild()
         except Exception as _e:
             print(f"[warn] OSM 缓存重建失败: {_e}")
@@ -256,10 +257,10 @@ def main():
             print(f"[真实对比] 警告: 无法读取 {args.real_shp}")
     if use_real:
         mode = "全局线网" if global_real_exists else args.real_dir
-        guide_text = "参考线参与规划" if reference_guidance else "真实线仅用于事后评估"
-        print(f"[真实对比] 已启用: 模式={mode}  {guide_text}")
 
 ========== 第 5 页 / 合并源码行 249-310 / cli.py ==========
+        guide_text = "参考线参与规划" if reference_guidance else "真实线仅用于事后评估"
+        print(f"[真实对比] 已启用: 模式={mode}  {guide_text}")
 
     # CostUNet（全局加载一次）
     costunet = load_costunet() if args.use_costunet and HAS_TORCH else None
@@ -293,6 +294,11 @@ def main():
             bbox = (left, bottom, right, top)
             osm = compute_osm_bands(dem, transform, bbox)
             osm_layer_metadata = getattr(osm, "metadata", {}).get("layers", {})
+            custom_constraints = (
+                load_user_constraint_overlays(args.constraint_geojson, transform, dem.shape)
+                if args.constraint_geojson else None
+            )
+            custom_constraint_metadata = custom_constraints["metadata"] if custom_constraints else None
             for layer_name in ("buildings", "landuse"):
                 layer = osm_layer_metadata.get(layer_name, {})
                 if layer.get("status") != "available":
@@ -302,7 +308,6 @@ def main():
 
             model_cost = costunet.predict(stack) if costunet is not None else None
             cost = build_route_cost(terrain, osm, args.settlement_weight, model_cost)
-            print(f"  代价面范围 [{np.nanmin(cost):.3f}, {np.nanmax(cost):.3f}]")
 
             # ---- 真实/参考路径加载 + 走廊引导代价(缩小规划路径与真实路径差距) ----
             real_geo = None
@@ -316,14 +321,14 @@ def main():
             elif reference_guidance and use_real:
                 rp = resolve_real_path(cname, args.real_dir)
                 if rp and Path(rp).exists():
+
+========== 第 6 页 / 合并源码行 311-372 / cli.py ==========
                     real_geo = load_real_path(rp)
                     if real_geo:
                         real_dist_m, real_field = compute_dist_to_route(real_geo, transform, H, W, pm)
                         print(f"  [真实路径] 加载 {Path(rp).name}: {len(real_geo)}条折线, "
                               f"{real_length_km(real_geo):.1f}km")
             guide_enabled = reference_guidance and real_geo is not None
-
-========== 第 6 页 / 合并源码行 311-372 / cli.py ==========
             corridor_w = (args.corridor_w if args.corridor_w is not None else CORRIDOR_W_DEFAULT) if guide_enabled else 0.0
             real_attract = (args.real_attract if args.real_attract is not None else REAL_ATTRACT_DEFAULT) if guide_enabled else 0.0
             cost_base = cost.copy()  # 保留无引导基线代价, 供 A/B 对照
@@ -332,10 +337,17 @@ def main():
                 corridor_pen = corridor_w * ratio
                 cost = np.clip(cost + corridor_pen, 0, 1.5).astype(np.float32)
                 print(f"  [走廊引导] w={corridor_w:.2f} band={args.corridor_band:.0f}m 最大附加代价={corridor_pen.max():.2f}")
+            if custom_constraints:
+                soft_cost = custom_constraints["soft_cost"]
+                cost = (cost + soft_cost).astype(np.float32)
+                cost_base = (cost_base + soft_cost).astype(np.float32)
+            print(f"  代价面范围 [{np.nanmin(cost):.3f}, {np.nanmax(cost):.3f}]")
 
             slope = terrain["slope"]; elev = terrain["elevation"]
             hard_mask = np.ones((H, W), np.uint8)
             hard_mask[~np.isfinite(dem)] = 0
+            if custom_constraints:
+                hard_mask[custom_constraints["hard_mask"] > 0] = 0
             if args.max_surface_slope_deg is not None:
                 if not 0 < args.max_surface_slope_deg <= 90:
                     raise ValueError("--max-surface-slope-deg 必须在(0,90]内")
@@ -373,6 +385,8 @@ def main():
                 # 参考线引导模式允许用参考误差挑选重试种子; 无引导时固定使用首个种子,
                 # 避免把验收线用于规划阶段的候选筛选。
                 best_vin, best_vin_V, best_vin_err = None, None, 1e9
+
+========== 第 7 页 / 合并源码行 373-434 / cli.py ==========
                 last_Vc = None
                 for vin_attempt in range(3 if guide_enabled else 1):
                     torch.manual_seed(RANDOM_SEED + vin_attempt * 10)
@@ -386,8 +400,6 @@ def main():
                         real_field=real_field if guide_enabled else None, real_attract=real_attract,
                         real_dist_m=real_dist_m if guide_enabled else None,
                         real_attract_cutoff=args.real_attract_cutoff), transform, hard_mask)
-
-========== 第 7 页 / 合并源码行 373-434 / cli.py ==========
                     geo_t, grade_reports["VIN-Grad"] = filter_path_by_ground_grade(
                         geo_t, dem, transform, args.max_ground_grade, crs)
                     err_t = 1e9
@@ -437,6 +449,8 @@ def main():
                     geo_vin_base, grade_reports["VIN-Grad-no-corridor"] = filter_path_by_ground_grade(
                         geo_vin_base, dem, transform, args.max_ground_grade, crs)
                     dev_base = compute_deviation(geo_vin_base, real_geo, transform, real_dist_m)
+
+========== 第 8 页 / 合并源码行 435-496 / cli.py ==========
                     if dev_base:
                         print(f"  [基线VIN无引导] 偏差 Hausdorff={dev_base['dev_hausdorff_km']}km "
                               f"mean={dev_base['dev_mean_km']}km max={dev_base['dev_max_km']}km")
@@ -450,8 +464,6 @@ def main():
                 try:
                     best_ppo, best_ppo_err = None, 1e9
                     for ppo_attempt in range(2 if guide_enabled else 1):
-
-========== 第 8 页 / 合并源码行 435-496 / cli.py ==========
                         torch.manual_seed(RANDOM_SEED + 100 + ppo_attempt * 10)
                         print(f"  [PPO] 训练策略网络 (尝试{ppo_attempt + 1}) ...")
                         t_p = time.time()
@@ -501,6 +513,8 @@ def main():
             # --- 基准: A* (仅作传统方法对照) ---
             t_a = time.time()
             lat_center = transform.f + transform.e * (H / 2.0)
+
+========== 第 9 页 / 合并源码行 497-558 / cli.py ==========
             route_pixel_spacing = pixel_spacing_meters(transform, lat_center, crs)
             a_path = astar_search(cost_grid, (sr, sc), (er, ec), elevation=dem, pixel_m=pm,
                                   grade_penalty_weight=args.grade_penalty_weight,
@@ -514,8 +528,6 @@ def main():
             methods["A*(baseline)"] = geo_astar
             t_astar = time.time() - t_a
             print(f"  [A* baseline] 路径 {len(geo_astar) if geo_astar else 0} 点, 耗时 {t_astar:.1f}s")
-
-========== 第 9 页 / 合并源码行 497-558 / cli.py ==========
 
             # 无引导模式在所有路径都生成后才读取真实线, 使其只进入事后评估。
             if use_real and not reference_guidance:
@@ -532,6 +544,7 @@ def main():
                     print(f"  [POST-EVAL] 加载真实线路: {len(real_geo)}条折线")
 
             station_offsets_by_method = {}
+            station_measurements = {}
             hard_violation_reports = {}
             if station_task:
                 for method, geo in list(methods.items()):
@@ -564,6 +577,8 @@ def main():
                 if m in grade_reports:
                     met.update(grade_reports[m])
                 met.update(hard_violation_reports.get(m, {}))
+
+========== 第 10 页 / 合并源码行 559-620 / cli.py ==========
                 if geo and "hard_constraint_status" not in met:
                     met["hard_constraint_status"] = (
                         "pass" if met.get("hard_violations", 0) == 0 else "fail")
@@ -578,8 +593,6 @@ def main():
                         err = eval_error(met.get("length_km", 0.0), dev)
                         if err:
                             met.update(err)
-
-========== 第 10 页 / 合并源码行 559-620 / cli.py ==========
                         flag = (f"PASS(误差{err['worst_err_pct']:.2f}%<=8%)"
                                 if (err and err["pass8"]) else
                                 f"FAIL(误差{err['worst_err_pct']:.2f}%)" if err else "NA")
@@ -610,6 +623,7 @@ def main():
                 "hard_violations": selected_metrics.get("hard_violations"),
                 "osm_data_quality": osm_data_quality,
                 "missing_osm_screening_layers": missing_osm_layers,
+                "constraint_layer_metadata": custom_constraint_metadata,
                 "length_km": round(path_length_km(final_geo), 3) if final_geo else None}
             case_metrics[FINAL_ROUTE_LABEL].update({
                 key: value for key, value in selected_metrics.items()
@@ -627,6 +641,8 @@ def main():
                 "max_ground_grade_ratio": args.max_ground_grade,
                 "max_surface_slope_deg": args.max_surface_slope_deg,
                 "max_terrain_elevation_m": args.max_terrain_elevation_m,
+
+========== 第 11 页 / 合并源码行 621-682 / cli.py ==========
                 "osm_layer_metadata": osm_layer_metadata,
                 "voltage_rules_applied": False,
                 "route_constraints_limitations": (
@@ -636,14 +652,13 @@ def main():
             if station_task:
                 start_station = station_task["from_station"]
                 end_station = station_task["to_station"]
+                station_measurements = station_elevation_metrics(station_task)
                 for metrics in case_metrics.values():
                     if isinstance(metrics, dict):
                         metrics.update({
                             "route_id": cname,
                             "from_station_id": start_station["station_id"],
                             "from_station_name": start_station["name"],
-
-========== 第 11 页 / 合并源码行 621-682 / cli.py ==========
                             "from_station_type": start_station["station_type"] or None,
                             "from_station_source": start_station["source"] or None,
                             "from_station_verified": start_station["verified"] or None,
@@ -653,6 +668,7 @@ def main():
                             "to_station_source": end_station["source"] or None,
                             "to_station_verified": end_station["verified"] or None,
                             "voltage_kv": station_task["voltage_kv"] or None,
+                            **station_measurements,
                             "settlement_weight": args.settlement_weight,
                             "building_clearance_m": args.building_clearance_m,
                             "grade_penalty_weight": args.grade_penalty_weight,
@@ -682,12 +698,15 @@ def main():
                                            "hard_violations": selected_metrics.get("hard_violations"),
                                            "osm_data_quality": osm_data_quality,
                                            "missing_osm_screening_layers": missing_osm_layers,
+                                           "constraint_layer_metadata": custom_constraint_metadata,
                                            "length_km": selected_metrics.get("length_km"),
                                            "mean_cost": selected_metrics.get("mean_cost"),
                                            "sinuosity": selected_metrics.get("sinuosity"),
                                            "cum_relief_m": selected_metrics.get("cum_relief_m"),
                                            "net_relief_m": selected_metrics.get("net_relief_m"),
                                            "from_station_id": station_task["from_station"]["station_id"] if station_task else None,
+
+========== 第 12 页 / 合并源码行 683-744 / cli.py ==========
                                            "to_station_id": station_task["to_station"]["station_id"] if station_task else None,
                                            "from_station_name": station_task["from_station"]["name"] if station_task else None,
                                            "to_station_name": station_task["to_station"]["name"] if station_task else None,
@@ -696,6 +715,7 @@ def main():
                                            "to_station_source": station_task["to_station"]["source"] or None if station_task else None,
                                            "to_station_verified": station_task["to_station"]["verified"] or None if station_task else None,
                                            "voltage_kv": station_task["voltage_kv"] or None if station_task else None,
+                                           **station_measurements,
                                            "voltage_rules_applied": False,
                                            "settlement_weight": args.settlement_weight,
                                            "building_clearance_m": args.building_clearance_m,
@@ -706,8 +726,6 @@ def main():
                                            "osm_layer_metadata": osm_layer_metadata,
                                            "route_constraints_limitations": (
                                                "No population/sensitive-target inventory, official protected-area boundaries, "
-
-========== 第 12 页 / 合并源码行 683-744 / cli.py ==========
                                                "conductor clearance, tower siting or span feasibility checked"),
                                            **grade_reports.get(best_method, {}),
                                            **station_offsets_by_method.get(best_method, {}),
@@ -751,6 +769,8 @@ def main():
                 try:
                     import torch as _torch
                     _torch.cuda.empty_cache()
+
+========== 第 13 页 / 合并源码行 745-806 / cli.py ==========
                 except Exception:
                     pass
 
@@ -770,8 +790,6 @@ def main():
             if real_geo:
                 export_route(real_geo, crs, cdir / "real_route.shp", cdir / "real_route.geojson")
             paths_json = {m: [[round(lon, 6), round(lat, 6)] for lon, lat in geo]
-
-========== 第 13 页 / 合并源码行 745-806 / cli.py ==========
                           for m, geo in methods.items() if geo}
             with open(cdir / "paths.json", "w", encoding="utf-8") as f:
                 json.dump(paths_json, f, ensure_ascii=False)
@@ -815,6 +833,8 @@ def main():
         _tb2.print_exc()
         print(f"[WARN] 聚合对比图/指标写出失败(不影响各走廊已写出结果): {_exc2}")
     # CSV
+
+========== 第 14 页 / 合并源码行 807-868 / cli.py ==========
     rows = []
     for rec in all_results:
         for m, met in rec["metrics"].items():
@@ -834,8 +854,6 @@ def main():
     # 真实路径偏差对比 JSON + 控制台摘要
     if use_real:
         real_out = []
-
-========== 第 14 页 / 合并源码行 807-868 / cli.py ==========
         for rec in all_results:
             entry = {"case": rec["case"]}
             for m, met in rec["metrics"].items():
@@ -879,6 +897,8 @@ def main():
             print(f"  {b['case']:16s} {'VIN无引导':16s} {d['dev_hausdorff_km']:9.2f} {'-':>9s} {'-':>7s} {'-':>5s}")
         print("-" * 70)
         print(f"  误差<=8% 达标: {n_pass}/{n_tot} (方法×走廊); 目标 ERROR_TOL_PCT={ERROR_TOL_PCT}%")
+
+========== 第 15 页 / 合并源码行 869-930 / cli.py、config.py ==========
         print("=" * 70)
 
         # ── 对抗式循环验收: 按方法独立统计 PASS(不掩盖 AI 成败) ──
@@ -898,8 +918,6 @@ def main():
                          if not r["metrics"].get("VIN-Grad", {}).get("pass8")]
         ai_fallback = [r["case"] for r in all_results
                        if r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("is_ai_method") is False]
-
-========== 第 15 页 / 合并源码行 869-930 / cli.py、config.py ==========
         if ai_fail_final:
             print(f"  ⚠ 以下走廊 VIN-Grad(AI主方法)自身未达标: {ai_fail_final}")
         else:
@@ -943,6 +961,8 @@ warnings.filterwarnings("ignore")
 # 0. 依赖导入（缺失时给出明确提示，但核心逻辑尽量自包含）
 # ----------------------------------------------------------------------------
 try:
+
+========== 第 16 页 / 合并源码行 931-992 / config.py ==========
     import numpy as np
 except ImportError:
     sys.exit("[FATAL] 缺少 numpy，请先运行: pip install numpy")
@@ -962,8 +982,6 @@ plt.rcParams["font.sans-serif"] = [
     "Microsoft YaHei", "SimHei", "SimSun", "Noto Sans CJK SC",
     "WenQuanYi Micro Hei", "DejaVu Sans",
 ]
-
-========== 第 16 页 / 合并源码行 931-992 / config.py ==========
 plt.rcParams["axes.unicode_minus"] = False
 
 try:
@@ -1007,6 +1025,8 @@ except Exception:
 # ============================================================================
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
 BASE_DIR = PACKAGE_DIR.parent
+
+========== 第 17 页 / 合并源码行 993-1054 / config.py ==========
 SCRIPTS_DIR = BASE_DIR / "scripts"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 DATA_DIR = BASE_DIR / "data"
@@ -1026,8 +1046,6 @@ SHP_CANDIDATES = [
     BASE_DIR / "输电线数据" / "示例数据-中国输电线路矢量.shp",
     Path(r"D:\输电线数据\示例数据-中国输电线路矢量.shp"),
 ]
-
-========== 第 17 页 / 合并源码行 993-1054 / config.py ==========
 MODEL_WEIGHTS = [
     MODELS_DIR / "cost_unet_improved.pt",
     MODELS_DIR / "cost_unet_best.pt",
@@ -1071,6 +1089,8 @@ if HAS_TORCH:
     try:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+
+========== 第 18 页 / 合并源码行 1055-1116 / config.py、corridor.py ==========
     except Exception:
         pass
 
@@ -1090,8 +1110,6 @@ DEFAULT_CASES = [
 # 阶段二: 把 T01~T04 各自真实线路存为 "<净化名>_real_path.shp" 放到 REAL_PATH_DIR 即可自动接入。
 REAL_PATH_DIR = BASE_DIR / "v3_20260525" / "output" / "comparisons"
 REAL_CASES = [
-
-========== 第 18 页 / 合并源码行 1055-1116 / config.py、corridor.py ==========
     # (名称, 起点(lat,lon), 终点(lat,lon), real_path 文件名)
     ("R01_南部屏东",     (22.418, 120.610), (21.960, 120.749), "case_01_real_path.shp"),
     ("R02_中南部纵谷",   (23.065, 120.427), (23.891, 120.770), "case_02_real_path.shp"),
@@ -1106,6 +1124,7 @@ CORRIDOR_BAND_M_DEFAULT = 1200.0  # 缓冲带半宽(米), 收窄以抑制 VIN �
 CORRIDOR_CAP = 1.5            # 距离比上限(配合下方 clip(0,1.5) 形成硬墙)
 REAL_ATTRACT_DEFAULT = 0.4    # 真实线方向吸引力默认权重(留出集 TW345 三档 0.4/0.5/0.6 均<=0.64%;
                                   # TW173 单扫 0.4->3.23% 0.5->4.19% 0.6->5.63%; 取 0.4 余量最足且留出集稳健)
+# transmission_path_planner/corridor.py
 # -*- coding: utf-8 -*-
 """corridor.py — 输电走廊先验模块(V6)
 
@@ -1134,6 +1153,8 @@ def pickle_from_np(arr):
 def cache_load_real_geo(arr):
     """兼容新旧缓存格式读取 real_geo, 统一为 折线列表, 每条 = [(lon,lat),...]。
 
+
+========== 第 19 页 / 合并源码行 1117-1178 / corridor.py ==========
     旧格式: np.array([real_geo], dtype=object) 可能落成 (1,1,N,2) 数值数组 或 (1,n) 对象数组;
     新格式: pickle 字节。
     """
@@ -1154,8 +1175,6 @@ def cache_load_real_geo(arr):
     if isinstance(val, tuple):
         val = [val]
     out = []
-
-========== 第 19 页 / 合并源码行 1117-1178 / corridor.py ==========
     for poly in val:
         if isinstance(poly, np.ndarray):
             poly = poly.tolist()
@@ -1198,6 +1217,8 @@ def match_exclude_index(real_geo_coords, coords_list):
     target = _norm(real_geo_coords)
     rev = tuple(reversed(target))
     for i, c in enumerate(coords_list):
+
+========== 第 20 页 / 合并源码行 1179-1240 / corridor.py ==========
         nc = _norm(c)
         if nc == target or nc == rev:
             return i
@@ -1218,8 +1239,6 @@ def corridor_dist_band(coords_list, geom_list, exclude_idx, transform, H, W,
         geoms = geom_list
     mask = rio_rasterize([(mapping(g), 1) for g in geoms], out_shape=(H, W),
                          transform=transform, fill=0, dtype="uint8", all_touched=False)
-
-========== 第 20 页 / 合并源码行 1179-1240 / corridor.py ==========
     dist_px, idx = distance_transform_edt(1 - mask, return_indices=True)
     lat0 = (transform.f + transform.e * H) / 2.0
     pm = pixel_meters(transform, lat0)
@@ -1262,6 +1281,8 @@ def corridor_orientation_band(geom_list, exclude_idx, transform, H, W, win=5):
     from rasterio.features import rasterize as rio_rasterize
     from shapely.geometry import mapping
     from scipy.ndimage import distance_transform_edt
+
+========== 第 21 页 / 合并源码行 1241-1302 / corridor.py、cost.py ==========
     from numpy.linalg import eig
     import math
 
@@ -1282,8 +1303,6 @@ def corridor_orientation_band(geom_list, exclude_idx, transform, H, W, win=5):
         mu = pts.mean(axis=0)
         cov = (pts - mu).T @ (pts - mu) / len(pts)
         wv, v = eig(cov)
-
-========== 第 21 页 / 合并源码行 1241-1302 / corridor.py、cost.py ==========
         ang = math.atan2(v[1, int(np.argmax(wv))], v[0, int(np.argmax(wv))])
         orient[y, x] = ang % math.pi
     _, idx = distance_transform_edt(1 - mask, return_indices=True)
@@ -1326,6 +1345,8 @@ def build_feature_stack(dem, terrain, osm, dist_existing=None):
     stack[:, :, 14] = np.clip(osm["dist_water"] / 5000.0, 0, 1)
     if dist_existing is not None:
         stack[:, :, 15] = np.clip(dist_existing / 10000.0, 0, 1)
+
+========== 第 22 页 / 合并源码行 1303-1364 / cost.py ==========
     stack[:, :, 16] = np.clip(osm["dist_railway"] / 5000.0, 0, 1)
     stack[:, :, 17] = np.clip(osm["dist_fault"] / 10000.0, 0, 1)
     # 18-20 分类/密度/植被
@@ -1346,8 +1367,6 @@ if HAS_TORCH:
     class DoubleConv(nn.Module):
         def __init__(self, in_ch, out_ch, dropout=0.0):
             super().__init__()
-
-========== 第 22 页 / 合并源码行 1303-1364 / cost.py ==========
             self.conv = nn.Sequential(
                 nn.Conv2d(in_ch, out_ch, 3, padding=1, bias=False),
                 nn.BatchNorm2d(out_ch), nn.ReLU(inplace=True),
@@ -1390,6 +1409,8 @@ if HAS_TORCH:
             self.up_convs = nn.ModuleList()
             for i, o in enumerate(dec):
                 sk = enc[-(i + 1)] if i < len(enc) else enc[-1]
+
+========== 第 23 页 / 合并源码行 1365-1426 / cost.py ==========
                 self.up_convs.append(nn.ConvTranspose2d(in_ch, o, 2, stride=2))
                 self.decoder_blocks.append(DoubleConv(o + sk, o, dropout))
                 in_ch = o
@@ -1410,8 +1431,6 @@ if HAS_TORCH:
                 x = d(torch.cat([x, sk], 1))
             x = self.final_conv(x)
             if x.shape[2:] != inp:
-
-========== 第 23 页 / 合并源码行 1365-1426 / cost.py ==========
                 x = F.interpolate(x, size=inp, mode="bilinear", align_corners=True)
             return x
 
@@ -1454,6 +1473,8 @@ def load_costunet():
                 return model
             except Exception as ex:
                 print(f"  [warn] 加载 {p.name} 失败: {ex}")
+
+========== 第 24 页 / 合并源码行 1427-1488 / cost.py、data.py ==========
     return None
 
 
@@ -1474,8 +1495,6 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None):
     slope = np.nan_to_num(terrain["slope"], nan=0.0, posinf=90.0, neginf=0.0)
     roughness = np.nan_to_num(terrain["roughness_27"], nan=0.0, posinf=0.0, neginf=0.0)
     terrain_cost = 0.75 * np.clip(slope / 45.0, 0.0, 1.0) ** 1.5
-
-========== 第 24 页 / 合并源码行 1427-1488 / cost.py、data.py ==========
     terrain_cost += 0.25 * np.clip(roughness / 100.0, 0.0, 1.0)
 
     density = np.broadcast_to(np.asarray(
@@ -1518,6 +1537,8 @@ def load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, max_side=WORK_MAX_
         with rasterio.open(dem_path) as src:
             if src.crs is None or src.crs != rasterio.crs.CRS.from_epsg(4326):
                 raise ValueError("当前命令行规划仅支持带 EPSG:4326 坐标系的 DEM，请先重投影")
+
+========== 第 25 页 / 合并源码行 1489-1550 / data.py ==========
             crs = str(src.crs)
             # 限制到 DEM 实际范围
             dem_left, dem_bottom, dem_right, dem_top = src.bounds
@@ -1538,8 +1559,6 @@ def load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, max_side=WORK_MAX_
             transform = src.window_transform(window)
             nodata = src.nodata
     elif tifffile is not None:
-
-========== 第 25 页 / 合并源码行 1489-1550 / data.py ==========
         with tifffile.TiffFile(str(dem_path)) as tf:
             gm = tf.geotiff_metadata
             sx = gm["ModelPixelScale"][0]
@@ -1582,6 +1601,8 @@ def load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, max_side=WORK_MAX_
         left = transform.c
         top = transform.f
         right = left + transform.a * Wn
+
+========== 第 26 页 / 合并源码行 1551-1612 / data.py ==========
         bottom = top + transform.e * Hn
         a_new = (right - left) / Wr
         e_new = (bottom - top) / Hr
@@ -1602,8 +1623,6 @@ def _fill(arr, fill=None):
 def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
     if transform is not None:
         row_m, col_m = pixel_spacing_meters(
-
-========== 第 26 页 / 合并源码行 1551-1612 / data.py ==========
             transform, (transform.f + transform.e * dem.shape[0] / 2), crs)
     elif np.isscalar(pixel_m):
         row_m = col_m = float(pixel_m)
@@ -1646,6 +1665,8 @@ def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
     rough_27 = rough_at(px_of_m(900))
 
     if HAS_SCIPY:
+
+========== 第 27 页 / 合并源码行 1613-1674 / data.py、geometry.py ==========
         curv = ndi.laplace(z) / (neighborhood_m ** 2)
     else:
         curv = np.zeros_like(z)
@@ -1666,8 +1687,6 @@ def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
         "roughness_9": np.nan_to_num(rough_9, nan=0.0).astype(np.float32),
         "roughness_27": np.nan_to_num(rough_27, nan=0.0).astype(np.float32),
     }
-
-========== 第 27 页 / 合并源码行 1613-1674 / data.py、geometry.py ==========
 
 
 def _landuse_tag_to_code(tags):
@@ -1710,6 +1729,8 @@ def geo_to_rowcol(lat, lon, transform):
     return int(math.floor(row)), int(math.floor(col))
 
 
+
+========== 第 28 页 / 合并源码行 1675-1736 / geometry.py ==========
 def rowcol_to_geo(row, col, transform):
     lon = transform.c + (col + 0.5) * transform.a
     lat = transform.f + (row + 0.5) * transform.e
@@ -1730,8 +1751,6 @@ def pixel_spacing_meters(transform, lat_center, crs=None):
         except Exception:
             geographic = any(token in str(crs).upper() for token in ("4326", "GEOGCS", "GEOGCRS", "LONG LAT"))
     elif crs is not None:
-
-========== 第 28 页 / 合并源码行 1675-1736 / geometry.py ==========
         geographic = any(token in str(crs).upper() for token in ("4326", "GEOGCS", "GEOGCRS", "LONG LAT"))
 
     if geographic:
@@ -1774,6 +1793,8 @@ def point_to_polyline_km(lon, lat, polylines):
         for i in range(len(poly) - 1):
             lon0, lat0 = poly[i]
             lon1, lat1 = poly[i + 1]
+
+========== 第 29 页 / 合并源码行 1737-1798 / geometry.py、io_export.py ==========
             d_m = math.hypot((lon1 - lon0) * 111000 * math.cos(math.radians((lat0 + lat1) / 2)),
                              (lat1 - lat0) * 111000)
             n = max(int(d_m / 30.0), 1)
@@ -1794,8 +1815,6 @@ def real_length_km(real_geo):
     if isinstance(real_geo[0][0], (list, tuple)):
         return sum(path_length_km(p) for p in real_geo)
     return path_length_km(real_geo)
-
-========== 第 29 页 / 合并源码行 1737-1798 / io_export.py ==========
 # transmission_path_planner/io_export.py
 """文件命名与路径导出（SHP/GeoJSON）。"""
 
@@ -1838,6 +1857,8 @@ def export_route(geo, crs, shp_path, geojson_path):
         names = [f"seg{i}" for i in range(len(lines))]
         seg_polys = geo
     else:
+
+========== 第 30 页 / 合并源码行 1799-1860 / io_export.py、methods.py ==========
         lines = [LineString([(lon, lat) for lon, lat in geo])]
         names = ["route"]
         seg_polys = [geo]
@@ -1858,8 +1879,6 @@ def export_route(geo, crs, shp_path, geojson_path):
     with open(geojson_path, "w", encoding="utf-8") as f:
         json.dump(feat, f, ensure_ascii=False, indent=2)
     return geojson_path
-
-========== 第 30 页 / 合并源码行 1799-1860 / methods.py ==========
 # transmission_path_planner/methods.py
 """三种路径规划方法：VIN-Grad（深度值迭代+梯度追踪）、PPO（强化学习）、A*（基线）。"""
 
@@ -1902,6 +1921,8 @@ if HAS_TORCH:
                 nn.BatchNorm2d(hidden), nn.ReLU(),
                 ResidualBlock(hidden),
                 ResidualBlock(hidden))
+
+========== 第 31 页 / 合并源码行 1861-1922 / methods.py ==========
             self.minpool = DifferentiableMinPool()
             self.value_head = nn.Sequential(
                 nn.Conv2d(hidden, 32, 3, padding=1), nn.ReLU(),
@@ -1922,8 +1943,6 @@ if HAS_TORCH:
                 V = torch.where(goal > 0, torch.zeros_like(V), V)
             return V
 
-
-========== 第 31 页 / 合并源码行 1861-1922 / methods.py ==========
 
     def train_vin(cost_surface, goal_mask, extra, n_steps=250, lr=5e-4, gamma=0.99):
         """自监督 Bellman 训练 VIN（无需 Dijkstra 标签）。返回 V numpy(H,W)。"""
@@ -1966,6 +1985,8 @@ if HAS_TORCH:
             return self.head(self.conv(x))
 
 
+
+========== 第 32 页 / 合并源码行 1923-1984 / methods.py ==========
     class ValueNet(nn.Module):
         def __init__(self, in_ch=5, win=15):
             super().__init__()
@@ -1986,8 +2007,6 @@ if HAS_TORCH:
         先验, 让局部窗口策略也能感知远处更优走向, 显著改善长走廊到达率。
         [NaN-safe] 所有通道强制清洗: 任何 NaN/inf 都会被替换为有限值, 否则 ReLU-CNN
         前向一旦吞入 NaN/inf 会整条传播为 NaN logits, 导致 rollout 的 softmax 概率含 NaN
-
-========== 第 32 页 / 合并源码行 1923-1984 / methods.py ==========
         而崩溃 (360-grid 复现的 "Probabilities contain NaN")。"""
         gr, gc = goal
         yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
@@ -2030,6 +2049,8 @@ if HAS_TORCH:
         return w
 
 
+
+========== 第 33 页 / 合并源码行 1985-2046 / methods.py ==========
     def train_ppo(cost_norm, block_mask, goal, start, value_map=None, n_updates=60, episodes=8, ppo_epochs=4,
                   clip=0.2, lr=1e-3, gamma=0.99, step_pen=0.03,
                   goal_bonus=5.0, cost_w=0.15, visit_train_pen=0.5, bc_steps=40, max_steps=None,
@@ -2050,8 +2071,6 @@ if HAS_TORCH:
         # 训练阶段的回合步数上限: 取走廊较短比例, 足以让 BC 预热后的策略到达终点, 又避免无限打圈
         if train_max_steps is None:
             train_max_steps = int(1.2 * (H + W)) + 100
-
-========== 第 33 页 / 合并源码行 1985-2046 / methods.py ==========
         gr, gc = goal
         cost_n = np.clip(cost_norm, 0, 1).astype(np.float32)
         ctx = build_ppo_context(cost_n, goal, H, W, value_map)
@@ -2094,6 +2113,8 @@ if HAS_TORCH:
         # 这样步进奖励远大于 step/cost 惩罚, 策略才会学到"朝目标前进"而非原地打圈。
         phi = -d2g
 
+
+========== 第 34 页 / 合并源码行 2047-2108 / methods.py ==========
         def blocked(rr, cc):
             return not (0 <= rr < H and 0 <= cc < W) or block_mask[rr, cc] == 0
 
@@ -2114,8 +2135,6 @@ if HAS_TORCH:
                     v = float(value(w)[0, 0].item())
                 # [NaN-safe] 防御: 即便输入/权重出现极端值, 也不让 logits 变 NaN/inf
                 logits = torch.nan_to_num(logits, nan=0.0, posinf=1e3, neginf=-1e3)
-
-========== 第 34 页 / 合并源码行 2047-2108 / methods.py ==========
                 logits_np = logits.cpu().numpy().astype(np.float64)
                 if os.environ.get("PPO_NAN_DEBUG") == "1" and not np.all(np.isfinite(logits_np)):
                     wn = np.asarray(w.cpu().numpy())
@@ -2158,6 +2177,8 @@ if HAS_TORCH:
                 # 配合 step_pen 自然惩罚绕路(绕路=更多步=更多 step_pen 累计)。
                 shape = float(_Vr[r, c]) - float(_Vr[nr, nc])
                 if reach:
+
+========== 第 35 页 / 合并源码行 2109-2169 / methods.py ==========
                     reward = goal_bonus + shape
                     done = True
                 else:
@@ -2178,8 +2199,6 @@ if HAS_TORCH:
         bc_field = np.asarray(value_map, dtype=np.float32) if value_map is not None else d2g
         bc_field = np.nan_to_num(bc_field, nan=0.0, posinf=1e6, neginf=0.0)
         bc_opt = torch.optim.Adam(policy.parameters(), lr=lr)
-
-========== 第 35 页 / 合并源码行 2109-2170 / methods.py ==========
         for _ in range(bc_steps):
             idx = rng.integers(0, H * W, size=256)
             obs_b, tgt_b = [], []
@@ -2221,6 +2240,8 @@ if HAS_TORCH:
             for ij in idx:
                 r = int(ij // W); c = int(ij % W)
                 if blocked(r, c):
+
+========== 第 36 页 / 合并源码行 2170-2230 / methods.py ==========
                     continue
                 w = torch.from_numpy(ppo_window(ctx, r, c)).float().unsqueeze(0).to(DEVICE)
                 obs_b.append(w.squeeze(0)); tgt_b.append(float(v_norm[r, c]))
@@ -2242,8 +2263,6 @@ if HAS_TORCH:
                     w = torch.from_numpy(ppo_window(ctx, r, c)).float().unsqueeze(0).to(DEVICE)
                     T_obs.append(w.squeeze(0)); T_acts.append(a)
                     T_dones.append(1.0 if done else 0.0); T_logp.append(logp)
-
-========== 第 36 页 / 合并源码行 2171-2232 / methods.py ==========
                     T_v.append(v); T_rew.append(rew)
                 n = len(T_acts)
                 if n == 0:
@@ -2284,6 +2303,8 @@ if HAS_TORCH:
                 popt.zero_grad(); pol_loss.backward(); torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0); popt.step()
                 vopt.zero_grad(); val_loss.backward(); torch.nn.utils.clip_grad_norm_(value.parameters(), 1.0); vopt.step()
             # [改进] 早停: 连续 early_stop_patience 轮全部轨迹到达终点即判定训练充分, 停止更新,
+
+========== 第 37 页 / 合并源码行 2231-2291 / methods.py ==========
             # 避免后期过拟合/策略漂移诱发发散(10/12 中失控案例的诱因之一)。reward>0 区分"到达"与"撞墙终止"。
             reached = 0
             for traj in trajectories:
@@ -2306,8 +2327,6 @@ if HAS_TORCH:
         """PPO 推理: VIN-Grad 式连续 −∇V 轨迹追踪(保证必达终点) + PPO 策略做局部代价感知择优。
 
         核心(v4_final6): 与 gradient_track_path(VIN-Grad 主方法)完全同源的
-
-========== 第 37 页 / 合并源码行 2233-2294 / methods.py ==========
         连续梯度下降+动量平滑+子网格精度追踪, PPO logit 仅在方向相近候选间做代价择优。
         cost_norm: (H,W) 0..1; block_mask: (H,W) uint8, 0=不可通行。"""
         H, W = cost_norm.shape
@@ -2347,6 +2366,8 @@ if HAS_TORCH:
                 if dist_now < eps:
                     path.append((gr_f, gc_f)); break
                 # 停滞检测: 若长时间无实质进展, 强制纯目标方向推进, 杜绝起点附近打转
+
+========== 第 38 页 / 合并源码行 2292-2352 / methods.py ==========
                 if dist_now < best_dist - 0.5:
                     best_dist = dist_now; stall = 0
                 else:
@@ -2370,8 +2391,6 @@ if HAS_TORCH:
                 # [改进] 原版 STEER 恒为 0.6 且仅做侧向微调, PPO 几乎不改变路径形态、对降低成本无贡献。
                 # 现改为三处增强, 使 PPO 真正成为"代价最优化的局部细化"而非冗余噪声:
                 #   (a) 自适应权重——前方(沿主方向)代价值越高, 越加大侧向绕行权重(有界 0.4~1.3);
-
-========== 第 38 页 / 合并源码行 2295-2356 / methods.py ==========
                 #   (b) 代价钳制——若策略把路径推向比"沿 VIN 下降"更高代价的格子, 衰减该偏置退回纯下降,
                 #       防止 PPO 反而抬高成本;
                 #   (c) 顺主方向分量仍只取正向(along_f>=0), 杜绝把路径往回拽而打转。
@@ -2410,6 +2429,8 @@ if HAS_TORCH:
                         c_cand = 0.0 if (math.isinf(c_cand) or math.isnan(c_cand)) else c_cand
                         c_dn = 0.0 if (math.isinf(c_dn) or math.isnan(c_dn)) else c_dn
                         if c_cand > c_dn + 0.15:       # 候选明显更贵 -> 衰减偏置, 退回纯 VIN 下降
+
+========== 第 39 页 / 合并源码行 2353-2413 / methods.py ==========
                             sd_r, sd_c = dn_r, dn_c
                     d_r, d_c = sd_r, sd_c
                 dm = math.sqrt(d_r ** 2 + d_c ** 2) + 1e-8
@@ -2434,8 +2455,6 @@ if HAS_TORCH:
                         ca, sa = math.cos(ang), math.sin(ang)
                         tr = min(max(cr + stp * (vr_n * ca - vc_n * sa), 0.5), H - 1.5)
                         tc = min(max(cc + stp * (vr_n * sa + vc_n * ca), 0.5), W - 1.5)
-
-========== 第 39 页 / 合并源码行 2357-2418 / methods.py ==========
                         if not blocked(int(round(tr)), int(round(tc))):
                             nr, nc, found = tr, tc, True; break
                     if not found:
@@ -2473,6 +2492,8 @@ if HAS_TORCH:
 
 def _sample_grad(arr, r, c, eps=1.0):
     dy = (_bilin(arr, r + eps, c) - _bilin(arr, r - eps, c)) / (2 * eps)
+
+========== 第 40 页 / 合并源码行 2414-2474 / methods.py ==========
     dx = (_bilin(arr, r, c + eps) - _bilin(arr, r, c - eps)) / (2 * eps)
     return dy, dx
 
@@ -2498,8 +2519,6 @@ def gradient_track_path(V, cost, hard_mask, start, end, transform,
     比纯代价惩罚更精准地把路径拉向真实走廊。默认 real_attract=0 -> 行为不变。"""
     H, W = V.shape
     sr, sc = float(start[0]), float(start[1])
-
-========== 第 40 页 / 合并源码行 2419-2480 / methods.py ==========
     gr, gc = float(end[0]), float(end[1])
     Vf = np.where(np.isinf(V) | np.isnan(V), 1e6, V)
     path_g = [(sr, sc)]
@@ -2536,6 +2555,8 @@ def gradient_track_path(V, cost, hard_mask, start, end, transform,
         # 硬约束规避
         if hard_mask[int(round(nr)), int(round(nc))] == 0:
             found = False
+
+========== 第 41 页 / 合并源码行 2475-2535 / methods.py ==========
             for ang in [0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.6, -1.6, 2.0, -2.0]:
                 ca, sa = math.cos(ang), math.sin(ang)
                 tr = min(max(cr + stp * (vr * ca - vc * sa), 0.5), H - 1.5)
@@ -2562,8 +2583,6 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
     import heapq
     H, W = cost_raster.shape
     sr, sc = start_rc; er, ec = end_rc
-
-========== 第 41 页 / 合并源码行 2481-2542 / methods.py ==========
     if not (0 <= sr < H and 0 <= sc < W) or not (0 <= er < H and 0 <= ec < W):
         return None
     if not np.isfinite(cost_raster[sr, sc]):
@@ -2599,6 +2618,8 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
         if cur in closed:
             continue
         if cur == (er, ec):
+
+========== 第 42 页 / 合并源码行 2536-2596 / methods.py ==========
             p = [cur]
             while cur in came:
                 cur = came[cur]; p.append(cur)
@@ -2626,8 +2647,6 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
                 grade = abs(float(elevation[nr, nc]) - float(elevation[cr, cc])) / horizontal_m
                 if max_ground_grade is not None and grade > max_ground_grade:
                     continue
-
-========== 第 42 页 / 合并源码行 2543-2604 / methods.py ==========
                 step_cost += max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0)
             tg = g[cur] + step_cost * step_len
             if (nr, nc) not in g or tg < g[(nr, nc)]:
@@ -2662,6 +2681,8 @@ def build_vin_extra(stack):
 def snap_to_land(dem, r, c, maxr=150):
     H, W = dem.shape
     if 0 <= r < H and 0 <= c < W and np.isfinite(dem[int(r), int(c)]):
+
+========== 第 43 页 / 合并源码行 2597-2657 / methods.py ==========
         return int(r), int(c)
     for rad in range(1, maxr):
         for dr in range(-rad, rad + 1):
@@ -2690,8 +2711,6 @@ def smooth_cost(cost, sigma=1.0, mix=0.5):
     s = gaussian_filter(c, sigma=sigma).astype(np.float32)
     out = np.clip(mix * c + (1.0 - mix) * s, 0.0, 1.0).astype(np.float32)
     out[~np.isfinite(cost)] = np.nan
-
-========== 第 43 页 / 合并源码行 2605-2666 / methods.py ==========
     return out
 
 
@@ -2725,6 +2744,8 @@ def astar_search_turn(cost_grid, start_rc, end_rc, eps=1.15, turn_penalty=0.35,
     e = _near_valid(int(end_rc[0]), int(end_rc[1]))
     if s is None or e is None:
         return None
+
+========== 第 44 页 / 合并源码行 2658-2718 / methods.py、metrics.py ==========
     sr, sc = s
     er, ec = e
 
@@ -2754,8 +2775,6 @@ def astar_search_turn(cost_grid, start_rc, end_rc, eps=1.15, turn_penalty=0.35,
                 continue
             step_len = SQ2 if (dr != 0 and dc != 0) else 1.0
             turn_cost = 0.0 if d < 0 else TURN_W[min(abs(i - d), 8 - abs(i - d))] * turn_penalty
-
-========== 第 44 页 / 合并源码行 2667-2728 / methods.py、metrics.py ==========
             ng = g + step_len * float(cost_grid[nr, nc]) + turn_cost
             if orient is not None and align_w > 0.0:
                 o = orient[r, c]
@@ -2788,6 +2807,8 @@ def astar_search_turn(cost_grid, start_rc, end_rc, eps=1.15, turn_penalty=0.35,
 
 from .config import *
 from .geometry import *
+
+========== 第 45 页 / 合并源码行 2719-2779 / metrics.py ==========
 from .smoothing import sample_dem, densify_path_for_raster, cumulative_relief, path_hard_violations
 from .io_export import *
 
@@ -2819,8 +2840,6 @@ def route_profile_metrics(geo, dem, transform):
         "dem_sample_coverage_ratio": round(float(finite.size / elevations.size), 4) if elevations.size else 0.0,
     }
 
-========== 第 45 页 / 合并源码行 2729-2790 / metrics.py ==========
-
 
 def write_elevation_profile_csv(geo, dem, transform, path):
     import csv
@@ -2851,6 +2870,8 @@ def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_
         if np.isfinite(v):
             costs.append(float(v))
     mean_cost = float(np.mean(costs)) if costs else float("nan")
+
+========== 第 46 页 / 合并源码行 2780-2840 / metrics.py ==========
     # 弯曲度
     straight = haversine_km(start_ll[1], start_ll[0], end_ll[1], end_ll[0])
     sinuosity = length / straight if straight > 0 else 1.0
@@ -2882,8 +2903,6 @@ def load_real_path(shp_path, max_features=None):
             return None
         if max_features:
             geoms = geoms[:max_features]
-
-========== 第 46 页 / 合并源码行 2791-2852 / metrics.py ==========
         polys = []
         for g in geoms:
             sub = list(g.geoms) if g.geom_type == "MultiLineString" else [g]
@@ -2914,6 +2933,8 @@ def compute_dist_to_route(real_geo, transform, H, W, pm):
     for poly in polylines:
         for i in range(len(poly) - 1):
             lon0, lat0 = poly[i]; lon1, lat1 = poly[i + 1]
+
+========== 第 47 页 / 合并源码行 2841-2901 / metrics.py ==========
             d_m = math.hypot((lon1 - lon0) * 111000 * math.cos(math.radians((lat0 + lat1) / 2)),
                              (lat1 - lat0) * 111000)
             n = max(int(d_m / (0.3 * pm)), 1)
@@ -2946,8 +2967,6 @@ def compute_deviation(planned_geo, real_geo, transform=None, dist_field=None):
     dev_p90_km / dev_max_km / real_length_km。"""
     if not planned_geo or len(planned_geo) < 2:
         return None
-
-========== 第 47 页 / 合并源码行 2853-2914 / metrics.py ==========
     try:
         if dist_field is not None and transform is not None:
             Hf, Wf = dist_field.shape
@@ -2977,6 +2996,8 @@ def compute_deviation(planned_geo, real_geo, transform=None, dist_field=None):
                 "dev_haus_fwd_km": round(max_m / 1000.0, 3),
                 "dev_haus_sym_km": round(sym_m / 1000.0, 3),
                 "dev_hausdorff_km": round(sym_m / 1000.0, 3),  # 绑定指标改对称(更严格)
+
+========== 第 48 页 / 合并源码行 2902-2962 / metrics.py ==========
                 "dev_mean_km": round(mean_m / 1000.0, 3),
                 "dev_p90_km": round(p90_m / 1000.0, 3),
                 "dev_max_km": round(sym_m / 1000.0, 3),
@@ -3010,8 +3031,6 @@ def compute_deviation(planned_geo, real_geo, transform=None, dist_field=None):
 ERROR_TOL_PCT = 8.0  # 目标: 长度相对误差% 与 Hausdorff归一化% 均 <= 8%
 
 
-
-========== 第 48 页 / 合并源码行 2915-2976 / metrics.py ==========
 def eval_error(plan_len_km, dev):
     """规划线 vs 真实线的 8% 误差度量。
 
@@ -3040,6 +3059,8 @@ def eval_error(plan_len_km, dev):
         "pass8": bool(worst <= ERROR_TOL_PCT),
     }
 
+
+========== 第 49 页 / 合并源码行 2963-3023 / metrics.py ==========
 
 def load_real_cases_csv(path):
     """从 real_cases.csv 载入测试用例列表 (name,(lat,lon),(lat,lon),None)。
@@ -3074,8 +3095,6 @@ def select_original_line(shp_path, transform, H, W, dem_crs):
     left = transform.c
     bottom = transform.f + transform.e * H
     right = transform.c + transform.a * W
-
-========== 第 49 页 / 合并源码行 2977-3038 / metrics.py、osm.py ==========
     top = transform.f
     dem_box = box(left, bottom, right, top)
     try:
@@ -3103,6 +3122,8 @@ def select_original_line(shp_path, transform, H, W, dem_crs):
             if not geom.intersects(dem_box):
                 continue
         except Exception:
+
+========== 第 50 页 / 合并源码行 3024-3084 / metrics.py、osm.py ==========
             continue
         sub = geom if geom.geom_type != "MultiLineString" else max(geom.geoms, key=lambda g: g.length)
         coords = list(sub.coords)
@@ -3138,8 +3159,6 @@ class OSMBands(dict):
 
 
 def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
-
-========== 第 50 页 / 合并源码行 3039-3100 / osm.py ==========
     """读取 Overpass 缓存并返回 (bbox 内几何, 图层状态元数据)。
 
     ``uncovered_bbox`` 表示请求框完全位于缓存中观察到的要素范围之外；
@@ -3166,6 +3185,8 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
             _PKL_CACHE[pkl_path] = data
         except Exception as exc:
             metadata.update(status="read_error", reason=type(exc).__name__)
+
+========== 第 51 页 / 合并源码行 3085-3145 / osm.py ==========
             return [], metadata
     if not isinstance(data, dict):
         metadata.update(status="invalid_cache", reason="expected_overpass_object")
@@ -3202,8 +3223,6 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
             g = el.get("geometry")
             if g:
                 geom_lists.append(g)
-
-========== 第 51 页 / 合并源码行 3101-3162 / osm.py ==========
             else:
                 for m in el.get("members", []) or []:
                     if m.get("type") == "way":
@@ -3229,6 +3248,8 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
                         geom = Point(coords[0])
                     else:
                         continue
+
+========== 第 52 页 / 合并源码行 3146-3206 / osm.py ==========
                 elif geom_type == "polygon":
                     if len(coords) < 3:
                         continue
@@ -3267,8 +3288,6 @@ def load_osm_geoms(pkl_path, geom_type, bbox):
     geoms, _ = load_osm_geoms_with_status(pkl_path, geom_type, bbox)
     return geoms
 
-========== 第 52 页 / 合并源码行 3163-3224 / osm.py ==========
-
 
 def rasterize_on(geoms, transform, shape):
     if not geoms:
@@ -3292,6 +3311,8 @@ def compute_distance_band(geoms, transform, shape, max_dist_m=5000.0):
 
 def compute_building_density(geoms, transform, shape):
     on = rasterize_on(geoms, transform, shape)
+
+========== 第 53 页 / 合并源码行 3207-3267 / osm.py ==========
     if on.sum() == 0:
         return np.zeros(shape, np.float32)
     cell_m = pixel_meters(transform, (transform.f + transform.e * shape[0]) / 2.0)
@@ -3330,14 +3351,108 @@ def compute_residential_landuse_mask(geoms, transform, shape):
 
     The mask indicates mapped residential land use only. It is neither a building
     footprint/population estimate nor a legally reliable exclusion zone.
-
-========== 第 53 页 / 合并源码行 3225-3286 / osm.py ==========
     """
     residential = [
         (geom, tags) for geom, tags in geoms
         if (tags.get("landuse") or "").strip().lower() == "residential"
     ]
     return rasterize_on(residential, transform, shape)
+
+
+def load_user_constraint_overlays(geojson_path, transform, shape):
+    """Rasterize user-supplied WGS84 polygon constraints into hard and soft layers."""
+    if not HAS_RASTERIO or not HAS_SHAPELY:
+        raise RuntimeError("读取自定义约束图层需要 rasterio 和 shapely")
+    path = Path(geojson_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"自定义约束 GeoJSON 不存在: {path}")
+    with path.open(encoding="utf-8-sig") as source_file:
+        document = json.load(source_file)
+    if not isinstance(document, dict) or document.get("type") != "FeatureCollection" \
+            or not isinstance(document.get("features"), list):
+        raise ValueError("自定义约束文件必须是 WGS84 GeoJSON FeatureCollection")
+    declared_crs = document.get("crs")
+    if declared_crs:
+        if not isinstance(declared_crs, dict):
+
+========== 第 54 页 / 合并源码行 3268-3328 / osm.py ==========
+            raise ValueError("自定义约束 GeoJSON 的 crs 声明无效")
+        crs_properties = declared_crs.get("properties") or {}
+        if not isinstance(crs_properties, dict):
+            raise ValueError("自定义约束 GeoJSON 的 crs 声明无效")
+        crs_name = str(crs_properties.get("name", "")).upper()
+        if "4326" not in crs_name and "CRS84" not in crs_name:
+            raise ValueError("自定义约束 GeoJSON 必须使用 WGS84 经纬度坐标")
+    if not document["features"]:
+        raise ValueError("自定义约束 GeoJSON 不包含要素")
+
+    from shapely.geometry import shape as shapely_shape
+
+    hard_shapes, soft_shapes = [], []
+    sources, categories = set(), set()
+    for index, feature in enumerate(document["features"], start=1):
+        if not isinstance(feature, dict):
+            raise ValueError(f"约束要素 {index} 格式无效")
+        properties = feature.get("properties") or {}
+        if not isinstance(properties, dict):
+            raise ValueError(f"约束要素 {index} 的 properties 格式无效")
+        mode = str(properties.get("mode", "")).strip().lower()
+        source = str(properties.get("source", "")).strip()
+        if mode not in {"hard", "soft"}:
+            raise ValueError(f"约束要素 {index} 的 mode 必须是 hard 或 soft")
+        if not source:
+            raise ValueError(f"约束要素 {index} 缺少 source 来源字段")
+        geometry_data = feature.get("geometry")
+        if not geometry_data:
+            raise ValueError(f"约束要素 {index} 缺少 geometry")
+        try:
+            geometry = shapely_shape(geometry_data)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"约束要素 {index} 的 geometry 格式无效") from exc
+        if geometry.is_empty or not geometry.is_valid or geometry.geom_type not in {"Polygon", "MultiPolygon"}:
+            raise ValueError(f"约束要素 {index} 必须是有效的 Polygon 或 MultiPolygon")
+        min_lon, min_lat, max_lon, max_lat = geometry.bounds
+        if min_lon < -180 or max_lon > 180 or min_lat < -90 or max_lat > 90:
+            raise ValueError(f"约束要素 {index} 坐标超出 WGS84 经纬度范围")
+        if mode == "hard":
+            hard_shapes.append((geometry, 1))
+        else:
+            try:
+                weight = float(properties["weight"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(f"软约束要素 {index} 必须提供非负数值 weight") from exc
+            if not math.isfinite(weight) or weight < 0:
+                raise ValueError(f"软约束要素 {index} 的 weight 必须是非负有限数值")
+            soft_shapes.append((geometry, weight))
+        sources.add(source)
+        category = str(properties.get("category", "")).strip()
+        if category:
+            categories.add(category)
+
+    height, width = shape
+    hard_mask = rio_rasterize(
+        hard_shapes, out_shape=(height, width), transform=transform,
+        fill=0, all_touched=True, dtype=np.uint8,
+    ) if hard_shapes else np.zeros((height, width), dtype=np.uint8)
+    soft_cost = rio_rasterize(
+        soft_shapes, out_shape=(height, width), transform=transform,
+        fill=0, all_touched=True, dtype=np.float32,
+
+========== 第 55 页 / 合并源码行 3329-3389 / osm.py ==========
+        merge_alg=rasterio.enums.MergeAlg.add,
+    ) if soft_shapes else np.zeros((height, width), dtype=np.float32)
+    metadata = {
+        "path": str(path.resolve()),
+        "status": "loaded",
+        "feature_count": len(document["features"]),
+        "hard_feature_count": len(hard_shapes),
+        "soft_feature_count": len(soft_shapes),
+        "sources": sorted(sources),
+        "categories": sorted(categories),
+        "hard_cell_count": int(hard_mask.sum()),
+        "soft_cell_count": int(np.count_nonzero(soft_cost)),
+    }
+    return {"hard_mask": hard_mask, "soft_cost": soft_cost, "metadata": metadata}
 
 
 def compute_vegetation_height(geoms, transform, shape):
@@ -3385,6 +3500,8 @@ def compute_osm_bands(dem, transform, bbox):
         "buildings": ("taiwan_buildings.pkl", "polygon", "hard_footprint_and_settlement_proxy"),
         "vegetation": ("taiwan_vegetation.pkl", "polygon", "feature_model_input_only_not_default_rule_cost"),
         "protected_areas": ("taiwan_protected.pkl", "polygon", "informational_only"),
+
+========== 第 56 页 / 合并源码行 3390-3450 / osm.py、smoothing.py ==========
     }
     layers = {}
     layer_metadata = {}
@@ -3394,8 +3511,6 @@ def compute_osm_bands(dem, transform, bbox):
         layer_metadata[name]["planning_role"] = role
     roads = layers["roads"]
     water = layers["water"]
-
-========== 第 54 页 / 合并源码行 3287-3348 / osm.py、smoothing.py ==========
     railways = layers["railways"]
     faults = layers["faults"]
     landuse = layers["landuse"]
@@ -3448,6 +3563,8 @@ def _rdp(points, epsilon):
     """Ramer-Douglas-Peucker 折线简化。
 
     改用显式栈的迭代实现, 避免对长且高度弯曲的路径递归过深触发
+
+========== 第 57 页 / 合并源码行 3451-3511 / smoothing.py ==========
     'maximum recursion depth exceeded' (Case 3 PPO 路径点数常达数千, 单边反复
     细分时递归深度可超 1000)。迭代版结果与递归版完全一致。
     """
@@ -3458,8 +3575,6 @@ def _rdp(points, epsilon):
     keep = [False] * n
     keep[0] = True
     keep[n - 1] = True
-
-========== 第 55 页 / 合并源码行 3349-3410 / smoothing.py ==========
     stack = [(0, n - 1)]
     while stack:
         s_i, e_i = stack.pop()
@@ -3511,6 +3626,8 @@ def smooth_path(geo, spacing_m=90.0):
 
 
 def snap_to_valid(geo, transform, hard_mask, radius=80):
+
+========== 第 58 页 / 合并源码行 3512-3572 / smoothing.py ==========
     """把平滑后的 geo 路径中落到硬约束屏蔽格(陡坡/超高/无效DEM)的点, 吸附到最近的合法格中心。
     推理 rollout 只走合法邻居, 原始格路径已是 0 违规; 但 smooth_path 在地理空间等距重采样时会
     越过陡峭壁体落到屏蔽格, 导致"硬约束违规"被误报。吸附步骤保证交付路线与指标均 0 违规。"""
@@ -3522,8 +3639,6 @@ def snap_to_valid(geo, transform, hard_mask, radius=80):
         if 0 <= r < H and 0 <= c < W and hard_mask[r, c] == 1:
             out.append((lon, lat)); continue
         found = None
-
-========== 第 56 页 / 合并源码行 3411-3472 / smoothing.py ==========
         for rad in range(1, radius + 1):
             hit = False
             for dr in range(-rad, rad + 1):
@@ -3574,6 +3689,8 @@ def path_hard_violations(geo, transform, hard_mask):
 
 def ground_grade_limit_report(geo, dem, transform, max_ground_grade, crs=None):
     """Check consecutive DEM cells crossed by a route against a ground-grade ratio cap."""
+
+========== 第 59 页 / 合并源码行 3573-3633 / smoothing.py ==========
     if max_ground_grade is None:
         return {
             "grade_limit_status": "not_configured",
@@ -3586,8 +3703,6 @@ def ground_grade_limit_report(geo, dem, transform, max_ground_grade, crs=None):
         return {
             "grade_limit_status": "no_path",
             "grade_limit_violation_count": 0,
-
-========== 第 57 页 / 合并源码行 3473-3534 / smoothing.py ==========
             "grade_limit_unassessed_count": 0,
             "grade_limit_max_sampled_grade_ratio": None,
             "grade_limit_threshold_ratio": max_ground_grade,
@@ -3637,6 +3752,8 @@ def ground_grade_limit_report(geo, dem, transform, max_ground_grade, crs=None):
             continue
         ratio = abs(z1 - z0) / distance_m
         max_ratio = max(max_ratio, ratio)
+
+========== 第 60 页 / 合并源码行 3634-3694 / smoothing.py ==========
         if ratio > max_ground_grade + 1e-9:
             violations += 1
 
@@ -3650,8 +3767,6 @@ def ground_grade_limit_report(geo, dem, transform, max_ground_grade, crs=None):
     }
 
 
-
-========== 第 58 页 / 合并源码行 3535-3596 / smoothing.py、stations.py ==========
 def filter_path_by_ground_grade(geo, dem, transform, max_ground_grade, crs=None):
     """Reject a route when a configured grade cap is violated or cannot be assessed."""
     report = ground_grade_limit_report(geo, dem, transform, max_ground_grade, crs)
@@ -3701,21 +3816,23 @@ def densify_path_for_raster(coords, transform):
     return dense
 
 
+========== 第 61 页 / 合并源码行 3695-3755 / smoothing.py、stations.py ==========
+
 def cumulative_relief(hs):
     hs = np.array([h for h in hs if np.isfinite(h)], np.float64)
     if hs.size < 2:
         return 0.0, 0.0
     return float(np.sum(np.abs(np.diff(hs)))), float(hs[-1] - hs[0])
+# transmission_path_planner/stations.py
 """站点台账与站间线路任务输入。"""
 
 import csv
 import hashlib
+import math
 import re
 
 
 def route_output_name(route_id):
-
-========== 第 59 页 / 合并源码行 3597-3658 / stations.py ==========
     """Return a filesystem-safe, collision-resistant directory name for a route ID."""
     route_id = str(route_id)
     stem = re.sub(r"[^A-Za-z0-9_-]+", "_", route_id).strip("_-")[:64] or "route"
@@ -3723,11 +3840,46 @@ def route_output_name(route_id):
     return f"{stem}-{suffix}"
 
 
+def station_elevation_metrics(station_task):
+    """Summarize surveyed station-ground elevations without mixing vertical datums."""
+    start = station_task["from_station"]
+    end = station_task["to_station"]
+    start_elevation = start["ground_elevation_m"]
+    end_elevation = end["ground_elevation_m"]
+    start_datum = start["vertical_datum"]
+    end_datum = end["vertical_datum"]
+    if start_elevation is None and end_elevation is None:
+        status, delta = "dem_only", None
+    elif start_elevation is None or end_elevation is None:
+        status, delta = "incomplete_station_measurements", None
+    elif not start["ground_elevation_source"] or not end["ground_elevation_source"]:
+        status, delta = "elevation_source_missing", None
+    elif not start_datum or not end_datum:
+        status, delta = "vertical_datum_missing", None
+    elif start_datum.casefold() != end_datum.casefold():
+        status, delta = "incompatible_vertical_datums", None
+    else:
+        status = "comparable"
+        delta = round(end_elevation - start_elevation, 2)
+    return {
+        "from_station_ground_elevation_m": start_elevation,
+        "from_station_ground_elevation_source": start["ground_elevation_source"] or None,
+        "from_station_vertical_datum": start_datum or None,
+        "to_station_ground_elevation_m": end_elevation,
+        "to_station_ground_elevation_source": end["ground_elevation_source"] or None,
+        "to_station_vertical_datum": end_datum or None,
+        "station_ground_elevation_status": status,
+        "station_ground_elevation_delta_m": delta,
+    }
+
+
 def load_station_tasks(stations_csv, route_tasks_csv):
     """读取 stations.csv 与 route_tasks.csv，验证站点引用并返回规划任务。"""
     stations = {}
     with open(stations_csv, encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
+
+========== 第 62 页 / 合并源码行 3756-3816 / stations.py ==========
             station_id = (row.get("station_id") or "").strip()
             if not station_id:
                 raise ValueError("站点表缺少 station_id")
@@ -3739,6 +3891,13 @@ def load_station_tasks(stations_csv, route_tasks_csv):
                 raise ValueError(f"站点 {station_id} 的 lat/lon 无效") from exc
             if not (-90 <= lat <= 90 and -180 <= lon <= 180):
                 raise ValueError(f"站点 {station_id} 的经纬度超出范围")
+            elevation_text = (row.get("ground_elevation_m") or "").strip()
+            try:
+                ground_elevation = float(elevation_text) if elevation_text else None
+            except ValueError as exc:
+                raise ValueError(f"站点 {station_id} 的 ground_elevation_m 无效") from exc
+            if ground_elevation is not None and not math.isfinite(ground_elevation):
+                raise ValueError(f"站点 {station_id} 的 ground_elevation_m 必须是有限数值")
             stations[station_id] = {
                 "station_id": station_id,
                 "name": (row.get("name") or station_id).strip(),
@@ -3748,6 +3907,9 @@ def load_station_tasks(stations_csv, route_tasks_csv):
                 "station_type": (row.get("station_type") or "").strip(),
                 "source": (row.get("source") or "").strip(),
                 "verified": (row.get("verified") or "").strip(),
+                "ground_elevation_m": ground_elevation,
+                "ground_elevation_source": (row.get("ground_elevation_source") or "").strip(),
+                "vertical_datum": (row.get("vertical_datum") or "").strip(),
             }
 
     tasks = []
@@ -3778,9 +3940,9 @@ def load_station_tasks(stations_csv, route_tasks_csv):
                 "start": (start["lat"], start["lon"]),
                 "end": (end["lat"], end["lon"]),
                 "voltage_kv": route_voltage,
-
-========== 第 60 页 / 合并源码行 3659-3720 / stations.py、visualization.py ==========
             })
+
+========== 第 63 页 / 合并源码行 3817-3877 / stations.py、visualization.py ==========
             route_ids.add(route_id)
     if not tasks:
         raise ValueError("线路任务表为空")
@@ -3843,7 +4005,7 @@ def plot_value_map(V, transform, geo_vin, start_ll, end_ll, out_path):
     fig, ax = plt.subplots(figsize=(11, 9), dpi=160)
     vmin, vmax = np.nanpercentile(V, 1), np.nanpercentile(V, 99)
 
-========== 第 61 页 / 合并源码行 3721-3781 / visualization.py ==========
+========== 第 64 页 / 合并源码行 3878-3938 / visualization.py ==========
     im = ax.imshow(V, extent=extent, cmap="viridis", origin="upper", aspect="auto", vmin=vmin, vmax=vmax)
     if geo_vin:
         ax.plot([p[0] for p in geo_vin], [p[1] for p in geo_vin], color="white", linewidth=1.6, zorder=4)

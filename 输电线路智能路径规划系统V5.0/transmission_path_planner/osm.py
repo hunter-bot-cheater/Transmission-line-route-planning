@@ -211,6 +211,98 @@ def compute_residential_landuse_mask(geoms, transform, shape):
     return rasterize_on(residential, transform, shape)
 
 
+def load_user_constraint_overlays(geojson_path, transform, shape):
+    """Rasterize user-supplied WGS84 polygon constraints into hard and soft layers."""
+    if not HAS_RASTERIO or not HAS_SHAPELY:
+        raise RuntimeError("读取自定义约束图层需要 rasterio 和 shapely")
+    path = Path(geojson_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"自定义约束 GeoJSON 不存在: {path}")
+    with path.open(encoding="utf-8-sig") as source_file:
+        document = json.load(source_file)
+    if not isinstance(document, dict) or document.get("type") != "FeatureCollection" \
+            or not isinstance(document.get("features"), list):
+        raise ValueError("自定义约束文件必须是 WGS84 GeoJSON FeatureCollection")
+    declared_crs = document.get("crs")
+    if declared_crs:
+        if not isinstance(declared_crs, dict):
+            raise ValueError("自定义约束 GeoJSON 的 crs 声明无效")
+        crs_properties = declared_crs.get("properties") or {}
+        if not isinstance(crs_properties, dict):
+            raise ValueError("自定义约束 GeoJSON 的 crs 声明无效")
+        crs_name = str(crs_properties.get("name", "")).upper()
+        if "4326" not in crs_name and "CRS84" not in crs_name:
+            raise ValueError("自定义约束 GeoJSON 必须使用 WGS84 经纬度坐标")
+    if not document["features"]:
+        raise ValueError("自定义约束 GeoJSON 不包含要素")
+
+    from shapely.geometry import shape as shapely_shape
+
+    hard_shapes, soft_shapes = [], []
+    sources, categories = set(), set()
+    for index, feature in enumerate(document["features"], start=1):
+        if not isinstance(feature, dict):
+            raise ValueError(f"约束要素 {index} 格式无效")
+        properties = feature.get("properties") or {}
+        if not isinstance(properties, dict):
+            raise ValueError(f"约束要素 {index} 的 properties 格式无效")
+        mode = str(properties.get("mode", "")).strip().lower()
+        source = str(properties.get("source", "")).strip()
+        if mode not in {"hard", "soft"}:
+            raise ValueError(f"约束要素 {index} 的 mode 必须是 hard 或 soft")
+        if not source:
+            raise ValueError(f"约束要素 {index} 缺少 source 来源字段")
+        geometry_data = feature.get("geometry")
+        if not geometry_data:
+            raise ValueError(f"约束要素 {index} 缺少 geometry")
+        try:
+            geometry = shapely_shape(geometry_data)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"约束要素 {index} 的 geometry 格式无效") from exc
+        if geometry.is_empty or not geometry.is_valid or geometry.geom_type not in {"Polygon", "MultiPolygon"}:
+            raise ValueError(f"约束要素 {index} 必须是有效的 Polygon 或 MultiPolygon")
+        min_lon, min_lat, max_lon, max_lat = geometry.bounds
+        if min_lon < -180 or max_lon > 180 or min_lat < -90 or max_lat > 90:
+            raise ValueError(f"约束要素 {index} 坐标超出 WGS84 经纬度范围")
+        if mode == "hard":
+            hard_shapes.append((geometry, 1))
+        else:
+            try:
+                weight = float(properties["weight"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(f"软约束要素 {index} 必须提供非负数值 weight") from exc
+            if not math.isfinite(weight) or weight < 0:
+                raise ValueError(f"软约束要素 {index} 的 weight 必须是非负有限数值")
+            soft_shapes.append((geometry, weight))
+        sources.add(source)
+        category = str(properties.get("category", "")).strip()
+        if category:
+            categories.add(category)
+
+    height, width = shape
+    hard_mask = rio_rasterize(
+        hard_shapes, out_shape=(height, width), transform=transform,
+        fill=0, all_touched=True, dtype=np.uint8,
+    ) if hard_shapes else np.zeros((height, width), dtype=np.uint8)
+    soft_cost = rio_rasterize(
+        soft_shapes, out_shape=(height, width), transform=transform,
+        fill=0, all_touched=True, dtype=np.float32,
+        merge_alg=rasterio.enums.MergeAlg.add,
+    ) if soft_shapes else np.zeros((height, width), dtype=np.float32)
+    metadata = {
+        "path": str(path.resolve()),
+        "status": "loaded",
+        "feature_count": len(document["features"]),
+        "hard_feature_count": len(hard_shapes),
+        "soft_feature_count": len(soft_shapes),
+        "sources": sorted(sources),
+        "categories": sorted(categories),
+        "hard_cell_count": int(hard_mask.sum()),
+        "soft_cell_count": int(np.count_nonzero(soft_cost)),
+    }
+    return {"hard_mask": hard_mask, "soft_cost": soft_cost, "metadata": metadata}
+
+
 def compute_vegetation_height(geoms, transform, shape):
     """从植被/林地类 OSM 多边形推导植被高度代理 (m)。"""
     result = np.zeros(shape, np.float32)

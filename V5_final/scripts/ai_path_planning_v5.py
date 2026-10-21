@@ -730,6 +730,98 @@ def compute_residential_landuse_mask(geoms, transform, shape):
     return rasterize_on(residential, transform, shape)
 
 
+def load_user_constraint_overlays(geojson_path, transform, shape):
+    """Rasterize user-supplied WGS84 polygon constraints into hard and soft layers."""
+    if not HAS_RASTERIO or not HAS_SHAPELY:
+        raise RuntimeError("读取自定义约束图层需要 rasterio 和 shapely")
+    path = Path(geojson_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"自定义约束 GeoJSON 不存在: {path}")
+    with path.open(encoding="utf-8-sig") as source_file:
+        document = json.load(source_file)
+    if not isinstance(document, dict) or document.get("type") != "FeatureCollection" \
+            or not isinstance(document.get("features"), list):
+        raise ValueError("自定义约束文件必须是 WGS84 GeoJSON FeatureCollection")
+    declared_crs = document.get("crs")
+    if declared_crs:
+        if not isinstance(declared_crs, dict):
+            raise ValueError("自定义约束 GeoJSON 的 crs 声明无效")
+        crs_properties = declared_crs.get("properties") or {}
+        if not isinstance(crs_properties, dict):
+            raise ValueError("自定义约束 GeoJSON 的 crs 声明无效")
+        crs_name = str(crs_properties.get("name", "")).upper()
+        if "4326" not in crs_name and "CRS84" not in crs_name:
+            raise ValueError("自定义约束 GeoJSON 必须使用 WGS84 经纬度坐标")
+    if not document["features"]:
+        raise ValueError("自定义约束 GeoJSON 不包含要素")
+
+    from shapely.geometry import shape as shapely_shape
+
+    hard_shapes, soft_shapes = [], []
+    sources, categories = set(), set()
+    for index, feature in enumerate(document["features"], start=1):
+        if not isinstance(feature, dict):
+            raise ValueError(f"约束要素 {index} 格式无效")
+        properties = feature.get("properties") or {}
+        if not isinstance(properties, dict):
+            raise ValueError(f"约束要素 {index} 的 properties 格式无效")
+        mode = str(properties.get("mode", "")).strip().lower()
+        source = str(properties.get("source", "")).strip()
+        if mode not in {"hard", "soft"}:
+            raise ValueError(f"约束要素 {index} 的 mode 必须是 hard 或 soft")
+        if not source:
+            raise ValueError(f"约束要素 {index} 缺少 source 来源字段")
+        geometry_data = feature.get("geometry")
+        if not geometry_data:
+            raise ValueError(f"约束要素 {index} 缺少 geometry")
+        try:
+            geometry = shapely_shape(geometry_data)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"约束要素 {index} 的 geometry 格式无效") from exc
+        if geometry.is_empty or not geometry.is_valid or geometry.geom_type not in {"Polygon", "MultiPolygon"}:
+            raise ValueError(f"约束要素 {index} 必须是有效的 Polygon 或 MultiPolygon")
+        min_lon, min_lat, max_lon, max_lat = geometry.bounds
+        if min_lon < -180 or max_lon > 180 or min_lat < -90 or max_lat > 90:
+            raise ValueError(f"约束要素 {index} 坐标超出 WGS84 经纬度范围")
+        if mode == "hard":
+            hard_shapes.append((geometry, 1))
+        else:
+            try:
+                weight = float(properties["weight"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(f"软约束要素 {index} 必须提供非负数值 weight") from exc
+            if not math.isfinite(weight) or weight < 0:
+                raise ValueError(f"软约束要素 {index} 的 weight 必须是非负有限数值")
+            soft_shapes.append((geometry, weight))
+        sources.add(source)
+        category = str(properties.get("category", "")).strip()
+        if category:
+            categories.add(category)
+
+    height, width = shape
+    hard_mask = rio_rasterize(
+        hard_shapes, out_shape=(height, width), transform=transform,
+        fill=0, all_touched=True, dtype=np.uint8,
+    ) if hard_shapes else np.zeros((height, width), dtype=np.uint8)
+    soft_cost = rio_rasterize(
+        soft_shapes, out_shape=(height, width), transform=transform,
+        fill=0, all_touched=True, dtype=np.float32,
+        merge_alg=rasterio.enums.MergeAlg.add,
+    ) if soft_shapes else np.zeros((height, width), dtype=np.float32)
+    metadata = {
+        "path": str(path.resolve()),
+        "status": "loaded",
+        "feature_count": len(document["features"]),
+        "hard_feature_count": len(hard_shapes),
+        "soft_feature_count": len(soft_shapes),
+        "sources": sorted(sources),
+        "categories": sorted(categories),
+        "hard_cell_count": int(hard_mask.sum()),
+        "soft_cell_count": int(np.count_nonzero(soft_cost)),
+    }
+    return {"hard_mask": hard_mask, "soft_cost": soft_cost, "metadata": metadata}
+
+
 def compute_vegetation_height(geoms, transform, shape):
     """从植被/林地类 OSM 多边形推导植被高度代理 (m)。"""
     result = np.zeros(shape, np.float32)
@@ -2252,6 +2344,38 @@ def load_real_cases_csv(path):
     return out
 
 
+def station_elevation_metrics(station_task):
+    start = station_task["from_station"]
+    end = station_task["to_station"]
+    start_elevation = start["ground_elevation_m"]
+    end_elevation = end["ground_elevation_m"]
+    start_datum = start["vertical_datum"]
+    end_datum = end["vertical_datum"]
+    if start_elevation is None and end_elevation is None:
+        status, delta = "dem_only", None
+    elif start_elevation is None or end_elevation is None:
+        status, delta = "incomplete_station_measurements", None
+    elif not start["ground_elevation_source"] or not end["ground_elevation_source"]:
+        status, delta = "elevation_source_missing", None
+    elif not start_datum or not end_datum:
+        status, delta = "vertical_datum_missing", None
+    elif start_datum.casefold() != end_datum.casefold():
+        status, delta = "incompatible_vertical_datums", None
+    else:
+        status = "comparable"
+        delta = round(end_elevation - start_elevation, 2)
+    return {
+        "from_station_ground_elevation_m": start_elevation,
+        "from_station_ground_elevation_source": start["ground_elevation_source"] or None,
+        "from_station_vertical_datum": start_datum or None,
+        "to_station_ground_elevation_m": end_elevation,
+        "to_station_ground_elevation_source": end["ground_elevation_source"] or None,
+        "to_station_vertical_datum": end_datum or None,
+        "station_ground_elevation_status": status,
+        "station_ground_elevation_delta_m": delta,
+    }
+
+
 def load_station_tasks(stations_csv, route_tasks_csv):
     stations = {}
     with open(stations_csv, encoding="utf-8-sig", newline="") as f:
@@ -2265,12 +2389,22 @@ def load_station_tasks(stations_csv, route_tasks_csv):
                 raise ValueError(f"站点 {station_id} 的 lat/lon 无效") from exc
             if not (-90 <= lat <= 90 and -180 <= lon <= 180):
                 raise ValueError(f"站点 {station_id} 的经纬度超出范围")
+            elevation_text = (row.get("ground_elevation_m") or "").strip()
+            try:
+                ground_elevation = float(elevation_text) if elevation_text else None
+            except ValueError as exc:
+                raise ValueError(f"站点 {station_id} 的 ground_elevation_m 无效") from exc
+            if ground_elevation is not None and not math.isfinite(ground_elevation):
+                raise ValueError(f"站点 {station_id} 的 ground_elevation_m 必须是有限数值")
             stations[station_id] = {
                 "station_id": station_id, "name": (row.get("name") or station_id).strip(),
                 "lat": lat, "lon": lon, "voltage_kv": (row.get("voltage_kv") or "").strip(),
                 "station_type": (row.get("station_type") or "").strip(),
                 "source": (row.get("source") or "").strip(),
                 "verified": (row.get("verified") or "").strip(),
+                "ground_elevation_m": ground_elevation,
+                "ground_elevation_source": (row.get("ground_elevation_source") or "").strip(),
+                "vertical_datum": (row.get("vertical_datum") or "").strip(),
             }
     tasks, route_ids = [], set()
     with open(route_tasks_csv, encoding="utf-8-sig", newline="") as f:
@@ -2624,6 +2758,8 @@ def main():
                     help="站点表: station_id,name,lat,lon,voltage_kv; 坐标应为线路接入点")
     ap.add_argument("--route-tasks-csv", type=str, default=None,
                     help="站间任务表: route_id,from_station_id,to_station_id[,voltage_kv]")
+    ap.add_argument("--constraint-geojson", type=str, default=None,
+                    help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight")
     ap.add_argument("--settlement-weight", type=float, default=2.0,
                     help="OSM建筑密度代理的软避让权重(方案筛选参数, 默认2.0)")
     ap.add_argument("--building-clearance-m", type=float, default=0.0,
@@ -2785,6 +2921,11 @@ def main():
             bbox = (left, bottom, right, top)
             osm = compute_osm_bands(dem, transform, bbox)
             osm_layer_metadata = getattr(osm, "metadata", {}).get("layers", {})
+            custom_constraints = (
+                load_user_constraint_overlays(args.constraint_geojson, transform, dem.shape)
+                if args.constraint_geojson else None
+            )
+            custom_constraint_metadata = custom_constraints["metadata"] if custom_constraints else None
             for layer_name in ("buildings", "landuse"):
                 layer = osm_layer_metadata.get(layer_name, {})
                 if layer.get("status") != "available":
@@ -2794,7 +2935,6 @@ def main():
 
             model_cost = costunet.predict(stack) if costunet is not None else None
             cost = build_route_cost(terrain, osm, args.settlement_weight, model_cost)
-            print(f"  代价面范围 [{np.nanmin(cost):.3f}, {np.nanmax(cost):.3f}]")
 
             # ---- 参考线仅在显式引导模式下进入规划输入 ----
             real_geo = None
@@ -2822,10 +2962,17 @@ def main():
                 corridor_pen = corridor_w * ratio
                 cost = np.clip(cost + corridor_pen, 0, 1.5).astype(np.float32)
                 print(f"  [走廊引导] w={corridor_w:.2f} band={args.corridor_band:.0f}m 最大附加代价={corridor_pen.max():.2f}")
+            if custom_constraints:
+                soft_cost = custom_constraints["soft_cost"]
+                cost = (cost + soft_cost).astype(np.float32)
+                cost_base = (cost_base + soft_cost).astype(np.float32)
+            print(f"  代价面范围 [{np.nanmin(cost):.3f}, {np.nanmax(cost):.3f}]")
 
             slope = terrain["slope"]; elev = terrain["elevation"]
             hard_mask = np.ones((H, W), np.uint8)
             hard_mask[~np.isfinite(dem)] = 0
+            if custom_constraints:
+                hard_mask[custom_constraints["hard_mask"] > 0] = 0
             if args.max_surface_slope_deg is not None:
                 if not 0 < args.max_surface_slope_deg <= 90:
                     raise ValueError("--max-surface-slope-deg 必须在(0,90]内")
@@ -3021,6 +3168,7 @@ def main():
                     print(f"  [POST-EVAL] 已生成候选路线；加载参考线用于事后指标: {len(real_geo)}条折线")
 
             station_offsets_by_method = {}
+            station_measurements = {}
             hard_violation_reports = {}
             if station_task:
                 for method, geo in list(methods.items()):
@@ -3096,6 +3244,7 @@ def main():
                 "hard_violations": selected_metrics.get("hard_violations"),
                 "osm_data_quality": osm_data_quality,
                 "missing_osm_screening_layers": missing_osm_layers,
+                "constraint_layer_metadata": custom_constraint_metadata,
                 "length_km": round(path_length_km(final_geo), 3) if final_geo else None}
             case_metrics[FINAL_ROUTE_LABEL].update({
                 key: value for key, value in selected_metrics.items()
@@ -3122,6 +3271,7 @@ def main():
             if station_task:
                 start_station = station_task["from_station"]
                 end_station = station_task["to_station"]
+                station_measurements = station_elevation_metrics(station_task)
                 for metrics in case_metrics.values():
                     if isinstance(metrics, dict):
                         metrics.update({
@@ -3137,6 +3287,7 @@ def main():
                             "to_station_source": end_station["source"] or None,
                             "to_station_verified": end_station["verified"] or None,
                             "voltage_kv": station_task["voltage_kv"] or None,
+                            **station_measurements,
                             "settlement_weight": args.settlement_weight,
                             "building_clearance_m": args.building_clearance_m,
                             "grade_penalty_weight": args.grade_penalty_weight,
@@ -3165,6 +3316,7 @@ def main():
                                            "hard_violations": selected_metrics.get("hard_violations"),
                                            "osm_data_quality": osm_data_quality,
                                            "missing_osm_screening_layers": missing_osm_layers,
+                                           "constraint_layer_metadata": custom_constraint_metadata,
                                            "length_km": selected_metrics.get("length_km"),
                                            "mean_cost": selected_metrics.get("mean_cost"),
                                            "sinuosity": selected_metrics.get("sinuosity"),
@@ -3179,6 +3331,7 @@ def main():
                                            "to_station_source": station_task["to_station"]["source"] or None if station_task else None,
                                            "to_station_verified": station_task["to_station"]["verified"] or None if station_task else None,
                                            "voltage_kv": station_task["voltage_kv"] or None if station_task else None,
+                                           **station_measurements,
                                            "voltage_rules_applied": False,
                                            "settlement_weight": args.settlement_weight,
                                            "building_clearance_m": args.building_clearance_m,

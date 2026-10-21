@@ -22,7 +22,7 @@ from transmission_path_planner.smoothing import (
     sample_dem,
     smooth_path_with_constraints,
 )
-from transmission_path_planner.stations import load_station_tasks
+from transmission_path_planner.stations import load_station_tasks, station_elevation_metrics
 
 
 class StationPlanningTests(unittest.TestCase):
@@ -37,14 +37,57 @@ class StationPlanningTests(unittest.TestCase):
     def test_loads_station_pair_and_route_voltage(self):
         with tempfile.TemporaryDirectory() as folder:
             stations = self._csv(folder, "stations.csv",
-                                 ["station_id", "name", "lat", "lon", "voltage_kv"],
-                                 [["S1", "North", 24.1, 120.1, 220], ["S2", "South", 24.2, 120.2, 220]])
+                                 ["station_id", "name", "lat", "lon", "voltage_kv", "ground_elevation_m",
+                                  "ground_elevation_source", "vertical_datum"],
+                                 [["S1", "North", 24.1, 120.1, 220, 120.5, "survey A", "datum A"],
+                                  ["S2", "South", 24.2, 120.2, 220, 143.0, "survey B", "datum A"]])
             tasks = self._csv(folder, "routes.csv",
                               ["route_id", "from_station_id", "to_station_id"], [["R1", "S1", "S2"]])
             result = load_station_tasks(stations, tasks)
         self.assertEqual(result[0]["route_id"], "R1")
         self.assertEqual(result[0]["from_station"]["station_id"], "S1")
         self.assertEqual(result[0]["voltage_kv"], "220")
+        self.assertEqual(result[0]["from_station"]["ground_elevation_m"], 120.5)
+
+    def test_reports_surveyed_station_delta_only_for_matching_datum(self):
+        task = {
+            "from_station": {"ground_elevation_m": 120.5, "ground_elevation_source": "survey A",
+                             "vertical_datum": "1985 National Height Datum"},
+            "to_station": {"ground_elevation_m": 143.0, "ground_elevation_source": "survey B",
+                           "vertical_datum": "1985 National Height Datum"},
+        }
+
+        report = station_elevation_metrics(task)
+
+        self.assertEqual(report["station_ground_elevation_status"], "comparable")
+        self.assertEqual(report["station_ground_elevation_delta_m"], 22.5)
+
+    def test_does_not_compare_station_heights_with_mismatched_datum_or_missing_source(self):
+        task = {
+            "from_station": {"ground_elevation_m": 120.5, "ground_elevation_source": "survey A",
+                             "vertical_datum": "datum A"},
+            "to_station": {"ground_elevation_m": 143.0, "ground_elevation_source": "survey B",
+                           "vertical_datum": "datum B"},
+        }
+        report = station_elevation_metrics(task)
+        self.assertEqual(report["station_ground_elevation_status"], "incompatible_vertical_datums")
+        self.assertIsNone(report["station_ground_elevation_delta_m"])
+
+        task["to_station"]["vertical_datum"] = "datum A"
+        task["to_station"]["ground_elevation_source"] = ""
+        report = station_elevation_metrics(task)
+        self.assertEqual(report["station_ground_elevation_status"], "elevation_source_missing")
+        self.assertIsNone(report["station_ground_elevation_delta_m"])
+
+    def test_rejects_nonfinite_station_ground_elevation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stations = self._csv(folder, "stations.csv",
+                                 ["station_id", "lat", "lon", "ground_elevation_m"],
+                                 [["S1", 24.1, 120.1, "NaN"], ["S2", 24.2, 120.2, ""]])
+            tasks = self._csv(folder, "routes.csv",
+                              ["route_id", "from_station_id", "to_station_id"], [["R1", "S1", "S2"]])
+            with self.assertRaisesRegex(ValueError, "有限数值"):
+                load_station_tasks(stations, tasks)
 
     def test_rejects_unknown_station_reference(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -97,6 +97,8 @@ def main():
                     help="站点表: station_id,name,lat,lon,voltage_kv; 坐标应为线路接入点")
     ap.add_argument("--route-tasks-csv", type=str, default=None,
                     help="站间任务表: route_id,from_station_id,to_station_id")
+    ap.add_argument("--constraint-geojson", type=str, default=None,
+                    help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight")
     ap.add_argument("--settlement-weight", type=float, default=2.0,
                     help="OSM建筑密度代理的软避让权重(方案筛选参数, 默认2.0)")
     ap.add_argument("--building-clearance-m", type=float, default=0.0,
@@ -260,6 +262,11 @@ def main():
             bbox = (left, bottom, right, top)
             osm = compute_osm_bands(dem, transform, bbox)
             osm_layer_metadata = getattr(osm, "metadata", {}).get("layers", {})
+            custom_constraints = (
+                load_user_constraint_overlays(args.constraint_geojson, transform, dem.shape)
+                if args.constraint_geojson else None
+            )
+            custom_constraint_metadata = custom_constraints["metadata"] if custom_constraints else None
             for layer_name in ("buildings", "landuse"):
                 layer = osm_layer_metadata.get(layer_name, {})
                 if layer.get("status") != "available":
@@ -269,7 +276,6 @@ def main():
 
             model_cost = costunet.predict(stack) if costunet is not None else None
             cost = build_route_cost(terrain, osm, args.settlement_weight, model_cost)
-            print(f"  代价面范围 [{np.nanmin(cost):.3f}, {np.nanmax(cost):.3f}]")
 
             # ---- 真实/参考路径加载 + 走廊引导代价(缩小规划路径与真实路径差距) ----
             real_geo = None
@@ -297,10 +303,17 @@ def main():
                 corridor_pen = corridor_w * ratio
                 cost = np.clip(cost + corridor_pen, 0, 1.5).astype(np.float32)
                 print(f"  [走廊引导] w={corridor_w:.2f} band={args.corridor_band:.0f}m 最大附加代价={corridor_pen.max():.2f}")
+            if custom_constraints:
+                soft_cost = custom_constraints["soft_cost"]
+                cost = (cost + soft_cost).astype(np.float32)
+                cost_base = (cost_base + soft_cost).astype(np.float32)
+            print(f"  代价面范围 [{np.nanmin(cost):.3f}, {np.nanmax(cost):.3f}]")
 
             slope = terrain["slope"]; elev = terrain["elevation"]
             hard_mask = np.ones((H, W), np.uint8)
             hard_mask[~np.isfinite(dem)] = 0
+            if custom_constraints:
+                hard_mask[custom_constraints["hard_mask"] > 0] = 0
             if args.max_surface_slope_deg is not None:
                 if not 0 < args.max_surface_slope_deg <= 90:
                     raise ValueError("--max-surface-slope-deg 必须在(0,90]内")
@@ -491,6 +504,7 @@ def main():
                     print(f"  [POST-EVAL] 加载真实线路: {len(real_geo)}条折线")
 
             station_offsets_by_method = {}
+            station_measurements = {}
             hard_violation_reports = {}
             if station_task:
                 for method, geo in list(methods.items()):
@@ -567,6 +581,7 @@ def main():
                 "hard_violations": selected_metrics.get("hard_violations"),
                 "osm_data_quality": osm_data_quality,
                 "missing_osm_screening_layers": missing_osm_layers,
+                "constraint_layer_metadata": custom_constraint_metadata,
                 "length_km": round(path_length_km(final_geo), 3) if final_geo else None}
             case_metrics[FINAL_ROUTE_LABEL].update({
                 key: value for key, value in selected_metrics.items()
@@ -593,6 +608,7 @@ def main():
             if station_task:
                 start_station = station_task["from_station"]
                 end_station = station_task["to_station"]
+                station_measurements = station_elevation_metrics(station_task)
                 for metrics in case_metrics.values():
                     if isinstance(metrics, dict):
                         metrics.update({
@@ -608,6 +624,7 @@ def main():
                             "to_station_source": end_station["source"] or None,
                             "to_station_verified": end_station["verified"] or None,
                             "voltage_kv": station_task["voltage_kv"] or None,
+                            **station_measurements,
                             "settlement_weight": args.settlement_weight,
                             "building_clearance_m": args.building_clearance_m,
                             "grade_penalty_weight": args.grade_penalty_weight,
@@ -637,6 +654,7 @@ def main():
                                            "hard_violations": selected_metrics.get("hard_violations"),
                                            "osm_data_quality": osm_data_quality,
                                            "missing_osm_screening_layers": missing_osm_layers,
+                                           "constraint_layer_metadata": custom_constraint_metadata,
                                            "length_km": selected_metrics.get("length_km"),
                                            "mean_cost": selected_metrics.get("mean_cost"),
                                            "sinuosity": selected_metrics.get("sinuosity"),
@@ -651,6 +669,7 @@ def main():
                                            "to_station_source": station_task["to_station"]["source"] or None if station_task else None,
                                            "to_station_verified": station_task["to_station"]["verified"] or None if station_task else None,
                                            "voltage_kv": station_task["voltage_kv"] or None if station_task else None,
+                                           **station_measurements,
                                            "voltage_rules_applied": False,
                                            "settlement_weight": args.settlement_weight,
                                            "building_clearance_m": args.building_clearance_m,
