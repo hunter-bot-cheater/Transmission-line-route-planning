@@ -17,7 +17,7 @@ from transmission_path_planner.cli import (
     load_case_reference,
     main,
     resolve_real_path,
-    method_pass8_summary,
+    method_visual_similarity_summary,
     run_method_or_skip_on_oom,
     train_vin_or_skip_on_oom,
     validate_endpoint_cells,
@@ -96,9 +96,14 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
     def test_final_route_selection_ignores_reference_errors(self):
         methods = {"VIN-Grad": [(1, 1)], "A*(baseline)": [(1, 1)]}
         for vin_error, astar_error in ((1.0, 9.0), (99.0, 0.1)):
+            def reference_score(value):
+                return {"route_similarity": {
+                    "symmetric": {"p95_m": value},
+                    "length": {"absolute_difference_pct": value},
+                }, "hard_violations": 0}
             metrics = {
-                "VIN-Grad": {"worst_err_pct": vin_error, "hard_violations": 0},
-                "A*(baseline)": {"worst_err_pct": astar_error, "hard_violations": 0},
+                "VIN-Grad": reference_score(vin_error),
+                "A*(baseline)": reference_score(astar_error),
             }
             self.assertEqual(
                 _select_final_route(methods, metrics),
@@ -364,21 +369,23 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         self.assertEqual(summary["completed_cases"], 0)
         self.assertEqual(summary["no_route_cases"], ["blocked"])
 
-    def test_no_route_and_failed_cases_are_unmeasured_not_pass_or_fail(self):
+    def test_no_route_and_failed_cases_are_unmeasured(self):
         records = [
             {"case": "blocked", "metrics": {
-                "VIN-Grad": {"pass8": True, "worst_err_pct": 1.0},
+                "VIN-Grad": {"route_similarity": {"symmetric": {"p95_m": 1}}},
                 "最终路线": {"planning_status": "no_hard_constraint_compliant_route"},
             }},
             {"case": "failed-after-record", "metrics": {
-                "VIN-Grad": {"pass8": False, "worst_err_pct": 20.0},
+                "VIN-Grad": {"route_similarity": {"symmetric": {"p95_m": 20}}},
                 "最终路线": {"planning_status": "screening_candidate"},
             }},
         ]
         self.assertEqual(
-            method_pass8_summary(records, "VIN-Grad", expected_cases=2,
-                                 failed_case_names={"failed-after-record"}),
-            {"pass": 0, "fail": 0, "unmeasured": 2, "worst_err_pct": None},
+            method_visual_similarity_summary(records, "VIN-Grad", expected_cases=2,
+                                             failed_case_names={"failed-after-record"}),
+            {"measured": 0, "unmeasured": 2, "median_symmetric_p95_m": None,
+             "median_sampled_hausdorff_m": None, "median_coverage_f1_1km": None,
+             "median_length_difference_pct": None},
         )
 
     def test_mixed_valid_and_invalid_real_cases_csv_is_rejected(self):
@@ -541,17 +548,26 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
                 metrics.load_real_cases_csv(path)
 
     def test_missing_method_rows_are_reported_as_unmeasured(self):
+        route_similarity = {
+            "symmetric": {"p95_m": 120, "sampled_hausdorff_m": 400,
+                          "coverage_f1_within_m": {"1000": 0.75}},
+            "length": {"absolute_difference_pct": 5.0},
+        }
         records = [
-            {"case": "route-a", "metrics": {"A*(baseline)": {"pass8": True, "worst_err_pct": 4.5}}},
+            {"case": "route-a", "metrics": {"A*(baseline)": {"route_similarity": route_similarity}}},
             {"case": "route-b", "metrics": {}},
         ]
         self.assertEqual(
-            method_pass8_summary(records, "VIN-Grad"),
-            {"pass": 0, "fail": 0, "unmeasured": 2, "worst_err_pct": None},
+            method_visual_similarity_summary(records, "VIN-Grad"),
+            {"measured": 0, "unmeasured": 2, "median_symmetric_p95_m": None,
+             "median_sampled_hausdorff_m": None, "median_coverage_f1_1km": None,
+             "median_length_difference_pct": None},
         )
         self.assertEqual(
-            method_pass8_summary(records, "A*(baseline)", expected_cases=3),
-            {"pass": 1, "fail": 0, "unmeasured": 2, "worst_err_pct": 4.5},
+            method_visual_similarity_summary(records, "A*(baseline)", expected_cases=3),
+            {"measured": 1, "unmeasured": 2, "median_symmetric_p95_m": 120.0,
+             "median_sampled_hausdorff_m": 400.0, "median_coverage_f1_1km": 0.75,
+             "median_length_difference_pct": 5.0},
         )
 
     def test_direct_real_shp_rejects_multiple_line_features(self):

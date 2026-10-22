@@ -1,5 +1,5 @@
 # transmission_path_planner/metrics.py
-"""规划路径与真实输电路径的偏差度量（对称 Hausdorff + 长度误差）及内部阈值对照。"""
+"""规划路径与参考线路的双向空间相似度指标。"""
 
 from .config import *
 from .geometry import *
@@ -133,14 +133,84 @@ def load_real_path(shp_path, max_features=None, require_single_line=False, raise
         return None
 
 
+VISUAL_TOLERANCES_M = (100, 500, 1000, 5000)
+ROUTE_SAMPLE_STEP_M = 20.0
+FRECHET_SAMPLE_COUNT = 256
+
+
+def _line_samples(projected, step_m):
+    """Return approximately equally spaced arc-length midpoint samples."""
+    from shapely.geometry import LineString
+
+    samples = []
+    lengths = []
+    for coordinates in projected:
+        line = LineString(coordinates)
+        if line.length <= 0:
+            continue
+        count = max(1, int(math.ceil(line.length / step_m)))
+        distances = (np.arange(count, dtype=np.float64) + 0.5) * line.length / count
+        samples.append(np.asarray([line.interpolate(float(d)).coords[0] for d in distances]))
+        lengths.append(float(line.length))
+    if not samples:
+        raise ValueError("偏差计算线路长度必须大于零")
+    return np.concatenate(samples, axis=0), lengths
+
+
+def _distance_summary(distances):
+    return {
+        "mean_m": float(distances.mean()),
+        "median_m": float(np.percentile(distances, 50)),
+        "p90_m": float(np.percentile(distances, 90)),
+        "p95_m": float(np.percentile(distances, 95)),
+        "p99_m": float(np.percentile(distances, 99)),
+        "sampled_max_m": float(distances.max()),
+        "coverage_within_m": {
+            str(tolerance): float(np.mean(distances <= tolerance))
+            for tolerance in VISUAL_TOLERANCES_M
+        },
+    }
+
+
+def _discrete_frechet(first, second):
+    """Compute discrete Frechet distance using linear memory."""
+    previous = np.full(len(second), np.inf, dtype=np.float64)
+    for i, point_a in enumerate(first):
+        current = np.full(len(second), np.inf, dtype=np.float64)
+        for j, point_b in enumerate(second):
+            distance = float(np.linalg.norm(point_a - point_b))
+            if i == 0 and j == 0:
+                current[j] = distance
+            elif i == 0:
+                current[j] = max(current[j - 1], distance)
+            elif j == 0:
+                current[j] = max(previous[j], distance)
+            else:
+                current[j] = max(min(previous[j], previous[j - 1], current[j - 1]), distance)
+        previous = current
+    return float(previous[-1])
+
+
+def _resample_line(coordinates, count):
+    line = LineString(coordinates)
+    return np.asarray([
+        line.interpolate(float(distance)).coords[0]
+        for distance in np.linspace(0.0, line.length, count)
+    ], dtype=np.float64)
+
+
 def compute_deviation(planned_geo, real_geo):
-    """Project both routes to local meters and estimate symmetric Hausdorff at 5m spacing.
+    """Compare route geometries in both directions using arc-length samples in meters.
+
+    Distance quantiles and coverage are sampled approximations at
+    ``ROUTE_SAMPLE_STEP_M``. The maximum is diagnostic and is not a pass/fail score.
     """
     if not planned_geo or len(planned_geo) < 2 or not real_geo:
         return None
     try:
         from pyproj import CRS, Transformer
         from shapely import linestrings, points
+        from shapely.geometry import LineString
         from shapely.strtree import STRtree
 
         real_polys = real_geo if isinstance(real_geo[0][0], (list, tuple)) else [real_geo]
@@ -159,19 +229,12 @@ def compute_deviation(planned_geo, real_geo):
         def project_coordinates(poly):
             return np.asarray([project(lon, lat) for lon, lat in poly], dtype=np.float64)
 
-        def densify(projected):
-            samples = [projected[:1]]
-            for start, end in zip(projected, projected[1:]):
-                length = math.hypot(end[0] - start[0], end[1] - start[1])
-                steps = max(1, int(math.ceil(length / 5.0)))
-                fractions = np.arange(1, steps + 1, dtype=np.float64)[:, None] / steps
-                samples.append(start + fractions * (end - start))
-            return np.concatenate(samples, axis=0)
-
         planned_projected = project_coordinates(planned_geo)
         real_projected = [project_coordinates(poly) for poly in real_polys]
-        planned_samples = densify(planned_projected)
-        real_samples = [densify(poly) for poly in real_projected]
+        planned_samples, planned_component_lengths = _line_samples(
+            [planned_projected], ROUTE_SAMPLE_STEP_M)
+        real_samples, real_component_lengths = _line_samples(
+            real_projected, ROUTE_SAMPLE_STEP_M)
 
         def segment_tree(projected_lines):
             segments = []
@@ -194,60 +257,124 @@ def compute_deviation(planned_geo, real_geo):
                 raise ValueError("空间索引未返回所有采样点的最近距离")
             return result
 
-        real_samples_all = np.concatenate(real_samples, axis=0)
         planned_distances = nearest_distances(planned_samples, segment_tree(real_projected))
-        reverse_distances = nearest_distances(real_samples_all, segment_tree([planned_projected]))
-        forward_m = float(planned_distances.max())
-        reverse_m = float(reverse_distances.max())
-        hausdorff_m = max(forward_m, reverse_m)
+        reference_distances = nearest_distances(real_samples, segment_tree([planned_projected]))
+        planned_to_reference = _distance_summary(planned_distances)
+        reference_to_planned = _distance_summary(reference_distances)
+        combined = np.concatenate((planned_distances, reference_distances))
+        tolerance_f1 = {}
+        for tolerance in VISUAL_TOLERANCES_M:
+            precision = planned_to_reference["coverage_within_m"][str(tolerance)]
+            recall = reference_to_planned["coverage_within_m"][str(tolerance)]
+            tolerance_f1[str(tolerance)] = (
+                2.0 * precision * recall / (precision + recall)
+                if precision + recall else 0.0
+            )
+
+        reference_length_m = float(sum(real_component_lengths))
+        planned_length_m = float(sum(planned_component_lengths))
+        route_similarity = {
+            "comparison_crs": local_crs.to_string(),
+            "sampling_interval_m": ROUTE_SAMPLE_STEP_M,
+            "planned_to_reference": planned_to_reference,
+            "reference_to_planned": reference_to_planned,
+            "symmetric": {
+                "mean_m": float(combined.mean()),
+                "p95_m": max(planned_to_reference["p95_m"], reference_to_planned["p95_m"]),
+                "sampled_hausdorff_m": float(combined.max()),
+                "coverage_f1_within_m": tolerance_f1,
+            },
+            "length": {
+                "planned_km": planned_length_m / 1000.0,
+                "reference_km": reference_length_m / 1000.0,
+                "signed_difference_km": (planned_length_m - reference_length_m) / 1000.0,
+                "absolute_difference_km": abs(planned_length_m - reference_length_m) / 1000.0,
+                "absolute_difference_pct": abs(planned_length_m - reference_length_m) / reference_length_m * 100.0,
+            },
+            "endpoint_offsets": None,
+            "discrete_frechet_approx": None,
+            "buffer_iou": {},
+        }
+
+        if len(real_projected) == 1:
+            endpoint_a = np.asarray(planned_projected[0])
+            endpoint_b = np.asarray(planned_projected[-1])
+            reference_a = np.asarray(real_projected[0][0])
+            reference_b = np.asarray(real_projected[0][-1])
+            forward_sum = np.linalg.norm(endpoint_a - reference_a) + np.linalg.norm(endpoint_b - reference_b)
+            reverse_sum = np.linalg.norm(endpoint_a - reference_b) + np.linalg.norm(endpoint_b - reference_a)
+            if forward_sum <= reverse_sum:
+                endpoint_offsets = (float(np.linalg.norm(endpoint_a - reference_a)),
+                                    float(np.linalg.norm(endpoint_b - reference_b)))
+                orientation = "forward"
+            else:
+                endpoint_offsets = (float(np.linalg.norm(endpoint_a - reference_b)),
+                                    float(np.linalg.norm(endpoint_b - reference_a)))
+                orientation = "reversed"
+            route_similarity["endpoint_offsets"] = {
+                "orientation": orientation,
+                "planned_start_to_reference_endpoint_m": endpoint_offsets[0],
+                "planned_end_to_reference_endpoint_m": endpoint_offsets[1],
+            }
+
+            planned_shape = _resample_line(planned_projected, FRECHET_SAMPLE_COUNT)
+            reference_shape = _resample_line(real_projected[0], FRECHET_SAMPLE_COUNT)
+            frechet = min(
+                _discrete_frechet(planned_shape, reference_shape),
+                _discrete_frechet(planned_shape, reference_shape[::-1]),
+            )
+            route_similarity["discrete_frechet_approx"] = {
+                "distance_m": frechet,
+                "sample_points_per_route": FRECHET_SAMPLE_COUNT,
+            }
+
+        try:
+            from shapely.ops import unary_union
+            planned_line = LineString(planned_projected)
+            reference_geometry = unary_union([LineString(line) for line in real_projected])
+            for radius in (100, 1000):
+                planned_buffer = planned_line.buffer(radius, quad_segs=8)
+                reference_buffer = reference_geometry.buffer(radius, quad_segs=8)
+                union_area = planned_buffer.union(reference_buffer).area
+                route_similarity["buffer_iou"][str(radius)] = (
+                    float(planned_buffer.intersection(reference_buffer).area / union_area)
+                    if union_area else 1.0
+                )
+        except Exception:
+            route_similarity["buffer_iou"] = {}
+
         return {
-            "dev_haus_fwd_km": forward_m / 1000.0,
-            "dev_haus_sym_km": hausdorff_m / 1000.0,
-            "dev_hausdorff_km": hausdorff_m / 1000.0,
-            "dev_mean_km": float(planned_distances.mean()) / 1000.0,
-            "dev_p90_km": float(np.percentile(planned_distances, 90)) / 1000.0,
-            "dev_max_km": hausdorff_m / 1000.0,
-            "real_length_km": sum(
-                float(np.linalg.norm(np.diff(line, axis=0), axis=1).sum())
-                for line in real_projected
-            ) / 1000.0,
-            "deviation_sample_step_m": 5,
-            "deviation_crs": local_crs.to_string(),
+            "route_similarity_version": 2,
+            "route_similarity": route_similarity,
         }
     except Exception as ex:
         print(f"    [warn] 偏差计算失败: {ex}")
         return None
 
 
-ERROR_TOL_PCT = 8.0  # 目标: 长度相对误差% 与 Hausdorff归一化% 均 <= 8%
-
-
 def eval_error(plan_len_km, dev):
-    """规划线 vs 真实线的 8% 误差度量。
-
-    dev: compute_deviation 返回字典(含 real_length_km / dev_hausdorff_km, 单位 km)。
-    返回:
-      len_err_pct : |L规划 - L真实| / L真实 * 100   (路线长度相对误差)
-      haus_pct    : dev_hausdorff_km / L真实 * 100   (最大空间偏差占真实长度比例)
-      worst_err_pct: max(len_err_pct, haus_pct)
-      pass8       : worst_err_pct <= ERROR_TOL_PCT
-    两个指标同时 <=8% 才算'规划与真实差不多'。"""
+    """Return v2 geometry and length metrics, without an arbitrary pass threshold."""
     if not dev:
         return None
-    real_len = dev.get("real_length_km")
-    if not real_len or real_len <= 0:
+    similarity = dev.get("route_similarity")
+    if not similarity:
         return None
     plan_len = float(plan_len_km or 0.0)
-    len_err = abs(plan_len - real_len) / real_len * 100.0
-    haus = (float(dev.get("dev_hausdorff_km", 0.0)) / real_len) * 100.0  # 已为对称 Hausdorff
-    haus_fwd = (float(dev.get("dev_haus_fwd_km", dev.get("dev_hausdorff_km", 0.0))) / real_len) * 100.0
-    worst = max(len_err, haus)
+    reference_len = float(similarity["length"]["reference_km"])
+    if reference_len <= 0:
+        return None
+    length = dict(similarity["length"])
+    length.update({
+        "planned_km": plan_len,
+        "signed_difference_km": plan_len - reference_len,
+        "absolute_difference_km": abs(plan_len - reference_len),
+        "absolute_difference_pct": abs(plan_len - reference_len) / reference_len * 100.0,
+    })
+    similarity = dict(similarity)
+    similarity["length"] = length
     return {
-        "len_err_pct": round(len_err, 6),
-        "haus_pct": round(haus, 6),
-        "haus_fwd_pct": round(haus_fwd, 6),
-        "worst_err_pct": round(worst, 6),
-        "pass8": bool(worst <= ERROR_TOL_PCT),
+        "route_similarity_version": 2,
+        "route_similarity": similarity,
     }
 
 

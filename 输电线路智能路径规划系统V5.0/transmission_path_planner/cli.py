@@ -165,24 +165,28 @@ def summarize_run_completion(expected_cases, results, failed_cases):
     }
 
 
-def method_pass8_summary(results, method, expected_cases=None, failed_case_names=None):
+def method_visual_similarity_summary(results, method, expected_cases=None, failed_case_names=None):
     excluded = set(failed_case_names or ())
     eligible = [record for record in results
                 if record["case"] not in excluded
                 and record["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
                 != "no_hard_constraint_compliant_route"]
-    values = [record["metrics"].get(method, {}).get("pass8") for record in eligible]
-    evaluated = [value for value in values if value is not None]
-    errors = [record["metrics"].get(method, {}).get("worst_err_pct")
-              for record in eligible
-              if record["metrics"].get(method, {}).get("pass8") is not None
-              and record["metrics"].get(method, {}).get("worst_err_pct") is not None]
+    comparisons = [record["metrics"].get(method, {}).get("route_similarity")
+                   for record in eligible]
+    comparisons = [value for value in comparisons if value]
     total_cases = max(len(results), expected_cases or 0)
+    p95 = [value["symmetric"]["p95_m"] for value in comparisons]
+    hausdorff = [value["symmetric"]["sampled_hausdorff_m"] for value in comparisons]
+    coverage = [value["symmetric"]["coverage_f1_within_m"]["1000"]
+                for value in comparisons]
+    length_error = [value["length"]["absolute_difference_pct"] for value in comparisons]
     return {
-        "pass": sum(value is True for value in evaluated),
-        "fail": sum(value is False for value in evaluated),
-        "unmeasured": total_cases - len(evaluated),
-        "worst_err_pct": max(errors) if errors else None,
+        "measured": len(comparisons),
+        "unmeasured": max(0, total_cases - len(comparisons)),
+        "median_symmetric_p95_m": float(np.median(p95)) if p95 else None,
+        "median_sampled_hausdorff_m": float(np.median(hausdorff)) if hausdorff else None,
+        "median_coverage_f1_1km": float(np.median(coverage)) if coverage else None,
+        "median_length_difference_pct": float(np.median(length_error)) if length_error else None,
     }
 
 
@@ -248,7 +252,7 @@ def main():
     ap.add_argument("--no-vin", action="store_true", help="跳过 VIN-Grad，保留 PPO/A*；适用于无法运行 VIN 的环境")
     ap.add_argument("--out-dir", type=str, default=None)
     ap.add_argument("--with-real", action="store_true",
-                    help="加载真实线路，仅在规划完成后计算事后偏差")
+                    help="加载参考线路，仅在规划选路完成后计算 v2 双向空间相似度")
     ap.add_argument("--real-cases", action="store_true",
                     help="改用 v3 的 4 条真实走廊(R01~R04)并启用真实线对照")
     ap.add_argument("--real-cases-csv", type=str, default=None,
@@ -625,29 +629,23 @@ def main():
                         if not dev:
                             continue
                         metrics = case_metrics[method]
-                        metrics.update({
-                            "dev_hausdorff_km": dev["dev_hausdorff_km"],
-                            "dev_mean_km": dev["dev_mean_km"],
-                            "dev_p90_km": dev["dev_p90_km"],
-                            "dev_max_km": dev["dev_max_km"],
-                        })
                         err = eval_planned_route_error(geo, dev)
                         if err:
                             metrics.update(err)
                         real_evaluation_methods.append(method)
-                        flag = (f"PASS(误差{err['worst_err_pct']:.6f}%<=8%)"
-                                if (err and err["pass8"]) else
-                                f"FAIL(误差{err['worst_err_pct']:.6f}%)" if err else "NA")
-                        print(f"  [{method}] 偏差 vs 目标线路: 最大={dev['dev_hausdorff_km']:.3f}km "
-                              f"P90={dev['dev_p90_km']:.3f}km 平均={dev['dev_mean_km']:.3f}km | "
-                              f"长度误差={err['len_err_pct'] if err else 'NA'}% "
-                              f"Haus%={err['haus_pct'] if err else 'NA'}% -> {flag}")
+                        if err:
+                            similarity = err["route_similarity"]
+                            symmetric = similarity["symmetric"]
+                            coverage_1km = symmetric["coverage_f1_within_m"]["1000"]
+                            print(f"  [{method}] 双向P95={symmetric['p95_m']:.0f}m "
+                                  f"采样最大偏移={symmetric['sampled_hausdorff_m']:.0f}m "
+                                  f"1km覆盖F1={coverage_1km:.1%} "
+                                  f"长度差={similarity['length']['absolute_difference_km']:.2f}km")
                     real_evaluation_status = (
                         "comparison_completed" if real_evaluation_methods
                         else "reference_loaded_no_comparable_route")
 
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
-            best_err = selected_metrics.get("worst_err_pct")
             planning_status = (
                 "no_hard_constraint_compliant_route" if not final_geo else
                 "screening_candidate_data_incomplete" if missing_osm_layers else
@@ -655,8 +653,8 @@ def main():
             case_metrics[FINAL_ROUTE_LABEL] = {
                 "method": best_method,
                 "selection_rule": selection_rule,
-                "worst_err_pct": round(best_err, 6) if best_err is not None else None,
-                "pass8": selected_metrics.get("pass8"),
+                "route_similarity_version": selected_metrics.get("route_similarity_version"),
+                "route_similarity": selected_metrics.get("route_similarity"),
                 "is_ai_method": final_is_ai,
                 "real_evaluation_status": real_evaluation_status,
                 "real_evaluation_methods": real_evaluation_methods,
@@ -667,10 +665,7 @@ def main():
                 "missing_osm_screening_layers": missing_osm_layers,
                 "constraint_layer_metadata": custom_constraint_metadata,
                 "length_km": round(path_length_km(final_geo), 3) if final_geo else None}
-            case_metrics[FINAL_ROUTE_LABEL].update({
-                key: value for key, value in selected_metrics.items()
-                if key not in {"worst_err_pct", "pass8"}
-            })
+            case_metrics[FINAL_ROUTE_LABEL].update(selected_metrics)
             if final_geo:
                 case_metrics[FINAL_ROUTE_LABEL].update(route_profile_metrics(final_geo, dem, transform))
             if best_method in grade_reports:
@@ -717,7 +712,7 @@ def main():
                             "max_terrain_elevation_m": args.max_terrain_elevation_m,
                             "route_constraints_limitations": "No population layer, official protected-area layer, conductor clearance, tower siting or span feasibility checked",
                         })
-            print(f"  [集成] 最终路线采用 {best_method} ({selection_rule})；误差仅作事后指标")
+            print(f"  [集成] 最终路线采用 {best_method} ({selection_rule})；线路相似度仅作事后指标")
             # 导出最终路线矢量 (GeoJSON)
             safe_now = route_output_name(cname)
             final_dir = OUT / safe_now
@@ -728,7 +723,8 @@ def main():
                             "geometry": {"type": "LineString",
                                          "coordinates": geojson_coordinates(final_geo)},
                             "properties": {"case": cname, "method": best_method,
-                                           "worst_err_pct": round(best_err, 6) if best_err is not None else None,
+                                            "route_similarity_version": selected_metrics.get("route_similarity_version"),
+                                            "route_similarity": selected_metrics.get("route_similarity"),
                                            "selection_rule": selection_rule,
                                            "planning_status": planning_status,
                                            "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
@@ -780,23 +776,13 @@ def main():
                 for _rec in all_results:
                     _entry = {"case": _rec["case"]}
                     for _m, _met in _rec["metrics"].items():
-                        if _m == FINAL_ROUTE_LABEL:
-                            continue
-                        if "dev_hausdorff_km" in _met:
-                            _entry[_m] = {"length_km": _met["length_km"],
-                                          "dev_hausdorff_km": _met["dev_hausdorff_km"],
-                                          "dev_p90_km": _met.get("dev_p90_km"),
-                                          "dev_mean_km": _met["dev_mean_km"],
-                                          "dev_max_km": _met["dev_max_km"],
-                                          "len_err_pct": _met.get("len_err_pct"),
-                                          "haus_pct": _met.get("haus_pct"),
-                                          "worst_err_pct": _met.get("worst_err_pct"),
-                                          "pass8": _met.get("pass8")}
-                        elif "method" in _met:
-                            _entry[_m] = {"method": _met.get("method"),
-                                          "length_km": _met.get("length_km"),
-                                          "worst_err_pct": _met.get("worst_err_pct"),
-                                          "pass8": _met.get("pass8")}
+                        if "route_similarity" in _met:
+                            _entry[_m] = {
+                                "method": _met.get("method", _m),
+                                "length_km": _met.get("length_km"),
+                                "route_similarity_version": _met.get("route_similarity_version"),
+                                "route_similarity": _met["route_similarity"],
+                            }
                     if _entry:
                         _real_out.append(_entry)
                 with open(OUT / "real_comparison_metrics.json", "w", encoding="utf-8") as _f:
@@ -895,7 +881,11 @@ def main():
     rows = []
     for rec in all_results:
         for m, met in rec["metrics"].items():
-            rows.append({"case": rec["case"], "method": m, **met})
+            row = {"case": rec["case"], "method": m, **met}
+            if "route_similarity" in row:
+                row["route_similarity_json"] = json.dumps(
+                    row.pop("route_similarity"), ensure_ascii=False)
+            rows.append(row)
     if rows:
         import csv
         # 用所有行的键并集作为表头, 避免不同方法(A*/VIN/PPO)或有无真实对比导致字段不一致
@@ -908,24 +898,19 @@ def main():
             w = csv.DictWriter(f, fieldnames=all_keys)
             w.writeheader(); w.writerows(rows)
 
-    # 真实路径偏差对比 JSON + 控制台摘要
+    # 参考线路空间相似度 JSON + 控制台摘要
     if use_real:
         real_out = []
         for rec in all_results:
             entry = {"case": rec["case"]}
             for m, met in rec["metrics"].items():
-                if m == FINAL_ROUTE_LABEL:
-                    continue
-                if "dev_hausdorff_km" in met:
-                    entry[m] = {"length_km": met["length_km"],
-                                "dev_hausdorff_km": met["dev_hausdorff_km"],
-                                "dev_p90_km": met.get("dev_p90_km"),
-                                "dev_mean_km": met["dev_mean_km"],
-                                "dev_max_km": met["dev_max_km"],
-                                "len_err_pct": met.get("len_err_pct"),
-                                "haus_pct": met.get("haus_pct"),
-                                "worst_err_pct": met.get("worst_err_pct"),
-                                "pass8": met.get("pass8")}
+                if "route_similarity" in met:
+                    entry[m] = {
+                        "method": met.get("method", m),
+                        "length_km": met.get("length_km"),
+                        "route_similarity_version": met.get("route_similarity_version"),
+                        "route_similarity": met["route_similarity"],
+                    }
             if entry:
                 real_out.append(entry)
         try:
@@ -934,9 +919,10 @@ def main():
         except Exception:
             pass
         print("\n" + "=" * 70)
-        print("  真实路径偏差对比 (规划路径 vs 真实线路, 单位 km)")
+        print("  参考线路空间相似度 (双向米制偏移 + 线路覆盖；仅事后评估)")
         print("=" * 70)
-        print(f"  {'走廊':16s} {'方法':16s} {'Hausdorff':>9s} {'长度误差%':>9s} {'Haus%':>7s} {'达标':>5s}")
+        print(f"  {'走廊':16s} {'方法':16s} {'双向P95(m)':>11s} {'采样最大(m)':>12s} "
+              f"{'覆盖F1@1km':>11s} {'长度差(km)':>11s}")
         candidate_methods = ["VIN-Grad", "PPO", "A*(baseline)"]
         failed_case_names = {item["case"] for item in failed_cases}
         for rec in all_results:
@@ -944,73 +930,37 @@ def main():
                 continue
             for m in candidate_methods:
                 met = rec["metrics"].get(m, {})
-                ok = met.get("pass8")
-                if "dev_hausdorff_km" in met:
-                    status = "PASS" if ok is True else "FAIL" if ok is False else "NA"
-                    print(f"  {rec['case']:16s} {m:16s} {met['dev_hausdorff_km']:9.2f} "
-                          f"{(met.get('len_err_pct') or 0):11.6f} {(met.get('haus_pct') or 0):10.6f} "
-                          f"{status:>5s}")
-        candidate_summaries = [
-            method_pass8_summary(
-                all_results, method, expected_cases=len(cases),
-                failed_case_names=failed_case_names,
-            ) for method in candidate_methods
-        ]
-        n_pass = sum(summary["pass"] for summary in candidate_summaries)
-        n_fail = sum(summary["fail"] for summary in candidate_summaries)
-        n_unmeasured = sum(summary["unmeasured"] for summary in candidate_summaries)
+                similarity = met.get("route_similarity")
+                if similarity:
+                    symmetric = similarity["symmetric"]
+                    print(f"  {rec['case']:16s} {m:16s} "
+                          f"{symmetric['p95_m']:11.0f} "
+                          f"{symmetric['sampled_hausdorff_m']:12.0f} "
+                          f"{symmetric['coverage_f1_within_m']['1000']:10.1%} "
+                          f"{similarity['length']['absolute_difference_km']:11.2f}")
+        print("  说明：采样点按约20米弧长间距生成；覆盖F1@1km是描述性容差带，不是达标阈值。")
         print("-" * 70)
-        print(f"  候选方法评估: PASS {n_pass}, FAIL {n_fail}, 未测 {n_unmeasured}; "
-              f"最终路线不重复计入; 目标 ERROR_TOL_PCT={ERROR_TOL_PCT}%")
-        print("=" * 70)
-
-        # ── 按方法独立统计内部阈值对照结果 ──
-        print("\n" + "=" * 70)
-        print("  【方法独立对照】各候选方法自身内部阈值通过率")
-        print("=" * 70)
-        for m in ["VIN-Grad", "PPO", "A*(baseline)"]:
-            summary = method_pass8_summary(
+        for m in candidate_methods:
+            summary = method_visual_similarity_summary(
                 all_results, m, expected_cases=len(cases),
                 failed_case_names=failed_case_names,
             )
-            npass = summary["pass"]
-            nfail = summary["fail"]
-            n_unmeasured = summary["unmeasured"]
-            evaluated_count = npass + nfail
-            worst = summary["worst_err_pct"]
-            tag = "AI候选" if m == "VIN-Grad" else ("AI-RL" if m == "PPO" else "基线(非AI)")
-            verdict = (f"PARTIAL({npass} pass/{nfail} fail/{n_unmeasured} 未测)"
-                       if n_unmeasured else ("PASS" if nfail == 0 else f"FAIL({npass}/{evaluated_count})"))
-            worst_text = f"{worst:.2f}%" if worst is not None else "NA"
-            print(f"  {m:16s} [{tag}] 自身达标 {npass}/{evaluated_count}  未测={n_unmeasured} "
-                  f"最差={worst_text}  -> {verdict}")
-        ai_fail_final = [r["case"] for r in all_results
-                         if r["case"] not in failed_case_names
-                         and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
-                         != "no_hard_constraint_compliant_route"
-                         and r["metrics"].get("VIN-Grad", {}).get("pass8") is False]
-        measured_vin_cases = {
-            r["case"] for r in all_results
-            if r["case"] not in failed_case_names
-            and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
-            != "no_hard_constraint_compliant_route"
-            and r["metrics"].get("VIN-Grad", {}).get("pass8") is not None
-        }
-        ai_unmeasured = [case[0] for case in cases if case[0] not in measured_vin_cases]
-        ai_unmeasured.extend(item["case"] for item in failed_cases)
-        ai_unmeasured.extend(run_summary["no_route_cases"])
-        ai_unmeasured = list(dict.fromkeys(ai_unmeasured))
+            p95 = summary["median_symmetric_p95_m"]
+            max_offset = summary["median_sampled_hausdorff_m"]
+            f1 = summary["median_coverage_f1_1km"]
+            length_difference = summary["median_length_difference_pct"]
+            p95_text = f"{p95:.1f}m" if p95 is not None else "NA"
+            max_text = f"{max_offset:.1f}m" if max_offset is not None else "NA"
+            f1_text = f"{f1:.1%}" if f1 is not None else "NA"
+            length_text = f"{length_difference:.1f}%" if length_difference is not None else "NA"
+            print(f"  {m:16s} 已测={summary['measured']:2d} 未测={summary['unmeasured']:2d} "
+                  f"中位双向P95={p95_text} 中位最大偏移={max_text} "
+                  f"中位F1@1km={f1_text} 中位长度差={length_text}")
         astar_selected = [r["case"] for r in all_results
                           if r["case"] not in failed_case_names
                           and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
                           != "no_hard_constraint_compliant_route"
                           if r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("method") == "A*(baseline)"]
-        if ai_fail_final:
-            print(f"  ⚠ 以下走廊 VIN-Grad 候选未达到项目内部阈值: {ai_fail_final}")
-        elif not ai_unmeasured and not failed_cases:
-            print("  ✓ VIN-Grad 候选在全部可评估走廊均不超过项目内部 8% 阈值")
-        if ai_unmeasured:
-            print(f"  ℹ 以下走廊 VIN-Grad 未测/未生成可评估路径: {ai_unmeasured}")
         if astar_selected:
             print(f"  ℹ 以下走廊按既定规则选择 A* 最终路线: {astar_selected}")
         print("=" * 70)
