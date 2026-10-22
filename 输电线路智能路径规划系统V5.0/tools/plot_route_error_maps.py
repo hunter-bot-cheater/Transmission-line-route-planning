@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 from pathlib import Path
 
@@ -110,7 +111,10 @@ def plot_case(case, planned, reference, metrics, out_path, cmap, norm, interval_
 
 def plot_overview(routes, out_path, cmap, norm, interval_m):
     cases = list(routes)
-    fig, axes = plt.subplots(4, 3, figsize=(16, 19), constrained_layout=True)
+    cols = min(4, max(1, len(cases)))
+    rows = math.ceil(len(cases) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(4.8 * cols, 4.75 * rows),
+                             squeeze=False, constrained_layout=True)
     for ax, case in zip(axes.flat, cases):
         planned, reference, metrics = routes[case]
         sim = metrics["route_similarity"]
@@ -124,7 +128,7 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
         ax.axis("off")
     legend = [Line2D([0], [0], color="#343a40", linestyle="--", label="参考线")]
     axes.flat[0].legend(handles=legend, loc="lower left", fontsize=8, framealpha=0.85)
-    fig.suptitle("严格无线路先验评测｜12 条线路｜20 米来源 DEM", fontsize=15)
+    fig.suptitle(f"严格无线路先验评测｜{len(cases)} 条线路｜20 米来源 DEM", fontsize=15)
     fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axes, label="规划线到参考线距离（km）", shrink=0.75)
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
