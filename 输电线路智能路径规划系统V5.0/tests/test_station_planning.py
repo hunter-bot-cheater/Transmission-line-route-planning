@@ -20,7 +20,9 @@ from transmission_path_planner.smoothing import (
     filter_path_by_ground_grade,
     path_hard_violations,
     sample_dem,
+    smooth_path,
     smooth_path_with_constraints,
+    snap_to_valid,
 )
 from transmission_path_planner.stations import load_station_tasks, station_elevation_metrics
 
@@ -151,6 +153,50 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(report["grade_limit_status"], "fail")
         self.assertGreater(report["grade_limit_violation_count"], 0)
         self.assertEqual(report["grade_limit_threshold_ratio"], 0.3)
+
+    def test_smoothing_keeps_features_that_exceed_50_meter_tolerance(self):
+        x_scale = 111320.0 * np.cos(np.radians(25.0))
+        y_scale = 110574.0
+        route = [
+            (120.0, 25.0),
+            (120.0 + 100.0 / x_scale, 25.0 + 60.0 / y_scale),
+            (120.0 + 200.0 / x_scale, 25.0),
+        ]
+
+        smoothed = smooth_path(route, spacing_m=90.0)
+
+        self.assertEqual(len(smoothed), 3)
+        self.assertAlmostEqual(smoothed[1][0], route[1][0], places=10)
+        self.assertAlmostEqual(smoothed[1][1], route[1][1], places=10)
+
+    def test_snap_to_valid_respects_meter_limit_and_fails_closed(self):
+        transform = Affine(0.001, 0, 120.0, 0, -0.001, 25.0)
+        hard_mask = np.ones((5, 5), dtype=np.uint8)
+        hard_mask[2, 2] = 0
+        blocked_center = rowcol_to_geo(2, 2, transform)
+
+        snapped = snap_to_valid([blocked_center], transform, hard_mask, max_offset_m=50.0)
+
+        self.assertIsNone(snapped)
+
+    def test_hard_constraint_check_detects_short_graze_through_blocked_cell(self):
+        hard_mask = np.ones((10, 10), dtype=np.uint8)
+        hard_mask[5, 5] = 0
+
+        violations = path_hard_violations([(4.99, 5.02), (5.02, 4.99)], Affine.identity(), hard_mask)
+
+        self.assertEqual(violations, 1)
+
+    def test_hard_constraint_check_detects_corner_touch_and_grid_edge_travel(self):
+        hard_mask = np.ones((10, 10), dtype=np.uint8)
+        hard_mask[4, 5] = 0
+        corner_violations = path_hard_violations([(4.5, 4.5), (5.0, 5.0)], Affine.identity(), hard_mask)
+        self.assertGreater(corner_violations, 0)
+
+        hard_mask = np.ones((10, 10), dtype=np.uint8)
+        hard_mask[3, 4] = 0
+        edge_violations = path_hard_violations([(5.0, 2.2), (5.0, 4.8)], Affine.identity(), hard_mask)
+        self.assertGreater(edge_violations, 0)
 
     def test_astar_grade_limit_uses_anisotropic_pixel_spacing(self):
         vertical_dem = np.array([[0.0], [50.0]])

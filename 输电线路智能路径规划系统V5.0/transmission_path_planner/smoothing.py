@@ -50,8 +50,19 @@ def smooth_path(geo, spacing_m=90.0):
     if len(geo) < 3:
         return geo
     arr = np.array([(lon, lat) for lon, lat in geo], np.float64)
-    eps_deg = spacing_m / 111000.0 * 1.5
-    simplified = _rdp(arr.tolist(), eps_deg)
+    from pyproj import CRS, Transformer
+
+    lons = np.radians(arr[:, 0])
+    lon0 = math.degrees(math.atan2(float(np.sin(lons).mean()), float(np.cos(lons).mean())))
+    lat0 = float(np.mean(arr[:, 1]))
+    local_crs = CRS.from_proj4(
+        f"+proj=aeqd +lat_0={lat0} +lon_0={lon0} +datum=WGS84 +units=m +no_defs"
+    )
+    project = Transformer.from_crs("EPSG:4326", local_crs, always_xy=True).transform
+    unproject = Transformer.from_crs(local_crs, "EPSG:4326", always_xy=True).transform
+    metric = np.asarray([project(lon, lat) for lon, lat in arr], dtype=np.float64)
+    epsilon_m = min(max(float(spacing_m), 0.0) * 0.5, 50.0)
+    simplified = _rdp(metric.tolist(), epsilon_m)
     if len(simplified) < 2:
         return geo
     simplified = np.array(simplified)
@@ -61,42 +72,104 @@ def smooth_path(geo, spacing_m=90.0):
     total = cum[-1]
     if total < 1e-9:
         return geo
-    spacing_deg = spacing_m / 111000.0
-    n = max(int(total / spacing_deg), len(simplified))
+    n = max(int(total / max(float(spacing_m), 1e-6)), len(simplified))
     sd = np.linspace(0, total, n)
     xi = np.interp(sd, cum, xs); yi = np.interp(sd, cum, ys)
-    return [(float(xi[i]), float(yi[i])) for i in range(n)]
+    result = [tuple(map(float, unproject(xi[i], yi[i]))) for i in range(n)]
+    result[0], result[-1] = tuple(geo[0]), tuple(geo[-1])
+    return result
 
 
-def snap_to_valid(geo, transform, hard_mask, radius=80):
+def snap_to_valid(geo, transform, hard_mask, max_offset_m=100.0):
     """把平滑后的 geo 路径中落到硬约束屏蔽格(陡坡/超高/无效DEM)的点, 吸附到最近的合法格中心。
     推理 rollout 只走合法邻居, 原始格路径已是 0 违规; 但 smooth_path 在地理空间等距重采样时会
-    越过陡峭壁体落到屏蔽格, 导致"硬约束违规"被误报。吸附步骤保证交付路线与指标均 0 违规。"""
+    越过硬约束格。吸附距离使用米制上限, 超出范围则拒绝候选并由调用方回退到原始路径。"""
     H, W = hard_mask.shape
+    center_lat = transform.f + transform.e * (H / 2.0)
+    row_m, col_m = pixel_spacing_meters(transform, center_lat)
+    max_cells = int(math.ceil(max(float(max_offset_m), 0.0) / min(row_m, col_m)))
     out = []
     for lon, lat in geo:
         r, c = geo_to_rowcol(lat, lon, transform)
         r = int(round(r)); c = int(round(c))
         if 0 <= r < H and 0 <= c < W and hard_mask[r, c] == 1:
             out.append((lon, lat)); continue
-        found = None
-        for rad in range(1, radius + 1):
-            hit = False
-            for dr in range(-rad, rad + 1):
-                for dc in range(-rad, rad + 1):
-                    if max(abs(dr), abs(dc)) != rad:
-                        continue
-                    rr, cc = r + dr, c + dc
-                    if 0 <= rr < H and 0 <= cc < W and hard_mask[rr, cc] == 1:
-                        found = (rr, cc); hit = True; break
-                if hit:
-                    break
-            if found:
-                break
-        if found:
-            out.append(rowcol_to_geo(found[0], found[1], transform))
-        # 若半径内都无合法格(极端情况), 丢弃该点
+        candidates = []
+        for dr in range(-max_cells, max_cells + 1):
+            for dc in range(-max_cells, max_cells + 1):
+                rr, cc = r + dr, c + dc
+                if not (0 <= rr < H and 0 <= cc < W) or hard_mask[rr, cc] != 1:
+                    continue
+                distance_m = haversine_km(lon, lat, *rowcol_to_geo(rr, cc, transform)) * 1000.0
+                if distance_m <= max_offset_m:
+                    candidates.append((distance_m, rr, cc))
+        if not candidates:
+            return None
+        _, rr, cc = min(candidates)
+        out.append(rowcol_to_geo(rr, cc, transform))
     return out
+
+
+def _grid_cells_touched(c0, r0, c1, r1):
+    """Return every raster cell touched by a segment in grid-corner coordinates."""
+    dx, dy = c1 - c0, r1 - r0
+    cells = set()
+
+    def axis_cells(value):
+        nearest = round(value)
+        if abs(value - nearest) <= 1e-10:
+            return (int(nearest) - 1, int(nearest))
+        return (int(math.floor(value)),)
+
+    def add_touching(x, y):
+        for row in axis_cells(y):
+            for col in axis_cells(x):
+                cells.add((row, col))
+
+    add_touching(c0, r0)
+    add_touching(c1, r1)
+
+    sx = 1 if dx > 0 else -1 if dx < 0 else 0
+    sy = 1 if dy > 0 else -1 if dy < 0 else 0
+    col, row = int(math.floor(c0)), int(math.floor(r0))
+    if sx:
+        t_max_x = ((col + 1 - c0) if sx > 0 else (c0 - col)) / abs(dx)
+        t_delta_x = 1.0 / abs(dx)
+    else:
+        t_max_x = t_delta_x = math.inf
+    if sy:
+        t_max_y = ((row + 1 - r0) if sy > 0 else (r0 - row)) / abs(dy)
+        t_delta_y = 1.0 / abs(dy)
+    else:
+        t_max_y = t_delta_y = math.inf
+
+    while min(t_max_x, t_max_y) <= 1.0 + 1e-12:
+        if abs(t_max_x - t_max_y) <= 1e-12:
+            cells.add((row, col + sx))
+            cells.add((row + sy, col))
+            col += sx
+            row += sy
+            cells.add((row, col))
+            t_max_x += t_delta_x
+            t_max_y += t_delta_y
+        elif t_max_x < t_max_y:
+            col += sx
+            cells.add((row, col))
+            t_max_x += t_delta_x
+        else:
+            row += sy
+            cells.add((row, col))
+            t_max_y += t_delta_y
+
+    if sx == 0 and abs(c0 - round(c0)) <= 1e-10:
+        boundary_col = int(round(c0))
+        cells.update((row, boundary_col - 1) for row, col in tuple(cells)
+                     if col == boundary_col)
+    if sy == 0 and abs(r0 - round(r0)) <= 1e-10:
+        boundary_row = int(round(r0))
+        cells.update((boundary_row - 1, col) for row, col in tuple(cells)
+                     if row == boundary_row)
+    return cells
 
 
 def path_hard_violations(geo, transform, hard_mask):
@@ -107,25 +180,13 @@ def path_hard_violations(geo, transform, hard_mask):
     cells = set()
     grid_points = [inv * point for point in geo]
     for (c0, r0), (c1, r1) in zip(grid_points, grid_points[1:]):
-        steps = max(1, int(math.ceil(4 * max(abs(r1 - r0), abs(c1 - c0)))))
-        for i in range(steps + 1):
-            t = i / steps
-            row, col = r0 + (r1 - r0) * t, c0 + (c1 - c0) * t
-            rows, cols = {int(math.floor(row))}, {int(math.floor(col))}
-            if abs(row - round(row)) < 1e-9:
-                rows.add(int(round(row)) - 1)
-            if abs(col - round(col)) < 1e-9:
-                cols.add(int(round(col)) - 1)
-            for r in rows:
-                for c in cols:
-                    if not (0 <= r < hard_mask.shape[0] and 0 <= c < hard_mask.shape[1]) or hard_mask[r, c] == 0:
-                        cells.add((r, c))
+        cells.update(_grid_cells_touched(c0, r0, c1, r1))
     if len(grid_points) == 1:
         c, r = grid_points[0]
-        r, c = int(math.floor(r)), int(math.floor(c))
-        if not (0 <= r < hard_mask.shape[0] and 0 <= c < hard_mask.shape[1]) or hard_mask[r, c] == 0:
-            cells.add((r, c))
-    return len(cells)
+        cells.update(_grid_cells_touched(c, r, c, r))
+    return sum(1 for r, c in cells
+               if not (0 <= r < hard_mask.shape[0] and 0 <= c < hard_mask.shape[1])
+               or hard_mask[r, c] == 0)
 
 
 def ground_grade_limit_report(geo, dem, transform, max_ground_grade, crs=None):
