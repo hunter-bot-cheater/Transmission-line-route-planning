@@ -68,8 +68,11 @@ def load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, max_side=WORK_MAX_
         arr = np.where(arr == nodata, np.nan, arr)
     arr = np.where((arr < -100) | (arr > 9000), np.nan, arr)
 
-    # 重采样到 max_side
+    # 尽量保留输入 DEM 的原生网格；只有窗口超出 max_side 时才降采样。
     Hn, Wn = arr.shape
+    source_lat = transform.f + transform.e * Hn / 2.0
+    source_row_m, source_col_m = pixel_spacing_meters(transform, source_lat, crs)
+    source_pm = math.sqrt(source_row_m * source_col_m)
     scale = max(Hn, Wn) / max_side
     if scale > 1.01:
         Hr = max(1, int(round(Hn / scale)))
@@ -85,9 +88,16 @@ def load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, max_side=WORK_MAX_
         e_new = (bottom - top) / Hr
         transform = Affine(a_new, 0, left, 0, e_new, top)
 
-    lat0 = (transform.f + transform.e * arr.shape[0]) / 2.0
+    lat0 = transform.f + transform.e * (arr.shape[0] / 2.0)
     pm = pixel_meters(transform, lat0, crs)
-    print(f"  DEM 走廊网格 {arr.shape[1]}x{arr.shape[0]}  像元≈{pm:.0f}m  CRS={crs}")
+    resample_factor = max(1.0, scale)
+    print(
+        f"  DEM 输入窗口 {Wn}x{Hn} / 规划网格 {arr.shape[1]}x{arr.shape[0]}  "
+        f"原始像元≈{source_pm:.1f}m / 实际像元≈{pm:.1f}m  "
+        f"降采样倍率={resample_factor:.2f}x  CRS={crs}"
+    )
+    if resample_factor > 1.25:
+        print("  [warn] DEM 为适配工作网格已明显降采样；增大 --max-side 可保留更多地形细节")
     return arr, transform, crs, pm
 
 
@@ -113,11 +123,16 @@ def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
     aspect_cos = np.cos(aspect)
     aspect_sin = np.sin(aspect)
 
-    if HAS_SCIPY:
-        tri = ndi.generic_filter(z, np.nanstd, size=3)
-        tri = np.nan_to_num(tri, nan=0.0)
-    else:
-        tri = np.abs(z - z)
+    def local_std(size):
+        values = z.astype(np.float64, copy=False)
+        mean = ndi.uniform_filter(values, size=size, mode="reflect")
+        mean_sq = ndi.uniform_filter(values * values, size=size, mode="reflect")
+        np.subtract(mean_sq, mean * mean, out=mean_sq)
+        np.maximum(mean_sq, 0.0, out=mean_sq)
+        np.sqrt(mean_sq, out=mean_sq)
+        return mean_sq.astype(np.float32)
+
+    tri = local_std(3) if HAS_SCIPY else np.abs(z - z)
 
     def px_of_m(m):
         return max(1, int(round(m / neighborhood_m)))
@@ -131,7 +146,7 @@ def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
 
     def rough_at(radius_px):
         if HAS_SCIPY:
-            return ndi.generic_filter(z, np.nanstd, size=2 * radius_px + 1)
+            return local_std(2 * radius_px + 1)
         return np.abs(z - z)
 
     tpi_100 = tpi_at(px_of_m(100))

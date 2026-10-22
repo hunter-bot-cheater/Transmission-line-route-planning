@@ -109,7 +109,7 @@ def corridor_dist_band(coords_list, geom_list, exclude_idx, transform, H, W,
     mask = rio_rasterize([(mapping(g), 1) for g in geoms], out_shape=(H, W),
                          transform=transform, fill=0, dtype="uint8", all_touched=False)
     dist_px, idx = distance_transform_edt(1 - mask, return_indices=True)
-    lat0 = (transform.f + transform.e * H) / 2.0
+    lat0 = transform.f + transform.e * (H / 2.0)
     pm = pixel_meters(transform, lat0)
     dist_m = np.minimum(dist_px * pm, max_dist_m).astype(np.float64)
     ir, ic = idx

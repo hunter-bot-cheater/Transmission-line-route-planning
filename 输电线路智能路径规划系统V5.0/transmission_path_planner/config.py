@@ -121,7 +121,7 @@ N_FEATURES = 26
 METERS_PER_DEG = 111320.0
 
 # 工作网格 / 训练超参
-WORK_MAX_SIDE = 480        # 工作网格最长边（像元）
+WORK_MAX_SIDE = 4096       # 尽量保留 20–35m 地形栅格；可用 --max-side 按内存调低
 PPO_GRID = 256             # PPO 训练环境网格
 RANDOM_SEED = 42
 

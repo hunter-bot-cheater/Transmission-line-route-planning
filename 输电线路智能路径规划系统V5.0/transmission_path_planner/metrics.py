@@ -150,66 +150,63 @@ def compute_dist_to_route(real_geo, transform, H, W, pm):
 
 
 def compute_deviation(planned_geo, real_geo, transform=None, dist_field=None):
-    """规划路径相对真实线路(单折线或线网)的偏差(均换算 km)。
-    优先用 dist_field(到最近真实线的距离栅格, 由 compute_dist_to_route 给出)采样, 高效且
-    直接表示'规划路径离最近真实线多远'; 否则回退 shapely。
-    返回 dev_hausdorff_km(=规划点到最近真实线最大距, 单边Hausdorff) / dev_mean_km /
-    dev_p90_km / dev_max_km / real_length_km。"""
-    if not planned_geo or len(planned_geo) < 2:
+    """Project both routes to local meters and estimate symmetric Hausdorff at 5m spacing.
+
+    ``transform`` and ``dist_field`` remain accepted for call-site compatibility; the
+    comparison no longer samples the coarsened planning raster's distance field.
+    """
+    if not planned_geo or len(planned_geo) < 2 or not real_geo:
         return None
     try:
-        if dist_field is not None and transform is not None:
-            Hf, Wf = dist_field.shape
-            ds = []
-            for lon, lat in planned_geo:
-                r, c = geo_to_rowcol(lat, lon, transform)
-                rr, cc = int(round(r)), int(round(c))
-                if 0 <= rr < Hf and 0 <= cc < Wf:
-                    d = float(dist_field[rr, cc])
-                    if np.isfinite(d):
-                        ds.append(d)
-            if not ds:
-                return None
-            ds = np.array(ds, np.float64)
-            max_m = float(ds.max()); mean_m = float(ds.mean()); p90_m = float(np.percentile(ds, 90))
-            # 对称 Hausdorff 反向项: 真实线上每点到最近规划线的最大距(查"真实线是否被规划完整覆盖")
-            planned_poly = [planned_geo]
-            real_polys = real_geo if isinstance(real_geo[0][0], (list, tuple)) else [real_geo]
-            rev_m = 0.0
-            for poly in real_polys:
-                for (lon, lat) in poly:
-                    d = point_to_polyline_km(lon, lat, planned_poly)
-                    if d > rev_m:
-                        rev_m = d
-            sym_m = max(max_m, rev_m)
-            return {
-                "dev_haus_fwd_km": round(max_m / 1000.0, 3),
-                "dev_haus_sym_km": round(sym_m / 1000.0, 3),
-                "dev_hausdorff_km": round(sym_m / 1000.0, 3),  # 绑定指标改对称(更严格)
-                "dev_mean_km": round(mean_m / 1000.0, 3),
-                "dev_p90_km": round(p90_m / 1000.0, 3),
-                "dev_max_km": round(sym_m / 1000.0, 3),
-                "real_length_km": round(real_length_km(real_geo), 3),
-            }
-        # 回退: shapely(单折线或线网均可) — shapely.hausdorff_distance 本身是对称 Hausdorff
-        polys = real_geo if (real_geo and isinstance(real_geo[0][0], (list, tuple))) else [real_geo]
-        from shapely.geometry import MultiLineString
-        mls = MultiLineString([[(lon, lat) for lon, lat in p] for p in polys if len(p) >= 2])
-        plan_line = LineString([(lon, lat) for lon, lat in planned_geo])
-        lat_ref = float(np.mean([lat for _, lat in planned_geo]))
-        m_per_deg = 111320.0 * max(math.cos(math.radians(lat_ref)), 1e-3)
-        haus_m = mls.hausdorff_distance(plan_line) * m_per_deg
-        ds = [mls.distance(Point(lon, lat)) * m_per_deg for lon, lat in planned_geo]
-        ds = [d for d in ds if np.isfinite(d)]
-        mean_m = float(np.mean(ds)) if ds else float("nan")
-        max_m = float(np.max(ds)) if ds else float("nan")
+        from pyproj import CRS, Transformer
+        from shapely.geometry import LineString, MultiLineString, Point
+
+        real_polys = real_geo if isinstance(real_geo[0][0], (list, tuple)) else [real_geo]
+        real_polys = [poly for poly in real_polys if len(poly) >= 2]
+        if not real_polys:
+            return None
+        coords = list(planned_geo) + [point for poly in real_polys for point in poly]
+        lon0 = float(np.mean([point[0] for point in coords]))
+        lat0 = float(np.mean([point[1] for point in coords]))
+        local_crs = CRS.from_proj4(
+            f"+proj=aeqd +lat_0={lat0} +lon_0={lon0} +datum=WGS84 +units=m +no_defs"
+        )
+        project = Transformer.from_crs("EPSG:4326", local_crs, always_xy=True).transform
+
+        def densify(poly):
+            projected = [project(lon, lat) for lon, lat in poly]
+            points = [projected[0]]
+            for start, end in zip(projected, projected[1:]):
+                length = math.hypot(end[0] - start[0], end[1] - start[1])
+                steps = max(1, int(math.ceil(length / 5.0)))
+                points.extend((
+                    start[0] + (end[0] - start[0]) * step / steps,
+                    start[1] + (end[1] - start[1]) * step / steps,
+                ) for step in range(1, steps + 1))
+            return LineString(points)
+
+        planned_line = densify(planned_geo)
+        real_lines = [densify(poly) for poly in real_polys]
+        real_line = MultiLineString([list(line.coords) for line in real_lines])
+        forward_m = max(Point(point).distance(real_line) for point in planned_line.coords)
+        reverse_m = max(
+            Point(point).distance(planned_line)
+            for line in real_lines for point in line.coords
+        )
+        hausdorff_m = max(forward_m, reverse_m)
+        planned_distances = np.asarray(
+            [Point(point).distance(real_line) for point in planned_line.coords], dtype=np.float64
+        )
         return {
-            "dev_haus_fwd_km": round(haus_m / 1000.0, 3),
-            "dev_haus_sym_km": round(haus_m / 1000.0, 3),
-            "dev_hausdorff_km": round(haus_m / 1000.0, 3),
-            "dev_mean_km": round(mean_m / 1000.0, 3),
-            "dev_max_km": round(max_m / 1000.0, 3),
-            "real_length_km": round(real_length_km(real_geo), 3),
+            "dev_haus_fwd_km": round(forward_m / 1000.0, 3),
+            "dev_haus_sym_km": round(hausdorff_m / 1000.0, 3),
+            "dev_hausdorff_km": round(hausdorff_m / 1000.0, 3),
+            "dev_mean_km": round(float(planned_distances.mean()) / 1000.0, 3),
+            "dev_p90_km": round(float(np.percentile(planned_distances, 90)) / 1000.0, 3),
+            "dev_max_km": round(hausdorff_m / 1000.0, 3),
+            "real_length_km": round(sum(line.length for line in real_lines) / 1000.0, 3),
+            "deviation_sample_step_m": 5,
+            "deviation_crs": local_crs.to_string(),
         }
     except Exception as ex:
         print(f"    [warn] 偏差计算失败: {ex}")

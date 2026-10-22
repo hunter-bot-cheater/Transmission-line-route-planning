@@ -158,7 +158,7 @@ def compute_distance_band(geoms, transform, shape, max_dist_m=5000.0):
     on = rasterize_on(geoms, transform, shape)
     if on.sum() == 0:
         return np.full(shape, max_dist_m, np.float32)
-    cell_m = pixel_meters(transform, (transform.f + transform.e * shape[0]) / 2.0)
+    cell_m = pixel_meters(transform, transform.f + transform.e * (shape[0] / 2.0))
     dist_px = distance_transform_edt(1 - on)
     return np.clip(dist_px * cell_m, 0, max_dist_m).astype(np.float32)
 
@@ -167,7 +167,7 @@ def compute_building_density(geoms, transform, shape):
     on = rasterize_on(geoms, transform, shape)
     if on.sum() == 0:
         return np.zeros(shape, np.float32)
-    cell_m = pixel_meters(transform, (transform.f + transform.e * shape[0]) / 2.0)
+    cell_m = pixel_meters(transform, transform.f + transform.e * (shape[0] / 2.0))
     sigma = max(2, int(500 / cell_m))
     density = gaussian_filter(on.astype(np.float32), sigma=sigma)
     cell_area_km2 = (cell_m / 1000.0) ** 2

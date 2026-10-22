@@ -113,7 +113,8 @@ def main():
                     help="可选地形海拔硬限制(米); 默认不设工程阈值")
     ap.add_argument("--use-costunet", action="store_true",
                     help="把CostUNet作为50%%软先验混入规则代价; 默认关闭，避免未知训练来源影响基线")
-    ap.add_argument("--max-side", type=int, default=WORK_MAX_SIDE)
+    ap.add_argument("--max-side", type=int, default=WORK_MAX_SIDE,
+                    help=f"规划网格最长边；默认{WORK_MAX_SIDE}，尽量保留 DEM 原始分辨率，内存不足时可调低")
     ap.add_argument("--cases", type=int, default=4)
     ap.add_argument("--no-ppp", action="store_true", help="跳过 PPO 方法")
     ap.add_argument("--baseline", action="store_true",
