@@ -222,7 +222,11 @@ class OSMSettlementMetadataTests(unittest.TestCase):
                                                    "category": "settlement"},
              "geometry": {"type": "Polygon", "coordinates": [[[2, 2], [2, 4], [4, 4], [4, 2], [2, 2]]]}},
             {"type": "Feature", "properties": {"mode": "soft", "source": "planning brief", "weight": 0.25},
-             "geometry": {"type": "Polygon", "coordinates": [[[2, 2], [2, 4], [4, 4], [4, 2], [2, 2]]]}}]
+             "geometry": {"type": "Polygon", "coordinates": [[[2, 2], [2, 4], [4, 4], [4, 2], [2, 2]]] }},
+            {"type": "Feature", "properties": {"mode": "soft", "source": "zero weight", "weight": 0},
+             "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [0, 2], [2, 2], [2, 0], [0, 0]]] }},
+            {"type": "Feature", "properties": {"mode": "hard", "source": "outside extent"},
+             "geometry": {"type": "Polygon", "coordinates": [[[10, 10], [10, 12], [12, 12], [12, 10], [10, 10]]]}}]
         path = Path(self.temp_dir.name) / "constraints.geojson"
         dataset_metadata = {"generated_at": "2026-10-22T00:00:00+00:00", "feature_count": len(features)}
         data_sources = [{"dataset_id": "demo", "license": "open"}]
@@ -233,9 +237,20 @@ class OSMSettlementMetadataTests(unittest.TestCase):
 
         self.assertGreater(result["hard_mask"].sum(), 0)
         self.assertAlmostEqual(float(result["soft_cost"].max()), 1.0)
-        self.assertEqual(result["metadata"]["hard_feature_count"], 1)
-        self.assertEqual(result["metadata"]["soft_feature_count"], 2)
-        self.assertEqual(result["metadata"]["sources"], ["official zoning", "planning brief", "survey"])
+        self.assertEqual(result["metadata"]["hard_feature_count"], 2)
+        self.assertEqual(result["metadata"]["soft_feature_count"], 3)
+        self.assertEqual(result["metadata"]["sources"],
+                         ["official zoning", "outside extent", "planning brief", "survey", "zero weight"])
+        source_layers = {
+            (layer["source"], layer["mode"]): layer
+            for layer in result["metadata"]["source_layers"]
+        }
+        self.assertGreater(source_layers[("official zoning", "hard")]["affected_cell_count"], 0)
+        self.assertGreater(source_layers[("survey", "soft")]["covered_cell_count"], 0)
+        self.assertGreater(source_layers[("zero weight", "soft")]["covered_cell_count"], 0)
+        self.assertEqual(source_layers[("zero weight", "soft")]["affected_cell_count"], 0)
+        self.assertEqual(source_layers[("outside extent", "hard")]["covered_cell_count"], 0)
+        self.assertEqual(source_layers[("outside extent", "hard")]["affected_cell_count"], 0)
         self.assertEqual(result["metadata"]["dataset_metadata"], dataset_metadata)
         self.assertEqual(result["metadata"]["data_sources"], data_sources)
 

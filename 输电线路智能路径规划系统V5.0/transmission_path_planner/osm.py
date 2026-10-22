@@ -271,6 +271,7 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
     from shapely.geometry import shape as shapely_shape
 
     hard_shapes, soft_shapes = [], []
+    source_shapes = {}
     sources, categories = set(), set()
     for index, feature in enumerate(document["features"], start=1):
         if not isinstance(feature, dict):
@@ -306,6 +307,8 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
             if not math.isfinite(weight) or weight < 0:
                 raise ValueError(f"软约束要素 {index} 的 weight 必须是非负有限数值")
             soft_shapes.append((geometry, weight))
+        source_layer_shapes = source_shapes.setdefault(source, {"hard": [], "soft": []})
+        source_layer_shapes[mode].append((geometry, 1 if mode == "hard" else weight))
         sources.add(source)
         category = str(properties.get("category", "")).strip()
         if category:
@@ -321,6 +324,38 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
         fill=0, all_touched=True, dtype=np.float32,
         merge_alg=rasterio.enums.MergeAlg.add,
     ) if soft_shapes else np.zeros((height, width), dtype=np.float32)
+    source_layers = []
+    for source, modes in sorted(source_shapes.items()):
+        for mode, geometries in modes.items():
+            if not geometries:
+                continue
+            coverage = rio_rasterize(
+                [(geometry, 1) for geometry, _ in geometries],
+                out_shape=(height, width), transform=transform,
+                fill=0, all_touched=True, dtype=np.uint8,
+            )
+            covered_cell_count = int(np.count_nonzero(coverage))
+            affected_cell_count = covered_cell_count
+            if mode == "soft":
+                del coverage
+                positive_weight_shapes = [
+                    (geometry, 1) for geometry, weight in geometries if weight > 0
+                ]
+                if positive_weight_shapes:
+                    affected = rio_rasterize(
+                        positive_weight_shapes, out_shape=(height, width), transform=transform,
+                        fill=0, all_touched=True, dtype=np.uint8,
+                    )
+                    affected_cell_count = int(np.count_nonzero(affected))
+                else:
+                    affected_cell_count = 0
+            source_layers.append({
+                "source": source,
+                "mode": mode,
+                "feature_count": len(geometries),
+                "covered_cell_count": covered_cell_count,
+                "affected_cell_count": affected_cell_count,
+            })
     metadata = {
         "path": str(path.resolve()),
         "status": "loaded",
@@ -331,6 +366,7 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
         "categories": sorted(categories),
         "hard_cell_count": int(hard_mask.sum()),
         "soft_cell_count": int(np.count_nonzero(soft_cost)),
+        "source_layers": source_layers,
     }
     if dataset_metadata is not None:
         metadata["dataset_metadata"] = dataset_metadata
