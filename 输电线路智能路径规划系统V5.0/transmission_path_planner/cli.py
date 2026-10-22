@@ -18,16 +18,13 @@ FINAL_ROUTE_LABEL = "最终路线"
 
 
 def _select_final_route(methods, case_metrics):
-    valid_methods = [
-        method for method, path in methods.items()
-        if path and method in case_metrics
-        and case_metrics[method].get("hard_violations") == 0
-    ]
-    if "A*(baseline)" in valid_methods:
-        return "A*(baseline)", None, "astar_feasible_priority"
-    fallback = next((method for method in ("VIN-Grad", "PPO") if method in valid_methods), None)
-    if fallback is not None:
-        return fallback, None, "valid_candidate_fallback"
+    for method, rule in (
+        ("A*(baseline)", "astar_min_cost_priority"),
+        ("A*(weighted)", "weighted_astar_only_candidate"),
+    ):
+        metrics = case_metrics.get(method, {})
+        if methods.get(method) and metrics.get("hard_violations") == 0:
+            return method, None, rule
     return None, None, "no_hard_constraint_compliant_route"
 
 
@@ -225,7 +222,7 @@ def parse_lat_lon(value, label):
 def main():
     configure_console_output()
     t0 = time.time()
-    ap = argparse.ArgumentParser(description="复杂山区输电线路 AI 路径规划 (V5.0: 多方法搜索 + 26维特征)")
+    ap = argparse.ArgumentParser(description="复杂山区输电线路启发式路径规划 (V5.0)")
     ap.add_argument("--dem", type=str, default=None)
     ap.add_argument("--start", type=str, default=None, help="起点 lat,lon")
     ap.add_argument("--end", type=str, default=None, help="终点 lat,lon")
@@ -241,6 +238,8 @@ def main():
                     help="建筑物栅格硬避让距离(米, 必须小于5000); 0仅屏蔽已映射建筑足迹，不代表规范净距")
     ap.add_argument("--grade-penalty-weight", type=float, default=1.0,
                     help="沿线相邻DEM高差软惩罚权重(以30%%地面坡度作为一个参考级)")
+    ap.add_argument("--astar-heuristic-weight", type=float, default=1.0,
+                    help="A*启发函数权重；1.0为最优基础A*，大于1可能减少搜索扩展但不保证实际加速")
     ap.add_argument("--max-ground-grade", type=float, default=None,
                     help="可选地面相邻栅格最大坡度比，如0.30; 属于筛选阈值，不是线路设计限值")
     ap.add_argument("--max-surface-slope-deg", type=float, default=None,
@@ -252,8 +251,10 @@ def main():
     ap.add_argument("--max-side", type=int, default=WORK_MAX_SIDE,
                     help=f"规划网格最长边；默认{WORK_MAX_SIDE}，尽量保留 DEM 原始分辨率，内存不足时可调低")
     ap.add_argument("--cases", type=int, default=4)
-    ap.add_argument("--no-ppp", action="store_true", help="跳过 PPO 方法")
-    ap.add_argument("--no-vin", action="store_true", help="跳过 VIN-Grad，保留 PPO/A*；适用于无法运行 VIN 的环境")
+    ap.add_argument("--include-ai-diagnostics", action="store_true",
+                    help="可选运行 VIN/PPO 作为诊断对照；AI 候选不会被选为最终路线")
+    ap.add_argument("--no-ppp", action="store_true", help="在 --include-ai-diagnostics 下跳过 PPO")
+    ap.add_argument("--no-vin", action="store_true", help="在 --include-ai-diagnostics 下跳过 VIN-Grad")
     ap.add_argument("--out-dir", type=str, default=None)
     ap.add_argument("--with-real", action="store_true",
                     help="加载参考线路，仅在规划选路完成后计算 v2 双向空间相似度")
@@ -298,6 +299,7 @@ def main():
         "--building-clearance-m": args.building_clearance_m,
         "--settlement-weight": args.settlement_weight,
         "--grade-penalty-weight": args.grade_penalty_weight,
+        "--astar-heuristic-weight": args.astar_heuristic_weight,
         "--max-ground-grade": args.max_ground_grade,
         "--max-surface-slope-deg": args.max_surface_slope_deg,
         "--max-terrain-elevation-m": args.max_terrain_elevation_m,
@@ -305,8 +307,11 @@ def main():
     for option, value in float_parameters.items():
         if value is not None and not math.isfinite(value):
             ap.error(f"{option} 必须是有限数值")
-    if args.building_clearance_m < 0 or args.settlement_weight < 0 or args.grade_penalty_weight < 0:
+    if (args.building_clearance_m < 0 or args.settlement_weight < 0
+            or args.grade_penalty_weight < 0):
         ap.error("避让距离与代价权重不能为负数")
+    if args.astar_heuristic_weight < 1:
+        ap.error("--astar-heuristic-weight 必须大于或等于 1.0")
     if args.building_clearance_m >= 5000:
         ap.error("--building-clearance-m 必须小于5000米（当前距离栅格上限）")
     if args.max_ground_grade is not None and args.max_ground_grade <= 0:
@@ -326,7 +331,7 @@ def main():
     rng = np.random.default_rng(RANDOM_SEED)
 
     print("=" * 70)
-    print("  复杂山区输电线路 AI 路径规划 V5.0 (多方法路径规划)")
+    print("  复杂山区输电线路启发式路径规划 V5.0")
     print("=" * 70)
 
     dem_path = Path(args.dem) if args.dem else find_dem()
@@ -413,7 +418,8 @@ def main():
             left = transform.c; top = transform.f
             right = left + transform.a * W; bottom = top + transform.e * H
             bbox = (left, bottom, right, top)
-            needs_feature_stack = costunet is not None or (HAS_TORCH and not args.no_vin)
+            needs_feature_stack = costunet is not None or (
+                args.include_ai_diagnostics and HAS_TORCH and not args.no_vin)
             osm = compute_osm_bands(
                 dem, transform, bbox, cache_dir=args.osm_cache_dir,
                 include_model_features=needs_feature_stack,
@@ -461,16 +467,19 @@ def main():
             same_grid_cell = (sr, sc) == (er, ec)
             cost_grid = (1.0 + 4.0 * cost).astype(np.float64)
             cost_grid = np.where(hard_mask == 0, np.inf, cost_grid)
-            cost_finite = np.where(np.isfinite(cost), cost, 1.0).astype(np.float32)
-            cost_vin = np.where(hard_mask > 0, cost_grid, 0.0).astype(np.float32)
+            if args.include_ai_diagnostics:
+                cost_finite = np.where(np.isfinite(cost), cost, 1.0).astype(np.float32)
+                cost_vin = np.where(hard_mask > 0, cost_grid, 0.0).astype(np.float32)
             lat_center = transform.f + transform.e * (H / 2.0)
             route_pixel_spacing = pixel_spacing_meters(transform, lat_center, crs)
 
             methods = {}
             grade_reports = {}
             V_main = None
-            # --- 方法1: 神经值传播 + 梯度追踪 (VIN-Grad 候选生成) ---
-            if HAS_TORCH and not args.no_vin and not same_grid_cell:
+            t_vin = 0.0
+            t_ppo = 0.0
+            # AI methods are opt-in diagnostics; route selection below excludes them.
+            if args.include_ai_diagnostics and HAS_TORCH and not args.no_vin and not same_grid_cell:
                 t_v = time.time()
                 extra = build_vin_extra(stack)
                 goal_mask = np.zeros((H, W), np.float32); goal_mask[er, ec] = 1.0
@@ -502,11 +511,13 @@ def main():
                     t_vin = time.time() - t_v
                     print(f"  [VIN-Grad] 路径 {len(geo_vin) if geo_vin else 0} 点, 耗时 {t_vin:.1f}s")
             else:
-                reason = "起终点位于同一栅格" if same_grid_cell else "已禁用或 torch 不可用"
+                reason = ("未启用 AI 诊断" if not args.include_ai_diagnostics else
+                          "起终点位于同一栅格" if same_grid_cell else
+                          "已禁用或 torch 不可用")
                 print(f"  [skip] VIN-Grad {reason}")
 
             # --- 方法2: RL/PPO 策略梯度路径生成器 (每用例独立训练: 代价图与目标不同) ---
-            if HAS_TORCH and not args.no_ppp and not same_grid_cell:
+            if args.include_ai_diagnostics and HAS_TORCH and not args.no_ppp and not same_grid_cell:
                 def build_ppo_candidate():
                     torch.manual_seed(RANDOM_SEED + 100)
                     print("  [PPO] 训练策略网络 ...")
@@ -529,29 +540,40 @@ def main():
                     else:
                         grade_reports["PPO"] = ground_grade_limit_report(
                             None, dem, transform, args.max_ground_grade, crs)
+                    nonlocal t_ppo
+                    t_ppo = time.time() - t_p
                     return geo_ppo
 
                 geo_ppo, ppo_oom = run_method_or_skip_on_oom("PPO", build_ppo_candidate)
                 if ppo_oom is None:
                     methods["PPO"] = geo_ppo
                     print(f"  [PPO] 路径 {len(geo_ppo) if geo_ppo else 0} 点")
-            elif same_grid_cell:
-                print("  [skip] PPO 起终点位于同一栅格")
+            else:
+                reason = ("未启用 AI 诊断" if not args.include_ai_diagnostics else
+                          "起终点位于同一栅格" if same_grid_cell else
+                          "已禁用或 torch 不可用")
+                print(f"  [skip] PPO {reason}")
 
-            # --- 基准: A* (仅作传统方法对照) ---
-            t_a = time.time()
-            a_path = astar_search(cost_grid, (sr, sc), (er, ec), elevation=dem, pixel_m=pm,
-                                  grade_penalty_weight=args.grade_penalty_weight,
-                                  max_ground_grade=args.max_ground_grade,
-                                  pixel_spacing=route_pixel_spacing)
+            # Weighted A*: epsilon=1 is optimal A*; epsilon>1 trades bounded
+            # search-cost optimality for fewer expansions.
+            astar_method = ("A*(baseline)" if args.astar_heuristic_weight == 1.0
+                            else "A*(weighted)")
+            t_astar = time.time()
+            a_path = astar_search(
+                cost_grid, (sr, sc), (er, ec), elevation=dem, pixel_m=pm,
+                grade_penalty_weight=args.grade_penalty_weight,
+                max_ground_grade=args.max_ground_grade,
+                pixel_spacing=route_pixel_spacing,
+                heuristic_weight=args.astar_heuristic_weight,
+            )
             geo_astar = [rowcol_to_geo(r, c, transform) for r, c in a_path] if a_path else None
             if geo_astar:
                 geo_astar = smooth_path_with_constraints(geo_astar, transform, hard_mask)
-            geo_astar, grade_reports["A*(baseline)"] = filter_path_by_ground_grade(
+            geo_astar, grade_reports[astar_method] = filter_path_by_ground_grade(
                 geo_astar, dem, transform, args.max_ground_grade, crs)
-            methods["A*(baseline)"] = geo_astar
-            t_astar = time.time() - t_a
-            print(f"  [A* baseline] 路径 {len(geo_astar) if geo_astar else 0} 点, 耗时 {t_astar:.1f}s")
+            methods[astar_method] = geo_astar
+            t_astar = time.time() - t_astar
+            print(f"  [{astar_method}] 路径 {len(geo_astar) if geo_astar else 0} 点, 耗时 {t_astar:.1f}s")
 
             station_offsets_by_method = {}
             station_measurements = {}
@@ -585,7 +607,14 @@ def main():
             for m, geo in methods.items():
                 if geo:
                     met = compute_metrics(geo, dem, transform, cost_grid, hard_mask, start_ll, end_ll)
-                    met["time_s"] = round(t_vin if m == "VIN-Grad" else (t_astar if m == "A*(baseline)" else 0.0), 2)
+                    if m in ("A*(baseline)", "A*(weighted)"):
+                        met["astar_heuristic_weight"] = args.astar_heuristic_weight
+                    met["time_s"] = round({
+                        "VIN-Grad": t_vin,
+                        "PPO": t_ppo,
+                        "A*(baseline)": t_astar,
+                        "A*(weighted)": t_astar,
+                    }.get(m, 0.0), 2)
                     if not station_task:
                         start_center = rowcol_to_geo(sr, sc, transform)
                         end_center = rowcol_to_geo(er, ec, transform)
@@ -609,7 +638,7 @@ def main():
             # 按固定优先规则筛选硬约束可行路线，再单独读取真实线作事后评分。
             best_method, _, selection_rule = _select_final_route(methods, case_metrics)
             final_geo = methods.get(best_method) if best_method else None
-            final_is_ai = (best_method in ("VIN-Grad", "PPO")) if best_method else None
+            final_is_ai = False if best_method else None
             osm_data_quality, missing_osm_layers = screening_data_quality(osm_layer_metadata)
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
 
@@ -935,7 +964,7 @@ def main():
         print("=" * 70)
         print(f"  {'走廊':16s} {'方法':16s} {'较差方向P95(m)':>14s} {'采样最大(m)':>12s} "
               f"{'F1@100m':>9s} {'F1@1km':>9s} {'长度差(km)':>11s}")
-        candidate_methods = ["VIN-Grad", "PPO", "A*(baseline)"]
+        candidate_methods = ["A*(baseline)", "A*(weighted)", "VIN-Grad", "PPO"]
         failed_case_names = {item["case"] for item in failed_cases}
         for rec in all_results:
             if rec["case"] in failed_case_names or rec["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status") == "no_hard_constraint_compliant_route":
@@ -972,20 +1001,21 @@ def main():
                   f"中位较差方向P95={p95_text} 中位最大偏移={max_text} "
                   f"中位F1@100m={f1_100m_text} 中位F1@1km={f1_text} "
                   f"达标数={summary['routes_f1_100m_at_least_95pct']} 中位长度差={length_text}")
-        astar_selected = [r["case"] for r in all_results
+        heuristic_selected = [r["case"] for r in all_results
                           if r["case"] not in failed_case_names
                           and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
                           != "no_hard_constraint_compliant_route"
-                          if r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("method") == "A*(baseline)"]
-        if astar_selected:
-            print(f"  ℹ 以下走廊按既定规则选择 A* 最终路线: {astar_selected}")
+                          if r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("method")
+                          in ("A*(baseline)", "A*(weighted)")]
+        if heuristic_selected:
+            print(f"  启发式搜索生成最终路线的走廊: {heuristic_selected}")
         print("=" * 70)
 
     # 控制台摘要
     print("\n" + "=" * 70)
     print("  结果摘要（各走廊均值）")
     print("=" * 70)
-    for m in ["VIN-Grad", "PPO", "A*(baseline)"]:
+    for m in ["A*(baseline)", "A*(weighted)", "VIN-Grad", "PPO"]:
         lens = [r["metrics"][m]["length_km"] for r in all_results if m in r["metrics"]]
         mc = [r["metrics"][m]["mean_cost"] for r in all_results if m in r["metrics"]]
         if lens:

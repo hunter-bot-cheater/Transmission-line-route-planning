@@ -107,19 +107,19 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
             }
             self.assertEqual(
                 _select_final_route(methods, metrics),
-                ("A*(baseline)", None, "astar_feasible_priority"),
+                ("A*(baseline)", None, "astar_min_cost_priority"),
             )
 
-    def test_final_route_falls_back_to_valid_candidate_if_astar_fails(self):
-        methods = {"VIN-Grad": [(1, 1)], "A*(baseline)": None}
-        metrics = {"VIN-Grad": {"hard_violations": 0}}
+    def test_final_route_selects_weighted_astar_candidate(self):
+        methods = {"A*(baseline)": None, "A*(weighted)": [(1, 1)]}
+        metrics = {"A*(weighted)": {"hard_violations": 0}}
 
         self.assertEqual(
             _select_final_route(methods, metrics),
-            ("VIN-Grad", None, "valid_candidate_fallback"),
+            ("A*(weighted)", None, "weighted_astar_only_candidate"),
         )
 
-    def test_final_route_fallback_order_does_not_depend_on_mapping_order(self):
+    def test_final_route_never_falls_back_to_ai_candidates(self):
         methods = {"PPO": [(1, 1)], "VIN-Grad": [(1, 1)], "A*(baseline)": None}
         metrics = {
             "PPO": {"hard_violations": 0},
@@ -128,16 +128,7 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
 
         self.assertEqual(
             _select_final_route(methods, metrics),
-            ("VIN-Grad", None, "valid_candidate_fallback"),
-        )
-
-    def test_final_route_uses_ppo_when_vin_is_unavailable(self):
-        methods = {"PPO": [(1, 1)], "VIN-Grad": None, "A*(baseline)": None}
-        metrics = {"PPO": {"hard_violations": 0}}
-
-        self.assertEqual(
-            _select_final_route(methods, metrics),
-            ("PPO", None, "valid_candidate_fallback"),
+            (None, None, "no_hard_constraint_compliant_route"),
         )
 
     def test_cli_does_not_expose_reference_guidance_options(self):
@@ -154,6 +145,7 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         ):
             self.assertNotIn(removed_option, help_text)
         self.assertIn("--no-vin", help_text)
+        self.assertIn("--include-ai-diagnostics", help_text)
 
     def test_geojson_coordinates_keep_longitude_before_latitude(self):
         self.assertEqual(geojson_coordinates([(120.75, 24.32)]), [[120.75, 24.32]])

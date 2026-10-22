@@ -18,7 +18,8 @@ def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, t
     z = _fill(dem)
     ax.imshow(z, extent=extent, cmap="terrain", origin="upper", aspect="auto",
               alpha=0.30, vmin=np.nanpercentile(z, 2), vmax=np.nanpercentile(z, 98))
-    colors = {"VIN-Grad": "#1f77ff", "PPO": "#2ca02c", "A*(baseline)": "#ff7f0e"}
+    colors = {"VIN-Grad": "#1f77ff", "PPO": "#2ca02c", "A*(baseline)": "#ff7f0e",
+              "A*(weighted)": "#9467bd"}
     for name, geo in methods_paths.items():
         if not geo:
             continue
@@ -72,7 +73,7 @@ def plot_value_map(V, transform, geo_vin, start_ll, end_ll, out_path):
 
 def plot_algo_comparison(all_results, out_path):
     """多算法指标聚合柱状图。"""
-    methods = ["VIN-Grad", "PPO", "A*(baseline)"]
+    methods = ["VIN-Grad", "PPO", "A*(baseline)", "A*(weighted)"]
     metrics_keys = ["length_km", "mean_cost", "sinuosity", "hard_violations", "time_s", "cum_relief_m"]
     agg = {m: {k: [] for k in metrics_keys} for m in methods}
     for rec in all_results:
@@ -89,7 +90,8 @@ def plot_algo_comparison(all_results, out_path):
         "time_s": "耗时 (s)", "cum_relief_m": "累计高差 (m)"}
     fig, axes = plt.subplots(2, 3, figsize=(15, 9), dpi=140)
     axes = axes.ravel()
-    colors = {"VIN-Grad": "#1f77ff", "PPO": "#2ca02c", "A*(baseline)": "#ff7f0e"}
+    colors = {"VIN-Grad": "#1f77ff", "PPO": "#2ca02c", "A*(baseline)": "#ff7f0e",
+              "A*(weighted)": "#9467bd"}
     for i, k in enumerate(metrics_keys):
         ax = axes[i]
         vals = [means[m][k] for m in methods]

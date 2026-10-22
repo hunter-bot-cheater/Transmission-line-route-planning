@@ -1,5 +1,5 @@
 # transmission_path_planner/methods.py
-"""三种路径规划方法：VIN-Grad（深度值迭代+梯度追踪）、PPO（强化学习）、A*（基线）。"""
+"""启发式路径搜索及可选的 VIN-Grad、PPO 诊断方法。"""
 
 from .config import *
 from .geometry import *
@@ -691,8 +691,10 @@ def gradient_track_path(V, cost, hard_mask, start, end, transform,
 
 def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=None,
                  pixel_m=None, grade_penalty_weight=1.0, max_ground_grade=None,
-                 pixel_spacing=None):
+                 pixel_spacing=None, heuristic_weight=1.0):
     import heapq
+    if not math.isfinite(float(heuristic_weight)) or heuristic_weight < 1.0:
+        raise ValueError("heuristic_weight must be finite and at least 1")
     H, W = cost_raster.shape
     sr, sc = start_rc; er, ec = end_rc
     if not (0 <= sr < H and 0 <= sc < W) or not (0 <= er < H and 0 <= ec < W):
@@ -716,9 +718,10 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
             row_m, col_m = pixel_spacing
             diagonal = min(dr, dc)
             row_only, col_only = dr - diagonal, dc - diagonal
-            return c_min * (diagonal * math.hypot(row_m, col_m)
-                            + row_only * row_m + col_only * col_m)
-        return c_min * (max(dr, dc) + (math.sqrt(2) - 1) * min(dr, dc))
+            return heuristic_weight * c_min * (
+                diagonal * math.hypot(row_m, col_m) + row_only * row_m + col_only * col_m)
+        return heuristic_weight * c_min * (
+            max(dr, dc) + (math.sqrt(2) - 1) * min(dr, dc))
 
     # Use raster arrays for search state instead of Python tuple-keyed dicts/sets.
     # Large high-resolution corridors otherwise consume several GiB of Python objects.
@@ -827,91 +830,3 @@ def smooth_cost(cost, sigma=1.0, mix=0.5):
     out = np.clip(mix * c + (1.0 - mix) * s, 0.0, 1.0).astype(np.float32)
     out[~np.isfinite(cost)] = np.nan
     return out
-
-
-# ============================================================================
-# 升级组件 2: 转向惩罚加权 A* (astar_search_turn)
-# ----------------------------------------------------------------------------
-# 经典 A* 在均匀代价区易产生 45° 锯齿路径。本升级:
-#   1) 状态扩展为 (row, col, 来向), 转向叠加分级 turn_penalty(45°/90°/135°);
-#   2) 加权启发 eps(默认 1.15) 换取提速, 解的质量损失 <2%;
-#   3) 与 astar_search 同接口: 输入 inf=禁行 的 cost_grid, 返回 [(r,c),...]。
-# ============================================================================
-def astar_search_turn(cost_grid, start_rc, end_rc, eps=1.15, turn_penalty=0.35,
-                          orient=None, align_w=0.0):
-    import heapq
-    H, W = cost_grid.shape
-
-    def _near_valid(r, c):
-        if 0 <= r < H and 0 <= c < W and np.isfinite(cost_grid[r, c]):
-            return r, c
-        for rad in range(1, 81):
-            for dr in range(-rad, rad + 1):
-                for dc in range(-rad, rad + 1):
-                    if max(abs(dr), abs(dc)) != rad:
-                        continue
-                    nr, nc = r + dr, c + dc
-                    if 0 <= nr < H and 0 <= nc < W and np.isfinite(cost_grid[nr, nc]):
-                        return nr, nc
-        return None
-
-    s = _near_valid(int(start_rc[0]), int(start_rc[1]))
-    e = _near_valid(int(end_rc[0]), int(end_rc[1]))
-    if s is None or e is None:
-        return None
-    sr, sc = s
-    er, ec = e
-
-    DIRS = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
-    SQ2 = math.sqrt(2.0)
-    TURN_W = {0: 0.0, 1: 1.0, 2: 2.2, 3: 3.5, 4: 3.5}
-
-    def octile(r, c):
-        dr, dc = abs(r - er), abs(c - ec)
-        return max(dr, dc) + (SQ2 - 1.0) * min(dr, dc)
-
-    g_best = {(sr, sc, -1): 0.0}
-    came = {}
-    pq = [(octile(sr, sc), 0.0, 0, sr, sc, -1)]
-    tie = 0
-    found = False
-    while pq:
-        f, g, _, r, c, d = heapq.heappop(pq)
-        if g > g_best.get((r, c, d), float("inf")) + 1e-9:
-            continue
-        if r == er and c == ec:
-            found = True
-            break
-        for i, (dr, dc) in enumerate(DIRS):
-            nr, nc = r + dr, c + dc
-            if not (0 <= nr < H and 0 <= nc < W) or not np.isfinite(cost_grid[nr, nc]):
-                continue
-            step_len = SQ2 if (dr != 0 and dc != 0) else 1.0
-            turn_cost = 0.0 if d < 0 else TURN_W[min(abs(i - d), 8 - abs(i - d))] * turn_penalty
-            ng = g + step_len * float(cost_grid[nr, nc]) + turn_cost
-            if orient is not None and align_w > 0.0:
-                o = orient[r, c]
-                if np.isfinite(o):
-                    dphi = math.atan2(dc, dr) - o
-                    align_pen = (1.0 - math.cos(2.0 * dphi)) / 2.0
-                    ng += align_w * align_pen * step_len
-            key = (nr, nc, i)
-            if ng < g_best.get(key, float("inf")):
-                g_best[key] = ng
-                came[key] = (r, c, d)
-                tie += 1
-                heapq.heappush(pq, (ng + eps * octile(nr, nc), ng, tie, nr, nc, i))
-    if not found:
-        return None
-    best_key, best_g = None, float("inf")
-    for d in range(-1, 8):
-        k = (er, ec, d)
-        if k in g_best and g_best[k] < best_g:
-            best_g, best_key = g_best[k], k
-    path = []
-    k = best_key
-    while k is not None:
-        path.append((k[0], k[1]))
-        k = came.get(k)
-    path.reverse()
-    return path

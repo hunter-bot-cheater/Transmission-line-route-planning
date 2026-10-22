@@ -241,6 +241,20 @@ class StationPlanningTests(unittest.TestCase):
 
         self.assertAlmostEqual(physical_cost(astar), physical_cost(dijkstra))
 
+    def test_weighted_astar_respects_bounded_suboptimality(self):
+        cost = np.array([[1.0, 4.0, 4.0, 4.0, 1.0],
+                         [1.0, 4.0, 1.0, 4.0, 1.0],
+                         [1.0, 1.0, 1.0, 1.0, 1.0]], dtype=np.float64)
+        start, end = (1, 0), (1, 4)
+        exact = astar_search(cost, start, end)
+        weighted = astar_search(cost, start, end, heuristic_weight=1.5)
+
+        def route_cost(path):
+            return sum(cost[r, c] * np.hypot(r - pr, c - pc)
+                       for (pr, pc), (r, c) in zip(path, path[1:]))
+
+        self.assertLessEqual(route_cost(weighted), 1.5 * route_cost(exact) + 1e-9)
+
     def test_exports_station_height_and_profile_csv(self):
         transform = Affine(0.001, 0, 120.0, 0, -0.001, 25.0)
         dem = np.zeros((10, 10), dtype=float)
@@ -323,7 +337,7 @@ class StationPlanningTests(unittest.TestCase):
 
         self.assertEqual(
             _select_final_route(methods, metrics),
-            ("VIN-Grad", None, "valid_candidate_fallback"),
+            (None, None, "no_hard_constraint_compliant_route"),
         )
 
     def test_final_route_selection_fails_closed_without_valid_candidate(self):
