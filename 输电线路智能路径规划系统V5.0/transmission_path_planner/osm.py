@@ -223,6 +223,12 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
     if not isinstance(document, dict) or document.get("type") != "FeatureCollection" \
             or not isinstance(document.get("features"), list):
         raise ValueError("自定义约束文件必须是 WGS84 GeoJSON FeatureCollection")
+    dataset_metadata = document.get("metadata")
+    data_sources = document.get("data_sources")
+    if dataset_metadata is not None and not isinstance(dataset_metadata, dict):
+        raise ValueError("自定义约束 GeoJSON 的 metadata 必须是对象")
+    if data_sources is not None and not isinstance(data_sources, list):
+        raise ValueError("自定义约束 GeoJSON 的 data_sources 必须是数组")
     declared_crs = document.get("crs")
     if declared_crs:
         if not isinstance(declared_crs, dict):
@@ -300,6 +306,10 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
         "hard_cell_count": int(hard_mask.sum()),
         "soft_cell_count": int(np.count_nonzero(soft_cost)),
     }
+    if dataset_metadata is not None:
+        metadata["dataset_metadata"] = dataset_metadata
+    if data_sources is not None:
+        metadata["data_sources"] = data_sources
     return {"hard_mask": hard_mask, "soft_cost": soft_cost, "metadata": metadata}
 
 

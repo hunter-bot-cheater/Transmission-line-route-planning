@@ -98,7 +98,10 @@ class OSMSettlementMetadataTests(unittest.TestCase):
             {"type": "Feature", "properties": {"mode": "soft", "source": "planning brief", "weight": 0.25},
              "geometry": {"type": "Polygon", "coordinates": [[[2, 2], [2, 4], [4, 4], [4, 2], [2, 2]]]}}]
         path = Path(self.temp_dir.name) / "constraints.geojson"
-        path.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+        dataset_metadata = {"generated_at": "2026-10-22T00:00:00+00:00", "feature_count": len(features)}
+        data_sources = [{"dataset_id": "demo", "license": "open"}]
+        path.write_text(json.dumps({"type": "FeatureCollection", "metadata": dataset_metadata,
+                                    "data_sources": data_sources, "features": features}), encoding="utf-8")
 
         result = osm.load_user_constraint_overlays(path, Affine(1, 0, 0, 0, -1, 4), (4, 4))
 
@@ -107,6 +110,8 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertEqual(result["metadata"]["hard_feature_count"], 1)
         self.assertEqual(result["metadata"]["soft_feature_count"], 2)
         self.assertEqual(result["metadata"]["sources"], ["official zoning", "planning brief", "survey"])
+        self.assertEqual(result["metadata"]["dataset_metadata"], dataset_metadata)
+        self.assertEqual(result["metadata"]["data_sources"], data_sources)
 
     def test_user_geojson_soft_feature_requires_source_and_weight(self):
         feature = {"type": "Feature", "properties": {"mode": "soft"},
