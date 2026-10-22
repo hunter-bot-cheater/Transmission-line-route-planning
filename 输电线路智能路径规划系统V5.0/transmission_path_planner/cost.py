@@ -169,12 +169,14 @@ def heuristic_cost(dem, terrain):
 
 
 def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None):
-    """Build an interpretable screening cost with a soft settlement proxy.
+    """Build an interpretable screening cost with a soft built-up proxy.
 
-    The proxy is the maximum of normalized mapped-building density and mapped
-    ``landuse=residential`` coverage. This combines complementary OSM signals
-    without double-counting overlap. It is a soft preference only, not a hard
-    exclusion or a substitute for population/building safety data.
+    The proxy is the maximum of normalized mapped-building density, mapped
+    residential coverage, and land-use code 4 (residential/retail/commercial/
+    urban). Taking the maximum combines overlapping OSM signals without
+    double-counting them. Missing bands contribute no proxy; their availability
+    must be read from OSM layer metadata. This is not a hard exclusion or a
+    substitute for population/building safety data.
     """
     slope = np.nan_to_num(terrain["slope"], nan=0.0, posinf=90.0, neginf=0.0)
     roughness = np.nan_to_num(terrain["roughness_27"], nan=0.0, posinf=0.0, neginf=0.0)
@@ -195,7 +197,11 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None):
         osm.get("residential_landuse_mask", np.zeros_like(terrain_cost)), dtype=np.float32),
         terrain_cost.shape)
     residential_proxy = np.clip(np.nan_to_num(residential, nan=0.0, posinf=0.0, neginf=0.0), 0.0, 1.0)
-    settlement_proxy = np.maximum(building_proxy, residential_proxy)
+    landuse_code = np.broadcast_to(np.asarray(
+        osm.get("landuse_code", np.zeros_like(terrain_cost)), dtype=np.float32),
+        terrain_cost.shape)
+    builtup_proxy = (np.nan_to_num(landuse_code, nan=0.0, posinf=0.0, neginf=0.0) == 4.0).astype(np.float32)
+    settlement_proxy = np.maximum(np.maximum(building_proxy, residential_proxy), builtup_proxy)
 
     if model_cost is not None:
         model = np.nan_to_num(model_cost, nan=0.0, posinf=1.0, neginf=0.0)

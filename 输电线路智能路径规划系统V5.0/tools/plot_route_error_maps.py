@@ -103,7 +103,7 @@ def plot_case(case, planned, reference, metrics, out_path, cmap, norm, interval_
     axes[1].scatter([end[0] / 1000], [end[1] / 1000], s=25, color="#c0392b", zorder=5)
     f1 = sim["symmetric"]["coverage_f1_within_m"]["100"] * 100
     p95 = sim["symmetric"]["p95_m"] / 1000
-    fig.suptitle(f"{case} | 双向 F1@100米 {f1:.1f}% | 双向 P95 {p95:.2f} km")
+    fig.suptitle(f"{case} | 双向 F1@100米 {f1:.1f}% | 较差方向 P95 {p95:.2f} km")
     fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axes, label="彩线到另一条线路的距离（km）")
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
@@ -122,7 +122,7 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
         ax.plot(*line_xy(reference).T, color="#343a40", linestyle="--", linewidth=1.05, zorder=2)
         f1 = sim["symmetric"]["coverage_f1_within_m"]["100"] * 100
         p95 = sim["symmetric"]["p95_m"] / 1000
-        ax.set_title(f"{case}\nF1@100m {f1:.1f}% | P95 {p95:.1f} km", fontsize=9)
+        ax.set_title(f"{case}\nF1@100m {f1:.1f}% | 较差方向 P95 {p95:.1f} km", fontsize=9)
         set_limits(ax, planned, reference)
     for ax in axes.flat[len(cases):]:
         ax.axis("off")

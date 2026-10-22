@@ -42,6 +42,20 @@ class MetricPrecisionTests(unittest.TestCase):
         self.assertLess(score["symmetric"]["coverage_f1_within_m"]["100"], 0.9)
         self.assertGreater(score["symmetric"]["sampled_hausdorff_m"], 180)
 
+    def test_symmetric_p95_uses_the_worse_direction(self):
+        planned = [(120.0, 24.0), (120.02, 24.0)]
+        reference = [(120.005, 24.0), (120.015, 24.0)]
+
+        score = similarity(compute_deviation(planned, reference))
+        directional_p95 = max(
+            score["planned_to_reference"]["p95_m"],
+            score["reference_to_planned"]["p95_m"],
+        )
+
+        self.assertGreater(score["planned_to_reference"]["p95_m"],
+                           score["reference_to_planned"]["p95_m"])
+        self.assertEqual(score["symmetric"]["p95_m"], directional_p95)
+
     def test_reference_segments_between_vertices_are_counted(self):
         planned = [(120.0, 24.0), (120.01, 24.0)]
         reference = [(120.0, 24.0), (120.005, 24.001), (120.01, 24.0)]

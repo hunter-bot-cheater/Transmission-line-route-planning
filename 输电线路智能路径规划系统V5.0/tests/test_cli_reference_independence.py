@@ -318,6 +318,7 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
     def test_invalid_direct_coordinates_and_grid_size_are_rejected(self):
         scenarios = [
             (["--max-side", "0"], "--max-side 必须是正整数"),
+            (["--building-clearance-m", "5000"], "距离栅格上限"),
             (["--max-ground-grade", "nan"], "必须是有限数值"),
             (["--grade-penalty-weight", "inf"], "必须是有限数值"),
             (["--max-terrain-elevation-m", "nan"], "必须是有限数值"),

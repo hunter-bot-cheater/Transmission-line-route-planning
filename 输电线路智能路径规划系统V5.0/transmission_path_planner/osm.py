@@ -1,9 +1,10 @@
-# transmission_path_planner/osm.py
 """OpenStreetMap 矢量数据的栅格化与距离/密度/用地波段。"""
+
+import ast
 
 from .config import *
 from .geometry import *
-from .data import _fill, _terrain_gradient
+from .data import _fill, _terrain_gradient, _landuse_tag_to_code
 
 _PKG_CACHE = {}
 _PKL_CACHE = _PKG_CACHE
@@ -27,6 +28,7 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
         "path": str(pkl_path), "status": None, "source_element_count": 0,
         "geometry_count_in_bbox": 0, "observed_feature_bounds": None,
         "coverage_basis": "observed_feature_extent",
+        "tag_wrapper_count": 0, "tag_parse_error_count": 0,
     }
     if not HAS_SHAPELY:
         metadata.update(status="unavailable_dependency", reason="shapely_missing")
@@ -65,7 +67,26 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
         etype = el.get("type")
         if etype not in ("way", "relation"):
             continue
-        tags = el.get("tags", {}) or {}
+        raw_tags = el.get("tags", {}) or {}
+        tags = raw_tags
+        if isinstance(raw_tags, dict) and set(raw_tags) == {"tags"}:
+            raw_tags = raw_tags["tags"]
+            metadata["tag_wrapper_count"] += 1
+        if isinstance(raw_tags, str):
+            try:
+                raw_tags = ast.literal_eval(raw_tags)
+            except (SyntaxError, ValueError):
+                raw_tags = None
+            if not isinstance(raw_tags, dict):
+                metadata["tag_parse_error_count"] += 1
+                tags = {}
+            else:
+                tags = raw_tags
+        elif isinstance(raw_tags, dict):
+            tags = raw_tags
+        elif raw_tags:
+            metadata["tag_parse_error_count"] += 1
+            tags = {}
         # 收集该元素的所有几何坐标列表:
         #  - way: 直接用 top-level geometry;
         #  - relation(multipolygon, OSM landuse 多为 relation): 优先 geometry,
@@ -345,7 +366,8 @@ def compute_vegetation_height(geoms, transform, shape):
     return result
 
 
-def compute_osm_bands(dem, transform, bbox, cache_dir=None):
+def compute_osm_bands(dem, transform, bbox, cache_dir=None, *,
+                      include_model_features=True, include_building_distance=True):
     """计算 OSM 波段与风险代理；图层状态可从返回值的 ``metadata`` 属性读取。
 
     Building footprints provide a hard footprint mask and settlement proxy;
@@ -368,6 +390,14 @@ def compute_osm_bands(dem, transform, bbox, cache_dir=None):
     layers = {}
     layer_metadata = {}
     for name, (filename, geom_type, role) in layer_specs.items():
+        if not include_model_features and name not in ("landuse", "buildings"):
+            layers[name] = []
+            layer_metadata[name] = {
+                "path": str(cache_dir / filename), "status": "not_loaded",
+                "reason": "not_required_by_selected_planner_mode",
+                "coverage_status": "not_checked", "planning_role": role,
+            }
+            continue
         layers[name], layer_metadata[name] = load_osm_geoms_with_status(
             cache_dir / filename, geom_type, bbox)
         layer_metadata[name]["planning_role"] = role
@@ -378,40 +408,48 @@ def compute_osm_bands(dem, transform, bbox, cache_dir=None):
     landuse = layers["landuse"]
     buildings = layers["buildings"]
     vegetation = layers["vegetation"]
-    print(f"  OSM 几何数: 道路{len(roads)} 水域{len(water)} 铁路{len(railways)} "
-          f"断裂{len(faults)} 土地利用{len(landuse)} 建筑{len(buildings)} 植被{len(vegetation)}")
+    if include_model_features:
+        print(f"  OSM 几何数: 道路{len(roads)} 水域{len(water)} 铁路{len(railways)} "
+              f"断裂{len(faults)} 土地利用{len(landuse)} 建筑{len(buildings)} 植被{len(vegetation)}")
+    else:
+        print(f"  OSM 规划图层: 土地利用{len(landuse)} 建筑{len(buildings)}；"
+              "未加载仅供模型或诊断的可选图层")
 
     bands = OSMBands(metadata={"layers": layer_metadata})
-    bands["dist_road"] = compute_distance_band(roads, transform, (H, W), 5000.0)
-    bands["dist_water"] = compute_distance_band(water, transform, (H, W), 5000.0)
-    bands["dist_railway"] = compute_distance_band(railways, transform, (H, W), 5000.0)
-    bands["dist_fault"] = compute_distance_band(faults, transform, (H, W), 10000.0)
+    if include_model_features:
+        bands["dist_road"] = compute_distance_band(roads, transform, (H, W), 5000.0)
+        bands["dist_water"] = compute_distance_band(water, transform, (H, W), 5000.0)
+        bands["dist_railway"] = compute_distance_band(railways, transform, (H, W), 5000.0)
+        bands["dist_fault"] = compute_distance_band(faults, transform, (H, W), 10000.0)
     bands["landuse_code"] = compute_landuse_code(landuse, transform, (H, W))
     bands["residential_landuse_mask"] = compute_residential_landuse_mask(landuse, transform, (H, W))
     bands["building_density"] = compute_building_density(buildings, transform, (H, W))
     bands["building_mask"] = rasterize_on(buildings, transform, (H, W))
-    bands["building_distance_m"] = compute_distance_band(buildings, transform, (H, W), 5000.0)
-    bands["vegetation_height"] = compute_vegetation_height(vegetation, transform, (H, W))
+    if include_building_distance:
+        bands["building_distance_m"] = compute_distance_band(buildings, transform, (H, W), 5000.0)
+    if include_model_features:
+        bands["vegetation_height"] = compute_vegetation_height(vegetation, transform, (H, W))
 
-    # 风险代理波段（21-25）— 由地形/位置推导
-    z = _fill(dem).astype(np.float32)
-    lat_center = transform.f + transform.e * (H / 2.0)  # 窗口纬度中心（修正：之前误用 0）
-    row_m, col_m = pixel_spacing_meters(transform, lat_center)
-    dy, dx = _terrain_gradient(z, row_m, col_m)
-    slope = np.degrees(np.arctan(np.sqrt(dx ** 2 + dy ** 2)))
-    aspect = np.degrees(np.arctan2(-dy, dx)) % 360
-    elev_n = np.clip(z / 3000.0, 0, 1)
-    slope_n = np.clip(slope / 45.0, 0, 1)
-    # 台风：东南坡 + 低海拔 + 陡坡
-    aspect_score = np.where((aspect >= 45) & (aspect < 225), 1.0, 0.3)
-    bands["typhoon_risk"] = np.clip(0.4 * slope_n + 0.35 * aspect_score + 0.25 * (1 - elev_n), 0, 1).astype(np.float32)
-    # 地震：基础 0.6 + 坡度
-    bands["seismic_risk"] = np.clip(0.6 + 0.3 * slope_n, 0, 1).astype(np.float32)
-    # 滑坡：坡度 + 粗糙度
-    rough = np.nan_to_num(ndi.generic_filter(z, np.nanstd, size=3), nan=0.0) if HAS_SCIPY else np.zeros_like(z)
-    bands["landslide_risk"] = np.clip(0.5 * slope_n + 0.3 * np.clip(rough / 200.0, 0, 1), 0, 1).astype(np.float32)
-    # 覆冰：高海拔
-    bands["ice_cover_risk"] = np.clip((z - 2000) / 2000.0, 0, 1).astype(np.float32)
-    # 雷击：坡度 + 海拔
-    bands["lightning_risk"] = np.clip(0.6 * slope_n + 0.4 * elev_n, 0, 1).astype(np.float32)
+    if include_model_features:
+        # 风险代理波段（21-25）— 由地形/位置推导
+        z = _fill(dem).astype(np.float32)
+        lat_center = transform.f + transform.e * (H / 2.0)  # 窗口纬度中心（修正：之前误用 0）
+        row_m, col_m = pixel_spacing_meters(transform, lat_center)
+        dy, dx = _terrain_gradient(z, row_m, col_m)
+        slope = np.degrees(np.arctan(np.sqrt(dx ** 2 + dy ** 2)))
+        aspect = np.degrees(np.arctan2(-dy, dx)) % 360
+        elev_n = np.clip(z / 3000.0, 0, 1)
+        slope_n = np.clip(slope / 45.0, 0, 1)
+        # 台风：东南坡 + 低海拔 + 陡坡
+        aspect_score = np.where((aspect >= 45) & (aspect < 225), 1.0, 0.3)
+        bands["typhoon_risk"] = np.clip(0.4 * slope_n + 0.35 * aspect_score + 0.25 * (1 - elev_n), 0, 1).astype(np.float32)
+        # 地震：基础 0.6 + 坡度
+        bands["seismic_risk"] = np.clip(0.6 + 0.3 * slope_n, 0, 1).astype(np.float32)
+        # 滑坡：坡度 + 粗糙度
+        rough = np.nan_to_num(ndi.generic_filter(z, np.nanstd, size=3), nan=0.0) if HAS_SCIPY else np.zeros_like(z)
+        bands["landslide_risk"] = np.clip(0.5 * slope_n + 0.3 * np.clip(rough / 200.0, 0, 1), 0, 1).astype(np.float32)
+        # 覆冰：高海拔
+        bands["ice_cover_risk"] = np.clip((z - 2000) / 2000.0, 0, 1).astype(np.float32)
+        # 雷击：坡度 + 海拔
+        bands["lightning_risk"] = np.clip(0.6 * slope_n + 0.4 * elev_n, 0, 1).astype(np.float32)
     return bands

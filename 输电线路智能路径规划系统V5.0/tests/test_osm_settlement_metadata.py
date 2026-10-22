@@ -80,6 +80,57 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertEqual(result.metadata["layers"]["protected_areas"]["planning_role"], "informational_only")
         self.assertTrue(all(isinstance(value, np.ndarray) for value in result.values()))
 
+    def test_a_star_mode_loads_only_cost_and_hard_mask_layers(self):
+        paths = []
+
+        def empty_layer(path, _geom_type, _bbox):
+            paths.append(Path(path).name)
+            return [], {"status": "empty_in_bbox", "geometry_count_in_bbox": 0}
+
+        dem = np.zeros((3, 3), dtype=np.float32)
+        transform = Affine(0.01, 0, 120, 0, -0.01, 25)
+        with patch.object(osm, "load_osm_geoms_with_status", side_effect=empty_layer):
+            result = osm.compute_osm_bands(
+                dem, transform, (120, 24.97, 120.03, 25),
+                include_model_features=False, include_building_distance=False)
+
+        self.assertCountEqual(paths, ["taiwan_landuse.pkl", "taiwan_buildings.pkl"])
+        self.assertIn("landuse_code", result)
+        self.assertIn("residential_landuse_mask", result)
+        self.assertIn("building_density", result)
+        self.assertIn("building_mask", result)
+        self.assertNotIn("dist_road", result)
+        self.assertNotIn("building_distance_m", result)
+        self.assertEqual(result.metadata["layers"]["roads"]["status"], "not_loaded")
+
+    def test_a_star_core_bands_match_full_feature_mode(self):
+        landuse = [
+            (box(120.002, 24.992, 120.012, 25.0), {"landuse": "commercial"}),
+            (box(120.012, 24.992, 120.022, 25.0), {"landuse": "residential"}),
+        ]
+        buildings = [(box(120.002, 24.992, 120.007, 24.997), {})]
+
+        def fixture(path, _geom_type, _bbox):
+            name = Path(path).name
+            features = landuse if name == "taiwan_landuse.pkl" else buildings if name == "taiwan_buildings.pkl" else []
+            return features, {"status": "available" if features else "empty_in_bbox",
+                              "geometry_count_in_bbox": len(features)}
+
+        dem = np.arange(9, dtype=np.float32).reshape(3, 3)
+        transform = Affine(0.01, 0, 120, 0, -0.01, 25)
+        terrain = {"slope": np.full((3, 3), 5.0),
+                   "roughness_27": np.full((3, 3), 10.0)}
+        with patch.object(osm, "load_osm_geoms_with_status", side_effect=fixture):
+            full = osm.compute_osm_bands(dem, transform, (120, 24.97, 120.03, 25))
+            astar = osm.compute_osm_bands(
+                dem, transform, (120, 24.97, 120.03, 25),
+                include_model_features=False, include_building_distance=False)
+
+        for name in ("landuse_code", "residential_landuse_mask", "building_density", "building_mask"):
+            np.testing.assert_array_equal(astar[name], full[name])
+        np.testing.assert_array_equal(
+            build_route_cost(terrain, astar), build_route_cost(terrain, full))
+
     def test_compute_osm_bands_uses_explicit_cache_directory(self):
         paths = []
 
@@ -115,6 +166,52 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertEqual(mask[0, 0], 1)
         self.assertEqual(mask[2, 2], 0)
         self.assertGreater(cost[0, 0], cost[2, 2])
+
+    def test_built_up_landuse_code_contributes_soft_cost_without_double_counting(self):
+        terrain = {"slope": np.zeros((2, 2)), "roughness_27": np.zeros((2, 2))}
+        landuse_code = osm.compute_landuse_code([
+            (box(0.1, 1.1, 0.9, 1.9), {"landuse": "commercial"}),
+        ], Affine(1, 0, 0, 0, -1, 2), (2, 2))
+        self.assertEqual(int(landuse_code[0, 0]), 4)
+
+        landuse_only = build_route_cost(terrain, {"landuse_code": landuse_code})
+        self.assertEqual(float(landuse_only[0, 0]), 2.0)
+        self.assertEqual(float(landuse_only[1, 1]), 0.0)
+        self.assertEqual(float(build_route_cost(terrain, {})[0, 0]), 0.0)
+        nan_landuse = build_route_cost(terrain, {"landuse_code": np.full((2, 2), np.nan)})
+        self.assertEqual(float(nan_landuse[0, 0]), 0.0)
+
+        overlapping = build_route_cost(terrain, {
+            "landuse_code": landuse_code,
+            "residential_landuse_mask": landuse_code == 4,
+            "building_density": np.array([[5.0, 0.0], [0.0, 0.0]]),
+        })
+        self.assertEqual(float(overlapping[0, 0]), float(landuse_only[0, 0]))
+
+    def test_legacy_wrapped_tag_strings_are_parsed_and_failures_are_counted(self):
+        cache = self._save_cache("legacy_landuse.pkl", [
+            _way([(0.1, 1.1), (0.9, 1.1), (0.9, 1.9), (0.1, 1.9)],
+                 {"tags": "{'landuse': 'commercial'}"}),
+            _way([(1.1, 1.1), (1.9, 1.1), (1.9, 1.9), (1.1, 1.9)],
+                 {"tags": "{'landuse': 'residential'}"}),
+            _way([(2.1, 1.1), (2.9, 1.1), (2.9, 1.9), (2.1, 1.9)],
+                 {"tags": "not a dictionary"}),
+        ])
+        geoms, metadata = osm.load_osm_geoms_with_status(
+            cache, "polygon", (0, 0, 3, 2))
+
+        self.assertEqual(metadata["tag_wrapper_count"], 3)
+        self.assertEqual(metadata["tag_parse_error_count"], 1)
+        commercial = osm.compute_landuse_code(geoms[:1], Affine(1, 0, 0, 0, -1, 2), (2, 3))
+        residential = osm.compute_residential_landuse_mask(
+            geoms, Affine(1, 0, 0, 0, -1, 2), (2, 3))
+        terrain = {"slope": np.zeros((2, 3)), "roughness_27": np.zeros((2, 3))}
+        cost = build_route_cost(terrain, {"landuse_code": commercial})
+
+        self.assertEqual(int(commercial[0, 0]), 4)
+        self.assertEqual(int(residential[0, 1]), 1)
+        self.assertEqual(int(residential[0, 2]), 0)
+        self.assertGreater(float(cost[0, 0]), 0.0)
 
     def test_user_geojson_constraints_rasterize_hard_and_soft_polygons(self):
         features = [

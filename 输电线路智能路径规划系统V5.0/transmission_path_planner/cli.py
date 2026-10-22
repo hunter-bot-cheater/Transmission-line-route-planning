@@ -236,9 +236,9 @@ def main():
     ap.add_argument("--constraint-geojson", type=str, default=None,
                     help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight")
     ap.add_argument("--settlement-weight", type=float, default=2.0,
-                    help="OSM建筑密度代理的软避让权重(方案筛选参数, 默认2.0)")
+                    help="OSM建筑密度/住宅与商业用地代理的软避让权重(方案筛选参数, 默认2.0)")
     ap.add_argument("--building-clearance-m", type=float, default=0.0,
-                    help="建筑物栅格硬避让距离(米); 0仅屏蔽已映射建筑足迹，不代表规范净距")
+                    help="建筑物栅格硬避让距离(米, 必须小于5000); 0仅屏蔽已映射建筑足迹，不代表规范净距")
     ap.add_argument("--grade-penalty-weight", type=float, default=1.0,
                     help="沿线相邻DEM高差软惩罚权重(以30%%地面坡度作为一个参考级)")
     ap.add_argument("--max-ground-grade", type=float, default=None,
@@ -307,6 +307,8 @@ def main():
             ap.error(f"{option} 必须是有限数值")
     if args.building_clearance_m < 0 or args.settlement_weight < 0 or args.grade_penalty_weight < 0:
         ap.error("避让距离与代价权重不能为负数")
+    if args.building_clearance_m >= 5000:
+        ap.error("--building-clearance-m 必须小于5000米（当前距离栅格上限）")
     if args.max_ground_grade is not None and args.max_ground_grade <= 0:
         ap.error("--max-ground-grade 必须大于0")
 
@@ -411,7 +413,12 @@ def main():
             left = transform.c; top = transform.f
             right = left + transform.a * W; bottom = top + transform.e * H
             bbox = (left, bottom, right, top)
-            osm = compute_osm_bands(dem, transform, bbox, cache_dir=args.osm_cache_dir)
+            needs_feature_stack = costunet is not None or (HAS_TORCH and not args.no_vin)
+            osm = compute_osm_bands(
+                dem, transform, bbox, cache_dir=args.osm_cache_dir,
+                include_model_features=needs_feature_stack,
+                include_building_distance=args.building_clearance_m > 0,
+            )
             osm_layer_metadata = getattr(osm, "metadata", {}).get("layers", {})
             custom_constraints = (
                 load_user_constraint_overlays(args.constraint_geojson, transform, dem.shape)
@@ -423,7 +430,7 @@ def main():
                 if layer.get("status") != "available":
                     print(f"  [warn] OSM {layer_name} 图层状态={layer.get('status', 'unknown')}；"
                           "不能据此认定该范围内没有居民点/建筑")
-            stack = build_feature_stack(dem, terrain, osm)
+            stack = build_feature_stack(dem, terrain, osm) if needs_feature_stack else None
 
             model_cost = costunet.predict(stack) if costunet is not None else None
             cost = build_route_cost(terrain, osm, args.settlement_weight, model_cost)
@@ -641,7 +648,7 @@ def main():
                             symmetric = similarity["symmetric"]
                             coverage_100m = symmetric["coverage_f1_within_m"]["100"]
                             coverage_1km = symmetric["coverage_f1_within_m"]["1000"]
-                            print(f"  [{method}] 双向P95={symmetric['p95_m']:.0f}m "
+                            print(f"  [{method}] 较差方向P95={symmetric['p95_m']:.0f}m "
                                   f"采样最大偏移={symmetric['sampled_hausdorff_m']:.0f}m "
                                   f"100m覆盖F1={coverage_100m:.1%} "
                                   f"1km覆盖F1={coverage_1km:.1%} "
@@ -926,7 +933,7 @@ def main():
         print("\n" + "=" * 70)
         print("  参考线路空间相似度 (双向米制偏移 + 线路覆盖；仅事后评估)")
         print("=" * 70)
-        print(f"  {'走廊':16s} {'方法':16s} {'双向P95(m)':>11s} {'采样最大(m)':>12s} "
+        print(f"  {'走廊':16s} {'方法':16s} {'较差方向P95(m)':>14s} {'采样最大(m)':>12s} "
               f"{'F1@100m':>9s} {'F1@1km':>9s} {'长度差(km)':>11s}")
         candidate_methods = ["VIN-Grad", "PPO", "A*(baseline)"]
         failed_case_names = {item["case"] for item in failed_cases}
@@ -962,7 +969,7 @@ def main():
             f1_text = f"{f1:.1%}" if f1 is not None else "NA"
             length_text = f"{length_difference:.1f}%" if length_difference is not None else "NA"
             print(f"  {m:16s} 已测={summary['measured']:2d} 未测={summary['unmeasured']:2d} "
-                  f"中位双向P95={p95_text} 中位最大偏移={max_text} "
+                  f"中位较差方向P95={p95_text} 中位最大偏移={max_text} "
                   f"中位F1@100m={f1_100m_text} 中位F1@1km={f1_text} "
                   f"达标数={summary['routes_f1_100m_at_least_95pct']} 中位长度差={length_text}")
         astar_selected = [r["case"] for r in all_results
