@@ -14,43 +14,26 @@ from .io_export import *
 from .stations import *
 
 
-def _reference_guidance_requested(guide_mode, use_real):
-    return guide_mode == "reference" or (guide_mode == "auto" and use_real)
-
-
-DEFAULT_GUIDE_MODE = "none"
 FINAL_ROUTE_LABEL = "最终路线"
 
 
-def _select_final_route(methods, case_metrics, guide_enabled):
+def _select_final_route(methods, case_metrics):
     valid_methods = [
         method for method, path in methods.items()
         if path and method in case_metrics
         and case_metrics[method].get("hard_violations") == 0
     ]
-    if guide_enabled:
-        best_method, best_err = None, float("inf")
-        for method in valid_methods:
-            metrics = case_metrics[method]
-            error = metrics.get("worst_err_pct")
-            if error is not None and error < best_err:
-                best_method, best_err = method, error
-        if best_method is not None:
-            return best_method, best_err, "reference_error_min"
-        fallback_rule = "astar_fallback_no_reference_score"
-    else:
-        fallback_rule = "astar_baseline"
-
     if "A*(baseline)" in valid_methods:
-        return "A*(baseline)", None, fallback_rule
-    if valid_methods:
-        return valid_methods[0], None, "valid_candidate_fallback"
+        return "A*(baseline)", None, "astar_feasible_priority"
+    fallback = next((method for method in ("VIN-Grad", "PPO") if method in valid_methods), None)
+    if fallback is not None:
+        return fallback, None, "valid_candidate_fallback"
     return None, None, "no_hard_constraint_compliant_route"
 
 
 def attach_station_endpoints(geo, station_task):
     """Replace snapped raster-center endpoints with the supplied station coordinates."""
-    if not station_task or not geo or len(geo) < 2:
+    if not station_task or not geo:
         return geo, {}
     start, end = station_task["from_station"], station_task["to_station"]
     start_point = (float(start["lon"]), float(start["lat"]))
@@ -59,9 +42,20 @@ def attach_station_endpoints(geo, station_task):
         "from_station_to_grid_center_offset_m": round(haversine_km(*start_point, *geo[0]) * 1000.0, 2),
         "to_station_to_grid_center_offset_m": round(haversine_km(*end_point, *geo[-1]) * 1000.0, 2),
     }
+    if len(geo) == 1:
+        return [start_point, end_point], offsets
     adjusted = list(geo)
     adjusted[0], adjusted[-1] = start_point, end_point
     return adjusted, offsets
+
+
+def expand_single_cell_route(geo, start_ll, end_ll):
+    """Turn a one-cell route into the short segment between distinct input endpoints."""
+    if not geo or len(geo) != 1:
+        return geo
+    if tuple(start_ll) == tuple(end_ll):
+        raise ValueError("起终点坐标相同，不能生成零长度线路")
+    return [(start_ll[1], start_ll[0]), (end_ll[1], end_ll[0])]
 
 
 def validate_route_hard_constraints(geo, transform, hard_mask):
@@ -86,7 +80,141 @@ def screening_data_quality(osm_layer_metadata):
     return ("incomplete_osm_proxies" if missing else "osm_proxy_features_observed"), missing
 
 
+def validate_endpoint_cells(start, end, shape, hard_mask):
+    """Require fixed endpoints to lie inside the DEM and the complete passable mask."""
+    height, width = shape
+    for label, (row, col) in (("起点", start), ("终点", end)):
+        if not (0 <= row < height and 0 <= col < width):
+            raise ValueError(f"{label}超出DEM范围")
+        if not hard_mask[row, col]:
+            raise ValueError(f"{label}位于NoData/建筑/配置禁区内；请核对接入点坐标或约束")
+    return start, end
+
+
+def run_method_or_skip_on_oom(method_name, run_method):
+    """Skip a neural candidate only for PyTorch OOM; let other errors surface."""
+    try:
+        return run_method(), None
+    except torch.OutOfMemoryError as exc:
+        message = str(exc)
+    print(f"  [{method_name}] 显存不足，跳过该方法并继续其余规划: {message}")
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    return None, message
+
+
+def train_vin_or_skip_on_oom(*args, **kwargs):
+    """Skip VIN on PyTorch OOM without suppressing unrelated failures."""
+    result, _ = run_method_or_skip_on_oom("VIN-Grad", lambda: train_vin(*args, **kwargs))
+    return result
+
+
+def validate_unique_case_names(cases, check_reference_names=False):
+    names = [case[0] for case in cases]
+    if len(set(names)) != len(names):
+        raise ValueError("用例名称必须唯一，重复名称会覆盖输出目录")
+    if check_reference_names:
+        # Reference files must resolve uniquely on Windows as well as POSIX.
+        reference_names = [safe_reference_name(name).casefold() for name in names]
+        if len(set(reference_names)) != len(reference_names):
+            raise ValueError("用例名净化后发生重复，无法安全匹配逐任务参考线路文件")
+
+
+def validate_cases_available(cases):
+    if not cases:
+        raise ValueError("未找到有效规划任务；请检查输入 CSV 或站点任务")
+    if any(tuple(start) == tuple(end) for _, start, end in cases):
+        raise ValueError("起终点坐标相同，不能生成零长度线路")
+
+
+def load_case_reference(path, require_single_line=False):
+    if not path or not Path(path).is_file():
+        return None, "reference_missing"
+    try:
+        real_geo = load_real_path(
+            path, require_single_line=require_single_line, raise_errors=True)
+    except ValueError as exc:
+        print(f"  [warn] 目标线路参考文件无效: {exc}")
+        return None, "reference_invalid_or_empty"
+    except Exception as exc:
+        print(f"  [warn] 目标线路参考文件无法读取: {exc}")
+        return None, "reference_invalid_or_unreadable"
+    return (real_geo, "reference_loaded" if real_geo else "reference_invalid_or_empty")
+
+
+def summarize_run_completion(expected_cases, results, failed_cases):
+    failed_names = {item["case"] for item in failed_cases}
+    no_route_cases = [
+        record["case"] for record in results
+        if record["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
+        == "no_hard_constraint_compliant_route"
+    ]
+    no_route_names = set(no_route_cases)
+    completed = {
+        record["case"] for record in results
+        if record["case"] not in failed_names and record["case"] not in no_route_names
+    }
+    return {
+        "expected_cases": expected_cases,
+        "completed_cases": len(completed),
+        "recorded_cases": len(results),
+        "failed_cases": failed_cases,
+        "no_route_cases": no_route_cases,
+        "complete": expected_cases > 0 and len(completed) == expected_cases
+        and not failed_cases and not no_route_cases,
+    }
+
+
+def method_pass8_summary(results, method, expected_cases=None, failed_case_names=None):
+    excluded = set(failed_case_names or ())
+    eligible = [record for record in results
+                if record["case"] not in excluded
+                and record["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
+                != "no_hard_constraint_compliant_route"]
+    values = [record["metrics"].get(method, {}).get("pass8") for record in eligible]
+    evaluated = [value for value in values if value is not None]
+    errors = [record["metrics"].get(method, {}).get("worst_err_pct")
+              for record in eligible
+              if record["metrics"].get(method, {}).get("pass8") is not None
+              and record["metrics"].get(method, {}).get("worst_err_pct") is not None]
+    total_cases = max(len(results), expected_cases or 0)
+    return {
+        "pass": sum(value is True for value in evaluated),
+        "fail": sum(value is False for value in evaluated),
+        "unmeasured": total_cases - len(evaluated),
+        "worst_err_pct": max(errors) if errors else None,
+    }
+
+
+def validate_real_shp_argument(real_shp, cases):
+    if real_shp is None:
+        return
+    if not Path(real_shp).is_file():
+        raise ValueError("--real-shp 必须指向一个存在的目标线路文件")
+    if len(cases) != 1:
+        raise ValueError("--real-shp 只支持单任务目标线路；多任务请使用 --real-dir 提供逐任务线路")
+
+
+def configure_console_output():
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            reconfigure(errors="replace")
+
+
+def parse_lat_lon(value, label):
+    try:
+        parts = [float(part) for part in value.split(",")]
+    except ValueError as exc:
+        raise ValueError(f"{label}必须是纬度,经度数值") from exc
+    if (len(parts) != 2 or not all(math.isfinite(part) for part in parts)
+            or not -90 <= parts[0] <= 90 or not -180 <= parts[1] <= 180):
+        raise ValueError(f"{label}经纬度无效；纬度须在[-90,90]、经度须在[-180,180]")
+    return tuple(parts)
+
+
 def main():
+    configure_console_output()
     t0 = time.time()
     ap = argparse.ArgumentParser(description="复杂山区输电线路 AI 路径规划 (V5.0: 多方法搜索 + 26维特征)")
     ap.add_argument("--dem", type=str, default=None)
@@ -117,33 +245,20 @@ def main():
                     help=f"规划网格最长边；默认{WORK_MAX_SIDE}，尽量保留 DEM 原始分辨率，内存不足时可调低")
     ap.add_argument("--cases", type=int, default=4)
     ap.add_argument("--no-ppp", action="store_true", help="跳过 PPO 方法")
-    ap.add_argument("--baseline", action="store_true",
-                    help="额外跑'无走廊引导'的 VIN-Grad 基线作 A/B 对照(默认关闭, 省显存防 OOM)")
+    ap.add_argument("--no-vin", action="store_true", help="跳过 VIN-Grad，保留 PPO/A*；适用于无法运行 VIN 的环境")
     ap.add_argument("--out-dir", type=str, default=None)
     ap.add_argument("--with-real", action="store_true",
-                    help="加载真实/参考路径并计算事后偏差; 是否参与规划由 --guide-mode 控制")
+                    help="加载真实线路，仅在规划完成后计算事后偏差")
     ap.add_argument("--real-cases", action="store_true",
                     help="改用 v3 的 4 条真实走廊(R01~R04)并启用真实线对照")
     ap.add_argument("--real-cases-csv", type=str, default=None,
-                    help="从真实走廊 CSV(列: name,start_lat,start_lon,end_lat,end_lon)载人测试用例, "
-                         "并自动把 --real-dir 设为该 CSV 同目录(其中含 '<净化名>_real_path.shp' 真实线)。"
-                         "启用事后真实线对照; 是否引导规划由 --guide-mode 控制。")
-    ap.add_argument("--guide-mode", choices=("auto", "none", "reference"), default=DEFAULT_GUIDE_MODE,
-                    help="引导模式: none=默认，真实线仅用于事后评估; auto=有真实线时按旧行为引导; "
-                         "reference=明确使用输入真实线引导(结果不代表无泄漏泛化能力)")
-    ap.add_argument("--corridor-w", type=float, default=None,
-                    help="参考线走廊带惩罚权重; 0=关闭, 未指定时在参考线引导模式下使用默认值")
-    ap.add_argument("--corridor-band", type=float, default=CORRIDOR_BAND_M_DEFAULT,
-                    help="走廊缓冲带半宽(米), 带内几乎无额外惩罚")
-    ap.add_argument("--real-dir", type=str, default=str(REAL_PATH_DIR),
+                    help="从真实走廊 CSV(列: name,start_lat,start_lon,end_lat,end_lon)载入测试用例；"
+                         "默认在 CSV 同目录查找参考线，可用 --real-dir 指定其他目录。真实线只用于规划后的对照。")
+    ap.add_argument("--real-dir", type=str, default=None,
                     help="真实线路 SHP 所在目录(按 '<净化名>_real_path.shp' 匹配)")
     ap.add_argument("--real-shp", type=str, default=None,
-                    help="直接指定一个真实线路/线网 SHP(如全区输电网络), 作为事后对照线; "
-                         "是否参与规划由 --guide-mode 控制。")
-    ap.add_argument("--real-attract", type=float, default=None,
-                    help="真实线方向吸引力权重; 0=关闭, 未指定时在参考线引导模式下使用默认值")
-    ap.add_argument("--real-attract-cutoff", type=float, default=2500.0,
-                    help="方向吸引力距离门控(米): 仅在真实线 cutoff 范围内生效, 远处不把路径拽离走廊")
+                    help="单任务指定只含一个 LineString 且 CRS 明确的目标线路 SHP 作为事后对照; "
+                         "多任务请用 --real-dir 按任务分别提供线路。规划阶段不会读取该线。")
     ap.add_argument("--rebuild-osm-cache", action="store_true",
                     help="调用 shared.data_acquisition 重新生成台湾 OSM 缓存 pkl(覆盖错误区域数据), "
                          "然后继续正常流程。首次使用或土地利用波段恒为0时请启用。")
@@ -157,8 +272,29 @@ def main():
         ap.error("--stations-csv 和 --route-tasks-csv 必须同时提供")
     if bool(args.start) != bool(args.end):
         ap.error("--start 和 --end 必须同时提供")
-    if args.stations_csv and (args.start or args.end):
-        ap.error("站点 CSV 任务不能与 --start/--end 同时使用")
+    task_sources = sum((
+        bool(args.stations_csv), bool(args.start or args.end),
+        bool(args.real_cases_csv), bool(args.real_cases),
+    ))
+    if task_sources > 1:
+        ap.error("任务输入来源只能选一种：站点 CSV、--start/--end、--real-cases-csv 或 --real-cases")
+    if args.real_shp and (args.real_cases_csv or args.real_cases):
+        ap.error("--real-shp 不能与 --real-cases-csv/--real-cases 同时使用")
+    if args.real_shp and args.real_dir:
+        ap.error("--real-shp 不能与 --real-dir 同时使用")
+    if args.max_side < 1:
+        ap.error("--max-side 必须是正整数")
+    float_parameters = {
+        "--building-clearance-m": args.building_clearance_m,
+        "--settlement-weight": args.settlement_weight,
+        "--grade-penalty-weight": args.grade_penalty_weight,
+        "--max-ground-grade": args.max_ground_grade,
+        "--max-surface-slope-deg": args.max_surface_slope_deg,
+        "--max-terrain-elevation-m": args.max_terrain_elevation_m,
+    }
+    for option, value in float_parameters.items():
+        if value is not None and not math.isfinite(value):
+            ap.error(f"{option} 必须是有限数值")
     if args.building_clearance_m < 0 or args.settlement_weight < 0 or args.grade_penalty_weight < 0:
         ap.error("避让距离与代价权重不能为负数")
     if args.max_ground_grade is not None and args.max_ground_grade <= 0:
@@ -200,36 +336,47 @@ def main():
             cases.append((task["route_id"], task["start"], task["end"]))
             station_task_by_route[task["route_id"]] = task
     elif args.start and args.end:
-        slat, slon = map(float, args.start.split(","))
-        elat, elon = map(float, args.end.split(","))
-        cases = [("Custom", (slat, slon), (elat, elon))]
+        try:
+            start = parse_lat_lon(args.start, "--start")
+            end = parse_lat_lon(args.end, "--end")
+        except ValueError as exc:
+            ap.error(str(exc))
+        cases = [("Custom", start, end)]
     else:
-        if args.real_cases_csv and Path(args.real_cases_csv).exists():
-            csv_cases = load_real_cases_csv(args.real_cases_csv)
-            # SHP(<净化名>_real_path.shp) 与 CSV 同目录, 自动设为真实线搜索目录
-            args.real_dir = str(Path(args.real_cases_csv).parent)
+        if args.real_cases_csv:
+            if not Path(args.real_cases_csv).is_file():
+                ap.error(f"--real-cases-csv 文件不存在: {args.real_cases_csv}")
+            try:
+                csv_cases = load_real_cases_csv(args.real_cases_csv)
+            except (OSError, ValueError) as exc:
+                ap.error(str(exc))
+            # 默认从 CSV 同目录找参考线；显式 --real-dir 时使用指定目录。
+            args.real_dir = args.real_dir or str(Path(args.real_cases_csv).parent)
             cases = [(n, s, e) for (n, s, e, _) in csv_cases]
         elif args.real_cases:
             cases = [(n, s, e) for (n, s, e, _) in REAL_CASES]
         else:
             cases = DEFAULT_CASES[:max(1, args.cases)]
 
-    # 无引导模式先只记录全局参考线路径, 等各用例的规划候选生成后再读取几何。
-    global_real_geo = None
-    global_real_exists = bool(args.real_shp and Path(args.real_shp).exists())
+    allow_global_reference_mapping = not any((
+        args.real_dir, args.stations_csv, args.start, args.real_cases_csv))
+    args.real_dir = args.real_dir or str(REAL_PATH_DIR)
+    try:
+        validate_cases_available(cases)
+        validate_unique_case_names(
+            cases,
+            check_reference_names=not args.real_shp and bool(
+                args.real_cases_csv or args.real_cases or args.with_real),
+        )
+        validate_real_shp_argument(args.real_shp, cases)
+    except ValueError as exc:
+        ap.error(str(exc))
+
+    global_real_exists = args.real_shp is not None
     use_real = bool(args.with_real or args.real_cases or args.real_cases_csv or global_real_exists)
-    reference_guidance = _reference_guidance_requested(args.guide_mode, use_real)
-    if reference_guidance and global_real_exists:
-        global_real_geo = load_real_path(args.real_shp)
-        if global_real_geo:
-            print(f"[真实对比] 全局参考线网: {args.real_shp}  {len(global_real_geo)}条折线, "
-                  f"总长 {real_length_km(global_real_geo):.0f}km")
-        else:
-            print(f"[真实对比] 警告: 无法读取 {args.real_shp}")
     if use_real:
-        mode = "全局线网" if global_real_exists else args.real_dir
-        guide_text = "参考线参与规划" if reference_guidance else "真实线仅用于事后评估"
-        print(f"[真实对比] 已启用: 模式={mode}  {guide_text}")
+        mode = "单任务目标线路" if global_real_exists else args.real_dir
+        print(f"[真实对比] 已启用: 模式={mode}；真实线仅用于规划后的事后评估")
 
     # CostUNet（全局加载一次）
     costunet = load_costunet() if args.use_costunet and HAS_TORCH else None
@@ -237,10 +384,9 @@ def main():
         print("[warn] CostUNet不可用，继续使用规则代价面")
 
     all_results = []
-    baseline_records = []  # 无走廊引导的 VIN-Grad 偏差记录(A/B 对照)
-    policy = value = None
     main_done = False
 
+    failed_cases = []
     for ci, (cname, (slat, slon), (elat, elon)) in enumerate(cases):
         print(f"\n--- 用例 {ci + 1}/{len(cases)}: {cname} ---")
         try:
@@ -253,9 +399,6 @@ def main():
             sr, sc = geo_to_rowcol(slat, slon, transform)
             er, ec = geo_to_rowcol(elat, elon, transform)
             station_task = station_task_by_route.get(cname)
-            if station_task is None:
-                sr, sc = snap_to_land(dem, sr, sc)
-                er, ec = snap_to_land(dem, er, ec)
 
             terrain = compute_terrain_factors(dem, pm, transform, crs)
             left = transform.c; top = transform.f
@@ -278,36 +421,10 @@ def main():
             model_cost = costunet.predict(stack) if costunet is not None else None
             cost = build_route_cost(terrain, osm, args.settlement_weight, model_cost)
 
-            # ---- 真实/参考路径加载 + 走廊引导代价(缩小规划路径与真实路径差距) ----
             real_geo = None
-            real_dist_m = None
-            real_field = None
-            if reference_guidance and use_real and global_real_geo is not None:
-                # 全局线网: 所有走廊共用同一真实参考(如全区输电网络)
-                real_geo = global_real_geo
-                real_dist_m, real_field = compute_dist_to_route(real_geo, transform, H, W, pm)
-                print(f"  [真实线路网] 全局参考: {len(real_geo)}条折线, 总长 {real_length_km(real_geo):.0f}km")
-            elif reference_guidance and use_real:
-                rp = resolve_real_path(cname, args.real_dir)
-                if rp and Path(rp).exists():
-                    real_geo = load_real_path(rp)
-                    if real_geo:
-                        real_dist_m, real_field = compute_dist_to_route(real_geo, transform, H, W, pm)
-                        print(f"  [真实路径] 加载 {Path(rp).name}: {len(real_geo)}条折线, "
-                              f"{real_length_km(real_geo):.1f}km")
-            guide_enabled = reference_guidance and real_geo is not None
-            corridor_w = (args.corridor_w if args.corridor_w is not None else CORRIDOR_W_DEFAULT) if guide_enabled else 0.0
-            real_attract = (args.real_attract if args.real_attract is not None else REAL_ATTRACT_DEFAULT) if guide_enabled else 0.0
-            cost_base = cost.copy()  # 保留无引导基线代价, 供 A/B 对照
-            if corridor_w > 0 and real_geo:
-                ratio = np.clip(real_dist_m / max(float(args.corridor_band), 1.0), 0.0, CORRIDOR_CAP)
-                corridor_pen = corridor_w * ratio
-                cost = np.clip(cost + corridor_pen, 0, 1.5).astype(np.float32)
-                print(f"  [走廊引导] w={corridor_w:.2f} band={args.corridor_band:.0f}m 最大附加代价={corridor_pen.max():.2f}")
             if custom_constraints:
                 soft_cost = custom_constraints["soft_cost"]
                 cost = (cost + soft_cost).astype(np.float32)
-                cost_base = (cost_base + soft_cost).astype(np.float32)
             print(f"  代价面范围 [{np.nanmin(cost):.3f}, {np.nanmax(cost):.3f}]")
 
             slope = terrain["slope"]; elev = terrain["elevation"]
@@ -326,17 +443,8 @@ def main():
                 hard_mask[np.asarray(building_mask) > 0] = 0
             if args.building_clearance_m > 0 and "building_distance_m" in osm:
                 hard_mask[osm["building_distance_m"] <= args.building_clearance_m] = 0
-            if station_task:
-                if not (0 <= sr < H and 0 <= sc < W and 0 <= er < H and 0 <= ec < W):
-                    raise ValueError("站点接入点超出DEM范围")
-                if not hard_mask[sr, sc] or not hard_mask[er, ec]:
-                    raise ValueError("站点接入点位于NoData/建筑/配置禁区内；请提供站端线路接入点坐标")
-                sr_m, sc_m, er_m, ec_m = sr, sc, er, ec
-            else:
-                sr_m, sc_m = snap_to_land(dem, sr, sc)
-                er_m, ec_m = snap_to_land(dem, er, ec)
-                hard_mask[sr_m, sc_m] = 1
-                hard_mask[er_m, ec_m] = 1
+            validate_endpoint_cells((sr, sc), (er, ec), dem.shape, hard_mask)
+            same_grid_cell = (sr, sc) == (er, ec)
             cost_grid = (1.0 + 4.0 * cost).astype(np.float64)
             cost_grid = np.where(hard_mask == 0, np.inf, cost_grid)
             cost_finite = np.where(np.isfinite(cost), cost, 1.0).astype(np.float32)
@@ -347,138 +455,74 @@ def main():
             methods = {}
             grade_reports = {}
             V_main = None
-            # --- 方法1: 神经值传播 + 梯度追踪 (VIN-Grad, 主 AI 方法) ---
-            if HAS_TORCH:
+            # --- 方法1: 神经值传播 + 梯度追踪 (VIN-Grad 候选生成) ---
+            if HAS_TORCH and not args.no_vin and not same_grid_cell:
                 t_v = time.time()
                 extra = build_vin_extra(stack)
                 goal_mask = np.zeros((H, W), np.float32); goal_mask[er, ec] = 1.0
-                # 参考线引导模式允许用参考误差挑选重试种子; 无引导时固定使用首个种子,
-                # 避免把验收线用于规划阶段的候选筛选。
-                best_vin, best_vin_V, best_vin_err = None, None, 1e9
-                last_Vc = None
-                for vin_attempt in range(3 if guide_enabled else 1):
-                    torch.manual_seed(RANDOM_SEED + vin_attempt * 10)
-                    V = train_vin(cost_vin, goal_mask, extra, hard_mask,
-                                  route_pixel_spacing, n_steps=80)
-                    Vc = np.nan_to_num(V, nan=1e6, posinf=1e6, neginf=1e6)
-                    last_Vc = Vc
-                    if not np.isfinite(Vc).all():
-                        print(f"  [VIN-Grad] 第{vin_attempt + 1}次含非有限值, 重训..."); continue
-                    geo_t = smooth_path_with_constraints(gradient_track_path(
-                        V, cost_finite, hard_mask, (sr, sc), (er, ec), transform,
-                        real_field=real_field if guide_enabled else None, real_attract=real_attract,
-                        real_dist_m=real_dist_m if guide_enabled else None,
-                        real_attract_cutoff=args.real_attract_cutoff), transform, hard_mask)
-                    geo_t, grade_reports["VIN-Grad"] = filter_path_by_ground_grade(
-                        geo_t, dem, transform, args.max_ground_grade, crs)
-                    err_t = 1e9
-                    if geo_t and guide_enabled:
-                        dev_t = compute_deviation(geo_t, real_geo, transform, real_dist_m)
-                        if dev_t:
-                            e = eval_error(path_length_km(geo_t), dev_t)
-                            if e:
-                                err_t = e["worst_err_pct"]
-                    if not guide_enabled:
-                        best_vin, best_vin_V = geo_t, Vc
-                        break
-                    if err_t < best_vin_err:
-                        best_vin_err = err_t; best_vin = geo_t; best_vin_V = Vc
-                    if best_vin_err <= ERROR_TOL_PCT:
-                        print(f"  [VIN-Grad] 第{vin_attempt + 1}次达标({best_vin_err:.2f}%), 停止重训")
-                        break
-                    print(f"  [VIN-Grad] 第{vin_attempt + 1}次误差{best_vin_err:.2f}%>8%, 重训(seed+{(vin_attempt + 1) * 10})...")
-                geo_vin = best_vin
-                if geo_vin:
-                    grade_reports["VIN-Grad"] = ground_grade_limit_report(
+                torch.manual_seed(RANDOM_SEED)
+                V = train_vin_or_skip_on_oom(cost_vin, goal_mask, extra, hard_mask,
+                                             route_pixel_spacing, n_steps=80)
+                if V is None:
+                    print("  [VIN-Grad] 本用例未生成 AI 候选")
+                else:
+                    V_main = np.nan_to_num(V, nan=1e6, posinf=1e6, neginf=1e6)
+                    geo_vin = smooth_path_with_constraints(gradient_track_path(
+                        V, cost_finite, hard_mask, (sr, sc), (er, ec), transform),
+                        transform, hard_mask)
+                    geo_vin, grade_reports["VIN-Grad"] = filter_path_by_ground_grade(
                         geo_vin, dem, transform, args.max_ground_grade, crs)
-                elif "VIN-Grad" not in grade_reports:
-                    grade_reports["VIN-Grad"] = ground_grade_limit_report(
-                        None, dem, transform, args.max_ground_grade, crs)
-                V_main = best_vin_V if best_vin_V is not None else last_Vc
-                # 保存真实 V/cost/hard/起终点, 便于 PPO 推理调试(无需重跑训练即可秒级重测)
-                try:
-                    np.savez(str(OUT / "_last_V.npz"), V=V_main, cost=cost_finite,
-                             hard=hard_mask, start=np.array([sr, sc]), goal=np.array([er, ec]))
-                except Exception:
-                    pass
-                methods["VIN-Grad"] = geo_vin
-                t_vin = time.time() - t_v
-                print(f"  [VIN-Grad] 路径 {len(geo_vin) if geo_vin else 0} 点, 耗时 {t_vin:.1f}s")
+                    if geo_vin:
+                        grade_reports["VIN-Grad"] = ground_grade_limit_report(
+                            geo_vin, dem, transform, args.max_ground_grade, crs)
+                    else:
+                        grade_reports["VIN-Grad"] = ground_grade_limit_report(
+                            None, dem, transform, args.max_ground_grade, crs)
+                    # 保存真实 V/cost/hard/起终点, 便于 PPO 推理调试(无需重跑训练即可秒级重测)
+                    try:
+                        np.savez(str(OUT / "_last_V.npz"), V=V_main, cost=cost_finite,
+                                 hard=hard_mask, start=np.array([sr, sc]), goal=np.array([er, ec]))
+                    except Exception:
+                        pass
+                    methods["VIN-Grad"] = geo_vin
+                    t_vin = time.time() - t_v
+                    print(f"  [VIN-Grad] 路径 {len(geo_vin) if geo_vin else 0} 点, 耗时 {t_vin:.1f}s")
             else:
-                print("  [skip] torch 不可用, 跳过 VIN-Grad")
-
-            # --- 基线对照: 无走廊引导的 VIN-Grad(展示优化前与真实路径的差距) ---
-            if args.baseline and guide_enabled and corridor_w > 0 and real_geo and HAS_TORCH:
-                try:
-                    cost_grid_base = (1.0 + 4.0 * cost_base).astype(np.float32)
-                    cost_vin_base = np.where(hard_mask > 0, cost_grid_base, 0.0).astype(np.float32)
-                    cost_finite_base = np.where(np.isfinite(cost_base), cost_base, 1.0).astype(np.float32)
-                    Vb = train_vin(cost_vin_base, goal_mask, extra, hard_mask,
-                                   route_pixel_spacing, n_steps=80)
-                    Vb = np.nan_to_num(Vb, nan=1e6, posinf=1e6, neginf=1e6)
-                    geo_vin_base = gradient_track_path(Vb, cost_finite_base, hard_mask, (sr, sc), (er, ec), transform)
-                    geo_vin_base = smooth_path_with_constraints(geo_vin_base, transform, hard_mask)
-                    geo_vin_base, grade_reports["VIN-Grad-no-corridor"] = filter_path_by_ground_grade(
-                        geo_vin_base, dem, transform, args.max_ground_grade, crs)
-                    dev_base = compute_deviation(geo_vin_base, real_geo, transform, real_dist_m)
-                    if dev_base:
-                        print(f"  [基线VIN无引导] 偏差 Hausdorff={dev_base['dev_hausdorff_km']}km "
-                              f"mean={dev_base['dev_mean_km']}km max={dev_base['dev_max_km']}km")
-                        baseline_records.append({"case": cname, "deviation": dev_base,
-                                                 "length_km": path_length_km(geo_vin_base)})
-                except Exception as ex:
-                    print(f"  [基线VIN无引导] 失败: {ex}")
+                reason = "起终点位于同一栅格" if same_grid_cell else "已禁用或 torch 不可用"
+                print(f"  [skip] VIN-Grad {reason}")
 
             # --- 方法2: RL/PPO 策略梯度路径生成器 (每用例独立训练: 代价图与目标不同) ---
-            if HAS_TORCH and not args.no_ppp:
-                try:
-                    best_ppo, best_ppo_err = None, 1e9
-                    for ppo_attempt in range(2 if guide_enabled else 1):
-                        torch.manual_seed(RANDOM_SEED + 100 + ppo_attempt * 10)
-                        print(f"  [PPO] 训练策略网络 (尝试{ppo_attempt + 1}) ...")
-                        t_p = time.time()
-                        policy, value = train_ppo(cost_finite, hard_mask, (er, ec), (sr, sc), value_map=V_main,
-                                                  n_updates=args.ppo_updates, episodes=args.ppo_episodes,
-                                                  ppo_epochs=args.ppo_epochs, bc_steps=args.ppo_bc)
-                        print(f"  [PPO] 训练完成 {time.time() - t_p:.1f}s")
-                        ctx = build_ppo_context(np.clip(cost_finite, 0, 1), (er, ec), H, W, value_map=V_main)
-                        ppo_path = ppo_rollout_path(policy, ctx, cost_finite, hard_mask, (er, ec), (sr, sc),
-                                                   n_tries=6, guide_v=V_main, guide_w=6.0, v_tol=0.35,
-                                                   real_field=real_field if guide_enabled else None,
-                                                   real_attract=real_attract,
-                                                   real_dist_m=real_dist_m if guide_enabled else None,
-                                                   real_attract_cutoff=args.real_attract_cutoff)
-                        geo_t = smooth_path_with_constraints(
-                            [rowcol_to_geo(r, c, transform) for r, c in ppo_path], transform, hard_mask)
-                        geo_t, grade_reports["PPO"] = filter_path_by_ground_grade(
-                            geo_t, dem, transform, args.max_ground_grade, crs)
-                        err_t = 1e9
-                        if geo_t and guide_enabled:
-                            dev_t = compute_deviation(geo_t, real_geo, transform, real_dist_m)
-                            if dev_t:
-                                e = eval_error(path_length_km(geo_t), dev_t)
-                                if e:
-                                    err_t = e["worst_err_pct"]
-                        if not guide_enabled:
-                            best_ppo = geo_t
-                            break
-                        if err_t < best_ppo_err:
-                            best_ppo_err = err_t; best_ppo = geo_t
-                        if best_ppo_err <= ERROR_TOL_PCT:
-                            print(f"  [PPO] 第{ppo_attempt + 1}次达标({best_ppo_err:.2f}%), 停止重训")
-                            break
-                        print(f"  [PPO] 第{ppo_attempt + 1}次误差{best_ppo_err:.2f}%>8%, 重训(seed+{(ppo_attempt + 1) * 10})...")
-                    geo_ppo = best_ppo
+            if HAS_TORCH and not args.no_ppp and not same_grid_cell:
+                def build_ppo_candidate():
+                    torch.manual_seed(RANDOM_SEED + 100)
+                    print("  [PPO] 训练策略网络 ...")
+                    t_p = time.time()
+                    ppo_policy, _ = train_ppo(
+                        cost_finite, hard_mask, (er, ec), (sr, sc), value_map=V_main,
+                        n_updates=args.ppo_updates, episodes=args.ppo_episodes,
+                        ppo_epochs=args.ppo_epochs, bc_steps=args.ppo_bc)
+                    print(f"  [PPO] 训练完成 {time.time() - t_p:.1f}s")
+                    ctx = build_ppo_context(np.clip(cost_finite, 0, 1), (er, ec), H, W, value_map=V_main)
+                    ppo_path = ppo_rollout_path(ppo_policy, ctx, cost_finite, hard_mask, (er, ec), (sr, sc),
+                                               n_tries=6, guide_v=V_main, guide_w=6.0, v_tol=0.35)
+                    geo_ppo = smooth_path_with_constraints(
+                        [rowcol_to_geo(r, c, transform) for r, c in ppo_path], transform, hard_mask)
+                    geo_ppo, grade_reports["PPO"] = filter_path_by_ground_grade(
+                        geo_ppo, dem, transform, args.max_ground_grade, crs)
                     if geo_ppo:
                         grade_reports["PPO"] = ground_grade_limit_report(
                             geo_ppo, dem, transform, args.max_ground_grade, crs)
-                    elif "PPO" not in grade_reports:
+                    else:
                         grade_reports["PPO"] = ground_grade_limit_report(
                             None, dem, transform, args.max_ground_grade, crs)
+                    return geo_ppo
+
+                geo_ppo, ppo_oom = run_method_or_skip_on_oom("PPO", build_ppo_candidate)
+                if ppo_oom is None:
                     methods["PPO"] = geo_ppo
                     print(f"  [PPO] 路径 {len(geo_ppo) if geo_ppo else 0} 点")
-                except Exception as ex:
-                    print(f"  [PPO] 训练/推理失败: {ex}; 跳过")
+            elif same_grid_cell:
+                print("  [skip] PPO 起终点位于同一栅格")
 
             # --- 基准: A* (仅作传统方法对照) ---
             t_a = time.time()
@@ -494,20 +538,6 @@ def main():
             methods["A*(baseline)"] = geo_astar
             t_astar = time.time() - t_a
             print(f"  [A* baseline] 路径 {len(geo_astar) if geo_astar else 0} 点, 耗时 {t_astar:.1f}s")
-
-            # 无引导模式在所有路径都生成后才读取真实线, 使其只进入事后评估。
-            if use_real and not reference_guidance:
-                if global_real_exists:
-                    if global_real_geo is None:
-                        global_real_geo = load_real_path(args.real_shp)
-                    real_geo = global_real_geo
-                else:
-                    rp = resolve_real_path(cname, args.real_dir)
-                    if rp and Path(rp).exists():
-                        real_geo = load_real_path(rp)
-                if real_geo:
-                    real_dist_m, _ = compute_dist_to_route(real_geo, transform, H, W, pm)
-                    print(f"  [POST-EVAL] 加载真实线路: {len(real_geo)}条折线")
 
             station_offsets_by_method = {}
             station_measurements = {}
@@ -528,6 +558,12 @@ def main():
                         print(f"  [{method}] 站点端点恢复后的硬约束复核通过")
                     elif hard_report["hard_constraint_status"] == "fail":
                         print(f"  [{method}] 站点端点恢复后穿越硬禁区，拒绝该候选")
+            else:
+                for method, geo in list(methods.items()):
+                    geo = expand_single_cell_route(geo, (slat, slon), (elat, elon))
+                    geo, grade_reports[method] = filter_path_by_ground_grade(
+                        geo, dem, transform, args.max_ground_grade, crs)
+                    methods[method] = geo
 
             # 指标
             start_ll = (slat, slon); end_ll = (elat, elon)
@@ -536,6 +572,13 @@ def main():
                 if geo:
                     met = compute_metrics(geo, dem, transform, cost_grid, hard_mask, start_ll, end_ll)
                     met["time_s"] = round(t_vin if m == "VIN-Grad" else (t_astar if m == "A*(baseline)" else 0.0), 2)
+                    if not station_task:
+                        start_center = rowcol_to_geo(sr, sc, transform)
+                        end_center = rowcol_to_geo(er, ec, transform)
+                        met["start_input_to_grid_center_offset_m"] = round(
+                            haversine_km(slon, slat, *start_center) * 1000.0, 2)
+                        met["end_input_to_grid_center_offset_m"] = round(
+                            haversine_km(elon, elat, *end_center) * 1000.0, 2)
                 elif m in grade_reports:
                     met = {}
                 else:
@@ -547,31 +590,64 @@ def main():
                     met["hard_constraint_status"] = (
                         "pass" if met.get("hard_violations", 0) == 0 else "fail")
                 met.update(station_offsets_by_method.get(m, {}))
-                if geo and real_geo:
-                    dev = compute_deviation(geo, real_geo, transform, real_dist_m)
-                    if dev:
-                        met["dev_hausdorff_km"] = dev["dev_hausdorff_km"]
-                        met["dev_mean_km"] = dev["dev_mean_km"]
-                        met["dev_p90_km"] = dev["dev_p90_km"]
-                        met["dev_max_km"] = dev["dev_max_km"]
-                        err = eval_error(met.get("length_km", 0.0), dev)
-                        if err:
-                            met.update(err)
-                        flag = (f"PASS(误差{err['worst_err_pct']:.2f}%<=8%)"
-                                if (err and err["pass8"]) else
-                                f"FAIL(误差{err['worst_err_pct']:.2f}%)" if err else "NA")
-                        print(f"  [{m}] 偏差 vs 真实线网: 最大={dev['dev_hausdorff_km']}km "
-                              f"P90={dev['dev_p90_km']}km 平均={dev['dev_mean_km']}km | "
-                              f"长度误差={err['len_err_pct'] if err else 'NA'}% "
-                              f"Haus%={err['haus_pct'] if err else 'NA'}% -> {flag}")
                 case_metrics[m] = met
-            # 有参考线引导时按参考误差择优; 无引导时不读取验收误差做选择, 使用 A* 代价基线。
-            best_method, best_err, selection_rule = _select_final_route(
-                methods, case_metrics, guide_enabled)
+
+            # 按固定优先规则筛选硬约束可行路线，再单独读取真实线作事后评分。
+            best_method, _, selection_rule = _select_final_route(methods, case_metrics)
             final_geo = methods.get(best_method) if best_method else None
-            final_is_ai = best_method in ("VIN-Grad", "PPO")
+            final_is_ai = (best_method in ("VIN-Grad", "PPO")) if best_method else None
             osm_data_quality, missing_osm_layers = screening_data_quality(osm_layer_metadata)
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
+
+            real_evaluation_status = "not_requested"
+            real_evaluation_methods = []
+            if use_real:
+                real_evaluation_status = "reference_missing"
+                if global_real_exists:
+                    real_geo, real_evaluation_status = load_case_reference(
+                        args.real_shp, require_single_line=True)
+                else:
+                    try:
+                        rp = resolve_real_path(
+                            cname, args.real_dir,
+                            include_global_mapping=allow_global_reference_mapping)
+                    except AmbiguousReferenceError as exc:
+                        print(f"  [warn] 目标线路参考文件匹配不唯一: {exc}")
+                        real_geo, real_evaluation_status = None, "reference_ambiguous"
+                    else:
+                        real_geo, real_evaluation_status = load_case_reference(rp)
+                if real_geo:
+                    print(f"  [POST-EVAL] 加载真实线路: {len(real_geo)}条折线")
+                    for method, geo in methods.items():
+                        if not geo or method not in case_metrics:
+                            continue
+                        dev = compute_deviation(geo, real_geo)
+                        if not dev:
+                            continue
+                        metrics = case_metrics[method]
+                        metrics.update({
+                            "dev_hausdorff_km": dev["dev_hausdorff_km"],
+                            "dev_mean_km": dev["dev_mean_km"],
+                            "dev_p90_km": dev["dev_p90_km"],
+                            "dev_max_km": dev["dev_max_km"],
+                        })
+                        err = eval_planned_route_error(geo, dev)
+                        if err:
+                            metrics.update(err)
+                        real_evaluation_methods.append(method)
+                        flag = (f"PASS(误差{err['worst_err_pct']:.6f}%<=8%)"
+                                if (err and err["pass8"]) else
+                                f"FAIL(误差{err['worst_err_pct']:.6f}%)" if err else "NA")
+                        print(f"  [{method}] 偏差 vs 目标线路: 最大={dev['dev_hausdorff_km']:.3f}km "
+                              f"P90={dev['dev_p90_km']:.3f}km 平均={dev['dev_mean_km']:.3f}km | "
+                              f"长度误差={err['len_err_pct'] if err else 'NA'}% "
+                              f"Haus%={err['haus_pct'] if err else 'NA'}% -> {flag}")
+                    real_evaluation_status = (
+                        "comparison_completed" if real_evaluation_methods
+                        else "reference_loaded_no_comparable_route")
+
+            selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
+            best_err = selected_metrics.get("worst_err_pct")
             planning_status = (
                 "no_hard_constraint_compliant_route" if not final_geo else
                 "screening_candidate_data_incomplete" if missing_osm_layers else
@@ -579,9 +655,11 @@ def main():
             case_metrics[FINAL_ROUTE_LABEL] = {
                 "method": best_method,
                 "selection_rule": selection_rule,
-                "worst_err_pct": round(best_err, 3) if best_err is not None else None,
-                "pass8": bool(best_err <= ERROR_TOL_PCT) if guide_enabled and best_err is not None else None,
+                "worst_err_pct": round(best_err, 6) if best_err is not None else None,
+                "pass8": selected_metrics.get("pass8"),
                 "is_ai_method": final_is_ai,
+                "real_evaluation_status": real_evaluation_status,
+                "real_evaluation_methods": real_evaluation_methods,
                 "planning_status": planning_status,
                 "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
                 "hard_violations": selected_metrics.get("hard_violations"),
@@ -639,10 +717,7 @@ def main():
                             "max_terrain_elevation_m": args.max_terrain_elevation_m,
                             "route_constraints_limitations": "No population layer, official protected-area layer, conductor clearance, tower siting or span feasibility checked",
                         })
-            if guide_enabled and best_err is not None:
-                print(f"  [集成] 最终路线采用 {best_method} (参考线误差 {best_err:.2f}%)")
-            else:
-                print(f"  [集成] 无参考线择优, 最终路线采用 {best_method} (A*代价基线)")
+            print(f"  [集成] 最终路线采用 {best_method} ({selection_rule})；误差仅作事后指标")
             # 导出最终路线矢量 (GeoJSON)
             safe_now = route_output_name(cname)
             final_dir = OUT / safe_now
@@ -653,7 +728,7 @@ def main():
                             "geometry": {"type": "LineString",
                                          "coordinates": geojson_coordinates(final_geo)},
                             "properties": {"case": cname, "method": best_method,
-                                           "worst_err_pct": round(best_err, 3) if best_err is not None else None,
+                                           "worst_err_pct": round(best_err, 6) if best_err is not None else None,
                                            "selection_rule": selection_rule,
                                            "planning_status": planning_status,
                                            "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
@@ -662,6 +737,8 @@ def main():
                                            "missing_osm_screening_layers": missing_osm_layers,
                                            "constraint_layer_metadata": custom_constraint_metadata,
                                            "length_km": selected_metrics.get("length_km"),
+                                           "start_input_to_grid_center_offset_m": selected_metrics.get("start_input_to_grid_center_offset_m"),
+                                           "end_input_to_grid_center_offset_m": selected_metrics.get("end_input_to_grid_center_offset_m"),
                                            "mean_cost": selected_metrics.get("mean_cost"),
                                            "sinuosity": selected_metrics.get("sinuosity"),
                                            "cum_relief_m": selected_metrics.get("cum_relief_m"),
@@ -694,8 +771,8 @@ def main():
                         json.dump({"type": "FeatureCollection", "features": _fg}, _ff, ensure_ascii=False)
                     if final_geo:
                         write_elevation_profile_csv(final_geo, dem, transform, final_dir / "elevation_profile.csv")
-            except Exception:
-                pass
+            except Exception as exc:
+                raise RuntimeError(f"最终路线必需文件写出失败: {exc}") from exc
             all_results.append({"case": cname, "metrics": case_metrics})
             # 增量写出真实对比 JSON: 任一走廊完成后即落盘, 即使后续走廊异常/SIGKILL 终止也能保留已完成结果
             try:
@@ -703,6 +780,8 @@ def main():
                 for _rec in all_results:
                     _entry = {"case": _rec["case"]}
                     for _m, _met in _rec["metrics"].items():
+                        if _m == FINAL_ROUTE_LABEL:
+                            continue
                         if "dev_hausdorff_km" in _met:
                             _entry[_m] = {"length_km": _met["length_km"],
                                           "dev_hausdorff_km": _met["dev_hausdorff_km"],
@@ -780,6 +859,28 @@ def main():
             import traceback as _tb
             _tb.print_exc()
             print(f"[WARN] 用例 {cname} 处理失败, 跳过此用例: {_exc}")
+            failed_cases.append({"case": cname, "error": str(_exc)})
+
+    run_summary = {
+        "scope": "per_case_planning_and_required_route_artifacts",
+        **summarize_run_completion(len(cases), all_results, failed_cases),
+        "real_evaluation_by_case": [
+            {"case": record["case"],
+             "status": record["metrics"].get(FINAL_ROUTE_LABEL, {}).get("real_evaluation_status", "not_recorded"),
+             "methods": record["metrics"].get(FINAL_ROUTE_LABEL, {}).get("real_evaluation_methods", [])}
+            for record in all_results
+        ],
+        "dem": str(dem_path),
+        "max_side": args.max_side,
+        "argv": sys.argv,
+    }
+    try:
+        with open(OUT / "run_summary.json", "w", encoding="utf-8") as f:
+            json.dump(run_summary, f, ensure_ascii=False, indent=2)
+    except Exception as _exc:
+        print(f"[WARN] 批次运行摘要写出失败: {_exc}")
+    print(f"[批次状态] 应测 {len(cases)} 条，完成 {run_summary['completed_cases']} 条，"
+          f"无可行路线 {len(run_summary['no_route_cases'])} 条，失败 {len(failed_cases)} 条")
 
     # 聚合对比图 + 指标表
     try:
@@ -813,6 +914,8 @@ def main():
         for rec in all_results:
             entry = {"case": rec["case"]}
             for m, met in rec["metrics"].items():
+                if m == FINAL_ROUTE_LABEL:
+                    continue
                 if "dev_hausdorff_km" in met:
                     entry[m] = {"length_km": met["length_km"],
                                 "dev_hausdorff_km": met["dev_hausdorff_km"],
@@ -825,8 +928,6 @@ def main():
                                 "pass8": met.get("pass8")}
             if entry:
                 real_out.append(entry)
-        if baseline_records:
-            real_out.append({"baseline_VIN_no_corridor": baseline_records})
         try:
             with open(OUT / "real_comparison_metrics.json", "w", encoding="utf-8") as f:
                 json.dump(real_out, f, ensure_ascii=False, indent=2)
@@ -836,48 +937,82 @@ def main():
         print("  真实路径偏差对比 (规划路径 vs 真实线路, 单位 km)")
         print("=" * 70)
         print(f"  {'走廊':16s} {'方法':16s} {'Hausdorff':>9s} {'长度误差%':>9s} {'Haus%':>7s} {'达标':>5s}")
-        n_pass = n_tot = 0
+        candidate_methods = ["VIN-Grad", "PPO", "A*(baseline)"]
+        failed_case_names = {item["case"] for item in failed_cases}
         for rec in all_results:
-            for m, met in rec["metrics"].items():
+            if rec["case"] in failed_case_names or rec["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status") == "no_hard_constraint_compliant_route":
+                continue
+            for m in candidate_methods:
+                met = rec["metrics"].get(m, {})
+                ok = met.get("pass8")
                 if "dev_hausdorff_km" in met:
-                    we = met.get("worst_err_pct")
-                    ok = met.get("pass8")
-                    n_tot += 1
-                    if ok:
-                        n_pass += 1
+                    status = "PASS" if ok is True else "FAIL" if ok is False else "NA"
                     print(f"  {rec['case']:16s} {m:16s} {met['dev_hausdorff_km']:9.2f} "
-                          f"{(met.get('len_err_pct') or 0):9.2f} {(met.get('haus_pct') or 0):7.2f} "
-                          f"{(('PASS' if ok else 'FAIL') if we is not None else 'NA'):>5s}")
-        for b in baseline_records:
-            d = b["deviation"]
-            print(f"  {b['case']:16s} {'VIN无引导':16s} {d['dev_hausdorff_km']:9.2f} {'-':>9s} {'-':>7s} {'-':>5s}")
+                          f"{(met.get('len_err_pct') or 0):11.6f} {(met.get('haus_pct') or 0):10.6f} "
+                          f"{status:>5s}")
+        candidate_summaries = [
+            method_pass8_summary(
+                all_results, method, expected_cases=len(cases),
+                failed_case_names=failed_case_names,
+            ) for method in candidate_methods
+        ]
+        n_pass = sum(summary["pass"] for summary in candidate_summaries)
+        n_fail = sum(summary["fail"] for summary in candidate_summaries)
+        n_unmeasured = sum(summary["unmeasured"] for summary in candidate_summaries)
         print("-" * 70)
-        print(f"  误差<=8% 达标: {n_pass}/{n_tot} (方法×走廊); 目标 ERROR_TOL_PCT={ERROR_TOL_PCT}%")
+        print(f"  候选方法评估: PASS {n_pass}, FAIL {n_fail}, 未测 {n_unmeasured}; "
+              f"最终路线不重复计入; 目标 ERROR_TOL_PCT={ERROR_TOL_PCT}%")
         print("=" * 70)
 
-        # ── 对抗式循环验收: 按方法独立统计 PASS(不掩盖 AI 成败) ──
+        # ── 按方法独立统计内部阈值对照结果 ──
         print("\n" + "=" * 70)
-        print("  【独立验收】各 AI 方法自身达标率 (Critic 挑战 G2)")
+        print("  【方法独立对照】各候选方法自身内部阈值通过率")
         print("=" * 70)
         for m in ["VIN-Grad", "PPO", "A*(baseline)"]:
-            recs = [r for r in all_results if m in r["metrics"]]
-            if not recs:
-                continue
-            npass = sum(1 for r in recs if r["metrics"][m].get("pass8"))
-            worst = max((r["metrics"][m].get("worst_err_pct", 0.0) for r in recs), default=0.0)
-            tag = "AI主方法" if m == "VIN-Grad" else ("AI-RL" if m == "PPO" else "基线(非AI)")
-            verdict = "PASS" if npass == len(recs) else f"FAIL({npass}/{len(recs)})"
-            print(f"  {m:16s} [{tag}] 自身达标 {npass}/{len(recs)}  最差={worst:.2f}%  -> {verdict}")
+            summary = method_pass8_summary(
+                all_results, m, expected_cases=len(cases),
+                failed_case_names=failed_case_names,
+            )
+            npass = summary["pass"]
+            nfail = summary["fail"]
+            n_unmeasured = summary["unmeasured"]
+            evaluated_count = npass + nfail
+            worst = summary["worst_err_pct"]
+            tag = "AI候选" if m == "VIN-Grad" else ("AI-RL" if m == "PPO" else "基线(非AI)")
+            verdict = (f"PARTIAL({npass} pass/{nfail} fail/{n_unmeasured} 未测)"
+                       if n_unmeasured else ("PASS" if nfail == 0 else f"FAIL({npass}/{evaluated_count})"))
+            worst_text = f"{worst:.2f}%" if worst is not None else "NA"
+            print(f"  {m:16s} [{tag}] 自身达标 {npass}/{evaluated_count}  未测={n_unmeasured} "
+                  f"最差={worst_text}  -> {verdict}")
         ai_fail_final = [r["case"] for r in all_results
-                         if not r["metrics"].get("VIN-Grad", {}).get("pass8")]
-        ai_fallback = [r["case"] for r in all_results
-                       if r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("is_ai_method") is False]
+                         if r["case"] not in failed_case_names
+                         and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
+                         != "no_hard_constraint_compliant_route"
+                         and r["metrics"].get("VIN-Grad", {}).get("pass8") is False]
+        measured_vin_cases = {
+            r["case"] for r in all_results
+            if r["case"] not in failed_case_names
+            and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
+            != "no_hard_constraint_compliant_route"
+            and r["metrics"].get("VIN-Grad", {}).get("pass8") is not None
+        }
+        ai_unmeasured = [case[0] for case in cases if case[0] not in measured_vin_cases]
+        ai_unmeasured.extend(item["case"] for item in failed_cases)
+        ai_unmeasured.extend(run_summary["no_route_cases"])
+        ai_unmeasured = list(dict.fromkeys(ai_unmeasured))
+        astar_selected = [r["case"] for r in all_results
+                          if r["case"] not in failed_case_names
+                          and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
+                          != "no_hard_constraint_compliant_route"
+                          if r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("method") == "A*(baseline)"]
         if ai_fail_final:
-            print(f"  ⚠ 以下走廊 VIN-Grad(AI主方法)自身未达标: {ai_fail_final}")
-        else:
-            print("  ✓ VIN-Grad(AI主方法)在所有走廊自身达标(<=8%)")
-        if ai_fallback:
-            print(f"  ℹ 以下走廊最终交付路线选用了 A*(因其误差比已达标的 VIN-Grad 略优, 非AI失败): {ai_fallback}")
+            print(f"  ⚠ 以下走廊 VIN-Grad 候选未达到项目内部阈值: {ai_fail_final}")
+        elif not ai_unmeasured and not failed_cases:
+            print("  ✓ VIN-Grad 候选在全部可评估走廊均不超过项目内部 8% 阈值")
+        if ai_unmeasured:
+            print(f"  ℹ 以下走廊 VIN-Grad 未测/未生成可评估路径: {ai_unmeasured}")
+        if astar_selected:
+            print(f"  ℹ 以下走廊按既定规则选择 A* 最终路线: {astar_selected}")
         print("=" * 70)
 
     # 控制台摘要

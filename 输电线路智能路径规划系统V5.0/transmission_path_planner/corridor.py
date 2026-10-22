@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-"""corridor.py — 输电走廊先验模块(V6)
+"""旧版输电走廊先验工具。
 
-从全网既有线路(默认 SHP)构造两类先验场, 均支持留一法排除待规划线:
-  1) dist_existing: 到最近既有线路的米级距离场 + 方向场(用于 CostUNet 通道15 与 VIN 引导)
-  2) regional_density: 高斯平滑的区域走廊密度场(反映"本区域工程师习惯把线放哪")
+离线构造既有线路距离/方向场和区域密度场，供显式调用方实验使用。
+当前 CLI 未导入本模块；规划路线不使用这些先验，也不读取待评估线路引导。
 """
 from __future__ import annotations
 import pickle

@@ -157,7 +157,7 @@ DEFAULT_CASES = [
 # ----------------------------------------------------------------------------
 # v3 产出每条走廊一个 real_path.shp (EPSG:4326, (lon,lat) 与本项目 geo 约定一致)。
 # 注意: 这些是 v3 的真实走廊, 与上方 T01~T04 不重叠; T01~T04 目前无对应真实线。
-# 阶段二: 把 T01~T04 各自真实线路存为 "<净化名>_real_path.shp" 放到 REAL_PATH_DIR 即可自动接入。
+# 阶段二: 把 T01~T04 各自真实线路放入 REAL_PATH_DIR，供规划后参考线路评估自动匹配。
 REAL_PATH_DIR = BASE_DIR / "v3_20260525" / "output" / "comparisons"
 REAL_CASES = [
     # (名称, 起点(lat,lon), 终点(lat,lon), real_path 文件名)
@@ -168,9 +168,3 @@ REAL_CASES = [
 ]
 # 名称 -> v3 real_path 文件名 的显式映射(阶段一)
 REAL_PATH_MAP = {name: fname for (name, _, _, fname) in REAL_CASES}
-# 走廊引导代价默认参数: 在真实线路 band 米缓冲带外, 距离越远惩罚越大, 引导规划路径收敛到真实走廊
-CORRIDOR_W_DEFAULT = 1.5      # 走廊惩罚权重(叠加在 0..1 建设代价上, 过渡段陡度)
-CORRIDOR_BAND_M_DEFAULT = 1200.0  # 缓冲带半宽(米), 收窄以抑制 VIN 在带内游离、贴合真实线
-CORRIDOR_CAP = 1.5            # 距离比上限(配合下方 clip(0,1.5) 形成硬墙)
-REAL_ATTRACT_DEFAULT = 0.4    # 真实线方向吸引力默认权重(留出集 TW345 三档 0.4/0.5/0.6 均<=0.64%;
-                                  # TW173 单扫 0.4->3.23% 0.5->4.19% 0.6->5.63%; 取 0.4 余量最足且留出集稳健)

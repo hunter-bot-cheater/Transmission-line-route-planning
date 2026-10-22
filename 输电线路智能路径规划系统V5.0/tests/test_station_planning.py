@@ -49,6 +49,30 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(result[0]["voltage_kv"], "220")
         self.assertEqual(result[0]["from_station"]["ground_elevation_m"], 120.5)
 
+    def test_rejects_duplicate_station_csv_headers(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stations = self._csv(folder, "stations.csv",
+                                 ["station_id", "name", "lat", "lat", "lon", "voltage_kv"],
+                                 [["S1", "North", 24, 35, 120, 110]])
+            tasks = self._csv(folder, "routes.csv",
+                              ["route_id", "from_station_id", "to_station_id"],
+                              [["R1", "S1", "S1"]])
+
+            with self.assertRaisesRegex(ValueError, "重复列名"):
+                load_station_tasks(stations, tasks)
+
+    def test_rejects_duplicate_route_task_csv_headers(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stations = self._csv(folder, "stations.csv",
+                                 ["station_id", "lat", "lon"],
+                                 [["S1", 24, 120], ["S2", 25, 121]])
+            tasks = self._csv(folder, "routes.csv",
+                              ["route_id", "from_station_id", "to_station_id", "to_station_id"],
+                              [["R1", "S1", "S2", "S1"]])
+
+            with self.assertRaisesRegex(ValueError, "重复列名"):
+                load_station_tasks(stations, tasks)
+
     def test_reports_surveyed_station_delta_only_for_matching_datum(self):
         task = {
             "from_station": {"ground_elevation_m": 120.5, "ground_elevation_source": "survey A",
@@ -211,6 +235,18 @@ class StationPlanningTests(unittest.TestCase):
         self.assertGreater(offsets["from_station_to_grid_center_offset_m"], 0)
         self.assertGreater(offsets["to_station_to_grid_center_offset_m"], 0)
 
+    def test_single_cell_station_route_keeps_grid_center_offsets(self):
+        station_task = {
+            "from_station": {"lat": 24.0001, "lon": 121.0001},
+            "to_station": {"lat": 24.0002, "lon": 121.0002},
+        }
+
+        route, offsets = attach_station_endpoints([(121.0, 24.0)], station_task)
+
+        self.assertEqual(route, [(121.0001, 24.0001), (121.0002, 24.0002)])
+        self.assertGreater(offsets["from_station_to_grid_center_offset_m"], 0.0)
+        self.assertGreater(offsets["to_station_to_grid_center_offset_m"], 0.0)
+
     def test_station_endpoint_restore_rejects_new_hard_obstacle_crossing(self):
         transform = Affine.identity()
         hard_mask = np.ones((6, 6), dtype=np.uint8)
@@ -240,7 +276,7 @@ class StationPlanningTests(unittest.TestCase):
         }
 
         self.assertEqual(
-            _select_final_route(methods, metrics, guide_enabled=False),
+            _select_final_route(methods, metrics),
             ("VIN-Grad", None, "valid_candidate_fallback"),
         )
 
@@ -251,7 +287,6 @@ class StationPlanningTests(unittest.TestCase):
             _select_final_route(
                 {"A*(baseline)": path},
                 {"A*(baseline)": {"hard_violations": 2}},
-                guide_enabled=False,
             ),
             (None, None, "no_hard_constraint_compliant_route"),
         )

@@ -47,11 +47,25 @@ def station_elevation_metrics(station_task):
     }
 
 
+def _dict_reader(file_obj, label, required_fields):
+    reader = csv.DictReader(file_obj)
+    fields = reader.fieldnames or []
+    if any(not field for field in fields) or len(fields) != len(set(fields)):
+        raise ValueError(f"{label}表头存在空列名或重复列名")
+    missing = required_fields - set(fields)
+    if missing:
+        raise ValueError(f"{label}缺少列: {', '.join(sorted(missing))}")
+    return reader
+
+
 def load_station_tasks(stations_csv, route_tasks_csv):
     """读取 stations.csv 与 route_tasks.csv，验证站点引用并返回规划任务。"""
     stations = {}
     with open(stations_csv, encoding="utf-8-sig", newline="") as f:
-        for row in csv.DictReader(f):
+        reader = _dict_reader(f, "站点", {"station_id", "lat", "lon"})
+        for row_number, row in enumerate(reader, start=2):
+            if None in row:
+                raise ValueError(f"站点表第 {row_number} 行字段数多于表头")
             station_id = (row.get("station_id") or "").strip()
             if not station_id:
                 raise ValueError("站点表缺少 station_id")
@@ -87,7 +101,11 @@ def load_station_tasks(stations_csv, route_tasks_csv):
     tasks = []
     route_ids = set()
     with open(route_tasks_csv, encoding="utf-8-sig", newline="") as f:
-        for row in csv.DictReader(f):
+        reader = _dict_reader(
+            f, "线路任务", {"route_id", "from_station_id", "to_station_id"})
+        for row_number, row in enumerate(reader, start=2):
+            if None in row:
+                raise ValueError(f"线路任务表第 {row_number} 行字段数多于表头")
             route_id = (row.get("route_id") or "").strip()
             from_id = (row.get("from_station_id") or "").strip()
             to_id = (row.get("to_station_id") or "").strip()

@@ -107,6 +107,12 @@ def _fill(arr, fill=None):
     return np.where(np.isfinite(arr), arr, fill)
 
 
+def _terrain_gradient(z, row_m, col_m):
+    dy = np.gradient(z, row_m, axis=0) if z.shape[0] > 1 else np.zeros_like(z)
+    dx = np.gradient(z, col_m, axis=1) if z.shape[1] > 1 else np.zeros_like(z)
+    return dy, dx
+
+
 def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
     if transform is not None:
         row_m, col_m = pixel_spacing_meters(
@@ -117,7 +123,7 @@ def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
         row_m, col_m = map(float, pixel_m)
     neighborhood_m = math.sqrt(row_m * col_m)
     z = _fill(dem).astype(np.float32)
-    dy, dx = np.gradient(z, row_m, col_m)
+    dy, dx = _terrain_gradient(z, row_m, col_m)
     slope = np.degrees(np.arctan(np.sqrt(dx ** 2 + dy ** 2)))
     aspect = np.arctan2(dy, -dx)
     aspect_cos = np.cos(aspect)
@@ -207,5 +213,7 @@ _PKL_CACHE = {}
 
 def _hillshade(dem):
     z = _fill(dem)
+    if min(z.shape) < 2:
+        return np.full(z.shape, 0.5, dtype=np.float32)
     ls = LightSource(azdeg=315, altdeg=45)
     return np.clip(ls.hillshade(z, vert_exag=max(30.0, 4000.0 / max(np.nanmax(z) - np.nanmin(z), 1.0))), 0, 1)

@@ -31,17 +31,13 @@ IF NOT EXIST "%DATA%\real_cases.csv" (
 )
 
 echo [信息] 开始运行 VIN-Grad + PPO + A* 三方法集成规划 ...
-echo [信息] 引导参数 real_attract=0.4  corridor_w=2.5  corridor_band=1200
 
 pushd "%ROOT%"
 %PY% -m transmission_path_planner ^
   --dem "%DEM%" ^
   --real-dir "%DATA%" ^
   --real-cases-csv "%DATA%\real_cases.csv" ^
-  --out-dir "%OUT%" ^
-  --guide-mode reference ^
-  --real-attract 0.4 --corridor-w 2.5 --corridor-band 1200 ^
-  --baseline
+  --out-dir "%OUT%"
 SET RUN_EXIT_CODE=%ERRORLEVEL%
 popd
 

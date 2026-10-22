@@ -10,8 +10,9 @@ import rasterio
 import geopandas as gpd
 from shapely.geometry import Polygon
 
-from transmission_path_planner.data import compute_terrain_factors, load_dem_window
+from transmission_path_planner.data import _hillshade, compute_terrain_factors, load_dem_window
 from transmission_path_planner.geometry import pixel_meters, pixel_spacing_meters
+from transmission_path_planner.visualization import plot_comparison
 
 
 PREPARE_BUILDINGS_PATH = Path(__file__).resolve().parents[1] / "scripts" / "prepare_official_buildings.py"
@@ -92,6 +93,42 @@ class GeospatialSpacingTests(unittest.TestCase):
 
         expected = np.degrees(np.arctan(1.0 / row_m))
         self.assertAlmostEqual(float(terrain["slope"][3, 3]), expected, delta=0.02)
+
+    def test_terrain_factors_support_single_row_or_column_dem(self):
+        for shape in ((1, 1), (1, 3), (3, 1)):
+            with self.subTest(shape=shape):
+                dem = np.arange(np.prod(shape), dtype=np.float32).reshape(shape)
+
+                terrain = compute_terrain_factors(dem, 20.0)
+
+                self.assertEqual(terrain["slope"].shape, shape)
+                expected_slope = np.degrees(np.arctan(1 / 20)) if max(shape) > 1 else 0.0
+                np.testing.assert_allclose(terrain["slope"], expected_slope, atol=1e-6)
+
+    def test_hillshade_supports_single_row_or_column_dem(self):
+        for shape in ((1, 1), (1, 3), (3, 1)):
+            with self.subTest(shape=shape):
+                hillshade = _hillshade(np.ones(shape, dtype=np.float32))
+
+                self.assertEqual(hillshade.shape, shape)
+                np.testing.assert_array_equal(hillshade, np.full(shape, 0.5))
+
+    def test_comparison_plot_supports_degenerate_dem(self):
+        transform = Affine(0.001, 0, 120.0, 0, -0.001, 25.0)
+        for shape in ((1, 1), (1, 3), (3, 1)):
+            with self.subTest(shape=shape), tempfile.TemporaryDirectory() as folder:
+                first = (120.0005, 24.9995)
+                last = (120.0 + (shape[1] - 0.5) * 0.001,
+                        25.0 - (shape[0] - 0.5) * 0.001)
+                output = Path(folder) / "comparison.png"
+
+                plot_comparison(
+                    np.ones(shape, dtype=np.float32), transform,
+                    {"A*(baseline)": [first, last]},
+                    (first[1], first[0]), (last[1], last[0]), output,
+                )
+
+                self.assertGreater(output.stat().st_size, 0)
 
     def test_terrain_roughness_matches_population_std_at_interior_cell(self):
         transform = Affine(0.0002, 0, 120.0, 0, -0.0002, 24.0)

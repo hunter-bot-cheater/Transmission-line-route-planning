@@ -1,5 +1,5 @@
 # transmission_path_planner/metrics.py
-"""规划路径与真实输电路径的偏差度量（对称 Hausdorff + 长度误差）与验收。"""
+"""规划路径与真实输电路径的偏差度量（对称 Hausdorff + 长度误差）及内部阈值对照。"""
 
 from .config import *
 from .geometry import *
@@ -81,18 +81,31 @@ def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_
     }
 
 
-def load_real_path(shp_path, max_features=None):
+def load_real_path(shp_path, max_features=None, require_single_line=False, raise_errors=False):
     """读取真实/参考线路 SHP(EPSG:4326), 返回折线列表 real_geo = [ [(lon,lat),...], ... ]。
-    支持单条路线(1要素)或线网(多要素, 如全区输电网络)。无则返回 None。"""
-    if not (HAS_GPD and shp_path and Path(shp_path).exists()):
+    require_single_line 用于 --real-shp，拒绝多要素和 MultiLineString 线网。"""
+    if not shp_path or not Path(shp_path).exists():
+        return None
+    if not HAS_GPD:
+        if require_single_line or raise_errors:
+            raise RuntimeError("读取参考线路需要安装 geopandas")
         return None
     try:
-        gdf = gpd.read_file(shp_path)
-        if gdf.crs is not None and str(gdf.crs).upper() != "EPSG:4326":
+        try:
+            gdf = gpd.read_file(shp_path)
+        except Exception as ex:
+            raise RuntimeError(f"SHP 数据读取失败: {ex}") from ex
+        if gdf.crs is None:
+            raise ValueError("参考线路缺少 CRS；不能安全地把坐标当作经纬度")
+        if str(gdf.crs).upper() != "EPSG:4326":
             gdf = gdf.to_crs("EPSG:4326")
         geoms = [g for g in gdf.geometry if g is not None and not g.is_empty]
         if not geoms:
             return None
+        if require_single_line and (len(geoms) != 1 or geoms[0].geom_type != "LineString"):
+            raise ValueError("单任务 --real-shp 必须恰含一个 LineString 要素，避免区域线网污染误差")
+        if require_single_line and geoms[0].length <= 0:
+            raise ValueError("单任务目标线路长度必须大于零")
         if max_features:
             geoms = geoms[:max_features]
         polys = []
@@ -100,111 +113,104 @@ def load_real_path(shp_path, max_features=None):
             sub = list(g.geoms) if g.geom_type == "MultiLineString" else [g]
             for gg in sub:
                 c = list(gg.coords)
-                if len(c) >= 2:
-                    polys.append([(float(x), float(y)) for x, y in c])
+                if len(c) >= 2 and gg.length > 0:
+                    poly = [(float(coord[0]), float(coord[1])) for coord in c]
+                    if any(
+                        not math.isfinite(lon) or not math.isfinite(lat)
+                        or not -180.0 <= lon <= 180.0
+                        or not -90.0 <= lat <= 90.0
+                        for lon, lat in poly
+                    ):
+                        raise ValueError("参考线路含无效经纬度；经度须在[-180,180]、纬度须在[-90,90]")
+                    polys.append(poly)
         if not polys:
             return None
         return polys
     except Exception as ex:
         print(f"    [warn] 读取真实线路失败: {ex}")
+        if require_single_line or raise_errors:
+            raise
         return None
 
 
-def compute_dist_to_route(real_geo, transform, H, W, pm):
-    """计算每格到真实线路(单折线或折线列表/线网)的最近米级距离栅格 dist_real_m (H,W),
-    并返回吸引向量场 (attract_r, attract_c): 每格指向最近真实线像元的单位向量(线上为 0)。
-    无真实线返回 (全0距离, None)。"""
-    if not real_geo:
-        return np.zeros((H, W), np.float64), None
-    # 归一为折线列表(支持单折线或网络)
-    polylines = real_geo if (real_geo and isinstance(real_geo[0][0], (list, tuple))) else [real_geo]
-    polylines = [p for p in polylines if len(p) >= 2]
-    if not polylines:
-        return np.zeros((H, W), np.float64), None
-    seed = np.zeros((H, W), np.uint8)
-    for poly in polylines:
-        for i in range(len(poly) - 1):
-            lon0, lat0 = poly[i]; lon1, lat1 = poly[i + 1]
-            d_m = math.hypot((lon1 - lon0) * 111000 * math.cos(math.radians((lat0 + lat1) / 2)),
-                             (lat1 - lat0) * 111000)
-            n = max(int(d_m / (0.3 * pm)), 1)
-            for k in range(n + 1):
-                t = k / n
-                lon = lon0 + (lon1 - lon0) * t; lat = lat0 + (lat1 - lat0) * t
-                r, c = geo_to_rowcol(lat, lon, transform)
-                r = int(round(r)); c = int(round(c))
-                if 0 <= r < H and 0 <= c < W:
-                    seed[r, c] = 1
-    if seed.sum() == 0:
-        return np.full((H, W), 1e6, np.float64), None
-    # 到最近真实线像元的欧氏距离(像元) + 最近像元索引(用于构造吸引向量场)
-    dist_px, idx = distance_transform_edt(1 - seed, return_indices=True)
-    dist_real_m = (dist_px * pm).astype(np.float64)
-    ir, ic = idx  # (H,W) 每格最近真实线像元的行列索引
-    row_idx = np.arange(H)[:, None]; col_idx = np.arange(W)[None, :]
-    ar = (ir - row_idx).astype(np.float64)   # 指向最近真实线点的行方向(未归一)
-    ac = (ic - col_idx).astype(np.float64)
-    mag = np.hypot(ar, ac) + 1e-8
-    ar = ar / mag; ac = ac / mag              # 单位化(线上 mag≈0 -> 向量≈0, 不震荡)
-    return dist_real_m, (ar, ac)
-
-
-def compute_deviation(planned_geo, real_geo, transform=None, dist_field=None):
+def compute_deviation(planned_geo, real_geo):
     """Project both routes to local meters and estimate symmetric Hausdorff at 5m spacing.
-
-    ``transform`` and ``dist_field`` remain accepted for call-site compatibility; the
-    comparison no longer samples the coarsened planning raster's distance field.
     """
     if not planned_geo or len(planned_geo) < 2 or not real_geo:
         return None
     try:
         from pyproj import CRS, Transformer
-        from shapely.geometry import LineString, MultiLineString, Point
+        from shapely import linestrings, points
+        from shapely.strtree import STRtree
 
         real_polys = real_geo if isinstance(real_geo[0][0], (list, tuple)) else [real_geo]
         real_polys = [poly for poly in real_polys if len(poly) >= 2]
         if not real_polys:
             return None
         coords = list(planned_geo) + [point for poly in real_polys for point in poly]
-        lon0 = float(np.mean([point[0] for point in coords]))
+        lons = np.radians([point[0] for point in coords])
+        lon0 = math.degrees(math.atan2(float(np.sin(lons).mean()), float(np.cos(lons).mean())))
         lat0 = float(np.mean([point[1] for point in coords]))
         local_crs = CRS.from_proj4(
             f"+proj=aeqd +lat_0={lat0} +lon_0={lon0} +datum=WGS84 +units=m +no_defs"
         )
         project = Transformer.from_crs("EPSG:4326", local_crs, always_xy=True).transform
 
-        def densify(poly):
-            projected = [project(lon, lat) for lon, lat in poly]
-            points = [projected[0]]
+        def project_coordinates(poly):
+            return np.asarray([project(lon, lat) for lon, lat in poly], dtype=np.float64)
+
+        def densify(projected):
+            samples = [projected[:1]]
             for start, end in zip(projected, projected[1:]):
                 length = math.hypot(end[0] - start[0], end[1] - start[1])
                 steps = max(1, int(math.ceil(length / 5.0)))
-                points.extend((
-                    start[0] + (end[0] - start[0]) * step / steps,
-                    start[1] + (end[1] - start[1]) * step / steps,
-                ) for step in range(1, steps + 1))
-            return LineString(points)
+                fractions = np.arange(1, steps + 1, dtype=np.float64)[:, None] / steps
+                samples.append(start + fractions * (end - start))
+            return np.concatenate(samples, axis=0)
 
-        planned_line = densify(planned_geo)
-        real_lines = [densify(poly) for poly in real_polys]
-        real_line = MultiLineString([list(line.coords) for line in real_lines])
-        forward_m = max(Point(point).distance(real_line) for point in planned_line.coords)
-        reverse_m = max(
-            Point(point).distance(planned_line)
-            for line in real_lines for point in line.coords
-        )
+        planned_projected = project_coordinates(planned_geo)
+        real_projected = [project_coordinates(poly) for poly in real_polys]
+        planned_samples = densify(planned_projected)
+        real_samples = [densify(poly) for poly in real_projected]
+
+        def segment_tree(projected_lines):
+            segments = []
+            for coordinates in projected_lines:
+                if len(coordinates) >= 2:
+                    segments.append(np.stack((coordinates[:-1], coordinates[1:]), axis=1))
+            if not segments:
+                raise ValueError("偏差计算线路长度必须大于零")
+            return STRtree(linestrings(np.concatenate(segments, axis=0)))
+
+        def nearest_distances(sample_coordinates, tree):
+            result = np.full(len(sample_coordinates), np.inf, dtype=np.float64)
+            for start in range(0, len(sample_coordinates), 50000):
+                end = min(start + 50000, len(sample_coordinates))
+                query_points = points(sample_coordinates[start:end])
+                indices, distances = tree.query_nearest(
+                    query_points, all_matches=False, return_distance=True)
+                result[start + indices[0]] = distances
+            if not np.isfinite(result).all():
+                raise ValueError("空间索引未返回所有采样点的最近距离")
+            return result
+
+        real_samples_all = np.concatenate(real_samples, axis=0)
+        planned_distances = nearest_distances(planned_samples, segment_tree(real_projected))
+        reverse_distances = nearest_distances(real_samples_all, segment_tree([planned_projected]))
+        forward_m = float(planned_distances.max())
+        reverse_m = float(reverse_distances.max())
         hausdorff_m = max(forward_m, reverse_m)
-        planned_distances = np.asarray(
-            [Point(point).distance(real_line) for point in planned_line.coords], dtype=np.float64
-        )
         return {
-            "dev_haus_fwd_km": round(forward_m / 1000.0, 3),
-            "dev_haus_sym_km": round(hausdorff_m / 1000.0, 3),
-            "dev_hausdorff_km": round(hausdorff_m / 1000.0, 3),
-            "dev_mean_km": round(float(planned_distances.mean()) / 1000.0, 3),
-            "dev_p90_km": round(float(np.percentile(planned_distances, 90)) / 1000.0, 3),
-            "dev_max_km": round(hausdorff_m / 1000.0, 3),
-            "real_length_km": round(sum(line.length for line in real_lines) / 1000.0, 3),
+            "dev_haus_fwd_km": forward_m / 1000.0,
+            "dev_haus_sym_km": hausdorff_m / 1000.0,
+            "dev_hausdorff_km": hausdorff_m / 1000.0,
+            "dev_mean_km": float(planned_distances.mean()) / 1000.0,
+            "dev_p90_km": float(np.percentile(planned_distances, 90)) / 1000.0,
+            "dev_max_km": hausdorff_m / 1000.0,
+            "real_length_km": sum(
+                float(np.linalg.norm(np.diff(line, axis=0), axis=1).sum())
+                for line in real_projected
+            ) / 1000.0,
             "deviation_sample_step_m": 5,
             "deviation_crs": local_crs.to_string(),
         }
@@ -237,12 +243,17 @@ def eval_error(plan_len_km, dev):
     haus_fwd = (float(dev.get("dev_haus_fwd_km", dev.get("dev_hausdorff_km", 0.0))) / real_len) * 100.0
     worst = max(len_err, haus)
     return {
-        "len_err_pct": round(len_err, 3),
-        "haus_pct": round(haus, 3),
-        "haus_fwd_pct": round(haus_fwd, 3),
-        "worst_err_pct": round(worst, 3),
+        "len_err_pct": round(len_err, 6),
+        "haus_pct": round(haus, 6),
+        "haus_fwd_pct": round(haus_fwd, 6),
+        "worst_err_pct": round(worst, 6),
         "pass8": bool(worst <= ERROR_TOL_PCT),
     }
+
+
+def eval_planned_route_error(planned_geo, dev):
+    """Score using full route length; output metrics are rounded for display only."""
+    return eval_error(path_length_km(planned_geo), dev)
 
 
 def load_real_cases_csv(path):
@@ -252,19 +263,33 @@ def load_real_cases_csv(path):
     import csv as _csv
     out = []
     p = Path(path)
-    if not p.exists():
-        print(f"[warn] --real-cases-csv 文件不存在: {path}")
-        return out
+    if not p.is_file():
+        raise ValueError(f"--real-cases-csv 文件不存在: {path}")
     with open(p, encoding="utf-8-sig", newline="") as f:
-        for row in _csv.DictReader(f):
+        reader = _csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        if any(not field for field in fieldnames) or len(fieldnames) != len(set(fieldnames)):
+            raise ValueError("--real-cases-csv 表头存在空列名或重复列名")
+        required = {"name", "start_lat", "start_lon", "end_lat", "end_lon"}
+        missing = required - set(fieldnames)
+        if missing:
+            raise ValueError(f"--real-cases-csv 缺少列: {', '.join(sorted(missing))}")
+        for row_number, row in enumerate(reader, start=2):
+            if None in row:
+                raise ValueError(f"--real-cases-csv 第 {row_number} 行字段数多于表头")
             try:
-                name = str(row.get("name", "")).strip()
+                name = str(row.get("name") or "").strip()
                 s = (float(row["start_lat"]), float(row["start_lon"]))
                 e = (float(row["end_lat"]), float(row["end_lon"]))
-            except Exception as _e:
-                continue
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(f"--real-cases-csv 第 {row_number} 行任务字段无效: {exc}") from exc
             if not name:
-                continue
+                raise ValueError(f"--real-cases-csv 第 {row_number} 行缺少任务名称")
+            if not all(math.isfinite(value) for value in (*s, *e)):
+                raise ValueError(f"--real-cases-csv 第 {row_number} 行坐标必须为有限数值")
+            if not (-90 <= s[0] <= 90 and -90 <= e[0] <= 90
+                    and -180 <= s[1] <= 180 and -180 <= e[1] <= 180):
+                raise ValueError(f"--real-cases-csv 第 {row_number} 行经纬度超出有效范围")
             out.append((name, s, e, None))
     print(f"[真实对比] 从 CSV 载入 {len(out)} 条真实走廊用例: {p}")
     return out

@@ -7,6 +7,11 @@ from .data import *
 from .osm import *
 from .cost import *
 
+
+def _clamp_raster_axis(value, size):
+    return min(max(value, 0.5), size - 1.5) if size > 1 else 0.0
+
+
 if HAS_TORCH:
     class DifferentiableMinPool(nn.Module):
         def forward(self, value, cost, traversable, pixel_spacing):
@@ -91,6 +96,8 @@ if HAS_TORCH:
         if not np.any(goal_mask > 0) or np.any((goal_mask > 0) & ~traversable):
             raise ValueError("VIN goal must be inside the traversable grid")
         cost_surface = np.where(traversable, cost_surface, 0.0).astype(np.float32)
+        if cost_surface.shape == (1, 1):
+            return np.zeros((1, 1), dtype=np.float32)
         cost_t = torch.from_numpy(cost_surface).unsqueeze(0).unsqueeze(0).to(DEVICE)
         goal_t = torch.from_numpy(goal_mask).unsqueeze(0).unsqueeze(0).to(DEVICE)
         traversable_t = torch.from_numpy(traversable.astype(np.float32)).unsqueeze(0).unsqueeze(0).to(DEVICE)
@@ -109,7 +116,8 @@ if HAS_TORCH:
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
         with torch.no_grad():
-            V = model(cost_t, goal_t, extra_t, traversable_t, pixel_spacing).squeeze().cpu().numpy().astype(np.float32)
+            V = model(cost_t, goal_t, extra_t, traversable_t, pixel_spacing)
+            V = V.squeeze(0).squeeze(0).cpu().numpy().astype(np.float32)
         return V
 
 
@@ -453,9 +461,7 @@ if HAS_TORCH:
 
     def ppo_rollout_path(policy, ctx, cost_norm, block_mask, goal, start, win=15,
                          max_steps=None, temp=0.6, visit_pen=2.0, n_tries=12,
-                         guide_v=None, guide_w=3.0, v_tol=0.35,
-                         real_field=None, real_attract=0.0,
-                         real_dist_m=None, real_attract_cutoff=2500.0):
+                         guide_v=None, guide_w=3.0, v_tol=0.35):
         """PPO 推理: VIN-Grad 式连续 −∇V 轨迹追踪(保证必达终点) + PPO 策略做局部代价感知择优。
 
         核心(v4_final6): 与 gradient_track_path(VIN-Grad 主方法)完全同源的
@@ -511,12 +517,6 @@ if HAS_TORCH:
                 goal_r, goal_c = (gr_f - cr) / dg, (gc_f - cc) / dg
                 d_r = -g_r + goal_bias * goal_r
                 d_c = -g_c + goal_bias * goal_c
-                if real_field is not None and real_dist_m is not None and real_attract > 0:
-                    arv = _bilin(real_field[0], cr, cc); acv = _bilin(real_field[1], cr, cc)
-                    dm_loc = float(_bilin(real_dist_m, cr, cc))
-                    gate = math.exp(-dm_loc / max(real_attract_cutoff, 1.0))
-                    aw = real_attract * gate
-                    d_r += aw * arv; d_c += aw * acv
                 # ── 2. PPO 策略: 代价感知的"绕障+加速"偏置 ──
                 # [改进] 原版 STEER 恒为 0.6 且仅做侧向微调, PPO 几乎不改变路径形态、对降低成本无贡献。
                 # 现改为三处增强, 使 PPO 真正成为"代价最优化的局部细化"而非冗余噪声:
@@ -575,14 +575,14 @@ if HAS_TORCH:
                 lc = float(_bilin(cost_norm, cr, cc))
                 lc = 0.0 if (math.isinf(lc) or math.isnan(lc)) else lc
                 stp = 1.0 * max(0.4, 1.0 - min(lc, 1.0))
-                nr = min(max(cr + stp * vr_n * alpha, 0.5), H - 1.5)
-                nc = min(max(cc + stp * vc_n * alpha, 0.5), W - 1.5)
+                nr = _clamp_raster_axis(cr + stp * vr_n * alpha, H)
+                nc = _clamp_raster_axis(cc + stp * vc_n * alpha, W)
                 if blocked(int(round(nr)), int(round(nc))):
                     found = False
                     for ang in [0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.6, -1.6, 2.0, -2.0]:
                         ca, sa = math.cos(ang), math.sin(ang)
-                        tr = min(max(cr + stp * (vr_n * ca - vc_n * sa), 0.5), H - 1.5)
-                        tc = min(max(cc + stp * (vr_n * sa + vc_n * ca), 0.5), W - 1.5)
+                        tr = _clamp_raster_axis(cr + stp * (vr_n * ca - vc_n * sa), H)
+                        tc = _clamp_raster_axis(cc + stp * (vr_n * sa + vc_n * ca), W)
                         if not blocked(int(round(tr)), int(round(tc))):
                             nr, nc, found = tr, tc, True; break
                     if not found:
@@ -591,8 +591,8 @@ if HAS_TORCH:
                             cr, cc = path[-back]
                         perp_r, perp_c = -goal_c, goal_r
                         sgn = 1.0 if it % 2 == 0 else -1.0
-                        nr = min(max(cr + sgn * perp_r * 8, 0.5), H - 1.5)
-                        nc = min(max(cc + sgn * perp_c * 8, 0.5), W - 1.5)
+                        nr = _clamp_raster_axis(cr + sgn * perp_r * 8, H)
+                        nc = _clamp_raster_axis(cc + sgn * perp_c * 8, W)
                 cr, cc = nr, nc
                 path.append((cr, cc))
             # 终点保底: 若迭代耗尽仍未抵达(极端情况), 直接补上目标点, 保证路径跨越整条走廊
@@ -636,13 +636,9 @@ def _bilin(arr, r, c):
 
 def gradient_track_path(V, cost, hard_mask, start, end, transform,
                         max_steps=30000, step=1.0, goal_bias=0.8,
-                        momentum=0.7, eps=2.0, alpha=4.0,
-                        real_field=None, real_attract=0.0,
-                        real_dist_m=None, real_attract_cutoff=2500.0):
+                        momentum=0.7, eps=2.0, alpha=4.0):
     """沿 -∇V 连续梯度追踪得到路径节点序列（无 A*/Dijkstra）。返回 geo [(lon,lat),...]。
-    real_field=(attract_r,attract_c) 为指向最近真实线点的单位向量场; real_attract>0 时
-    在方向场叠加'磁性吸引'(带内轻拉, 带外强拉, 线上为零), 直接抑制 VIN 在引导带内游离,
-    比纯代价惩罚更精准地把路径拉向真实走廊。默认 real_attract=0 -> 行为不变。"""
+    方向场只来自值函数、局部代价和起终点，不读取真实线路。"""
     H, W = V.shape
     sr, sc = float(start[0]), float(start[1])
     gr, gc = float(end[0]), float(end[1])
@@ -658,14 +654,6 @@ def gradient_track_path(V, cost, hard_mask, start, end, transform,
         goal_r, goal_c = (gr - cr) / dg, (gc - cc) / dg
         d_r = -g_r + goal_bias * goal_r
         d_c = -g_c + goal_bias * goal_c
-        # 真实线方向吸引力(可选): 向量场在线上≈0, 线外为单位向量, 故线上自然零吸引;
-        # 以 exp(-dist/cutoff) 距离门控, 仅在真实线附近生效, 远处不把路径拽离走廊。
-        if real_field is not None and real_dist_m is not None and real_attract > 0:
-            arv = _bilin(real_field[0], cr, cc); acv = _bilin(real_field[1], cr, cc)
-            dm = float(_bilin(real_dist_m, cr, cc))
-            gate = math.exp(-dm / max(real_attract_cutoff, 1.0))
-            aw = real_attract * gate
-            d_r += aw * arv; d_c += aw * acv
         dm = math.sqrt(d_r ** 2 + d_c ** 2) + 1e-8
         d_r, d_c = d_r / dm, d_c / dm
         vr = momentum * vr + (1 - momentum) * d_r
@@ -676,15 +664,15 @@ def gradient_track_path(V, cost, hard_mask, start, end, transform,
         lc = _bilin(cost, cr, cc)
         lc = 0.0 if (np.isinf(lc) or np.isnan(lc)) else lc
         stp = step * max(0.4, 1.0 - min(lc, 1.0))
-        nr = min(max(cr + stp * vr * alpha, 0.5), H - 1.5)
-        nc = min(max(cc + stp * vc, 0.5), W - 1.5)
+        nr = _clamp_raster_axis(cr + stp * vr * alpha, H)
+        nc = _clamp_raster_axis(cc + stp * vc, W)
         # 硬约束规避
         if hard_mask[int(round(nr)), int(round(nc))] == 0:
             found = False
             for ang in [0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.6, -1.6, 2.0, -2.0]:
                 ca, sa = math.cos(ang), math.sin(ang)
-                tr = min(max(cr + stp * (vr * ca - vc * sa), 0.5), H - 1.5)
-                tc = min(max(cc + stp * (vr * sa + vc * ca), 0.5), W - 1.5)
+                tr = _clamp_raster_axis(cr + stp * (vr * ca - vc * sa), H)
+                tc = _clamp_raster_axis(cc + stp * (vr * sa + vc * ca), W)
                 if hard_mask[int(round(tr)), int(round(tc))] == 1:
                     nr, nc, found = tr, tc, True; break
             if not found:
@@ -694,8 +682,8 @@ def gradient_track_path(V, cost, hard_mask, start, end, transform,
                     cr, cc = path_g[-back]
                 perp_r, perp_c = -goal_c, goal_r
                 sgn = 1.0 if it % 2 == 0 else -1.0
-                nr = min(max(cr + sgn * perp_r * 8, 0.5), H - 1.5)
-                nc = min(max(cc + sgn * perp_c * 8, 0.5), W - 1.5)
+                nr = _clamp_raster_axis(cr + sgn * perp_r * 8, H)
+                nc = _clamp_raster_axis(cc + sgn * perp_c * 8, W)
         path_g.append((nr, nc))
     geo = [rowcol_to_geo(r, c, transform) for (r, c) in path_g]
     return geo
@@ -818,7 +806,7 @@ def snap_to_land(dem, r, c, maxr=150):
 # ============================================================================
 # 升级组件 1: 代价面高斯平滑 (2026-09-03 无引导批量评测升级)
 # ----------------------------------------------------------------------------
-# 启发式/CostUNet 代价面存在单格噪声, 无引导模式下 A*/VIN 梯度易被局部凹坑
+# 启发式/CostUNet 代价面存在单格噪声, A*/VIN 梯度可能被局部凹坑困住
 # 困住产生锯齿。sigma=1.0 高斯平滑 + 与原代价 0.5/0.5 混合, 保留大形态、
 # 消除孤峰/凹坑, 并保留原无效区(NaN)。
 # ============================================================================

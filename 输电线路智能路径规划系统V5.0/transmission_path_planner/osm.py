@@ -3,7 +3,7 @@
 
 from .config import *
 from .geometry import *
-from .data import _fill
+from .data import _fill, _terrain_gradient
 
 _PKG_CACHE = {}
 _PKL_CACHE = _PKG_CACHE
@@ -391,7 +391,7 @@ def compute_osm_bands(dem, transform, bbox):
     z = _fill(dem).astype(np.float32)
     lat_center = transform.f + transform.e * (H / 2.0)  # 窗口纬度中心（修正：之前误用 0）
     row_m, col_m = pixel_spacing_meters(transform, lat_center)
-    dy, dx = np.gradient(z, row_m, col_m)
+    dy, dx = _terrain_gradient(z, row_m, col_m)
     slope = np.degrees(np.arctan(np.sqrt(dx ** 2 + dy ** 2)))
     aspect = np.degrees(np.arctan2(-dy, dx)) % 360
     elev_n = np.clip(z / 3000.0, 0, 1)
