@@ -8,6 +8,7 @@ REM ============================================================
 SET PY=python
 SET ROOT=%~dp0
 SET DEM=%ROOT%data\taiwan_dem_35m.tif
+SET OSM_CACHE=%ROOT%data\downloaded
 SET DATA=%ROOT%..\data\real_cases_tw
 SET OUT=%ROOT%results\v5_full
 
@@ -35,6 +36,7 @@ echo [信息] 开始运行 VIN-Grad + PPO + A* 三方法集成规划 ...
 pushd "%ROOT%"
 %PY% -m transmission_path_planner ^
   --dem "%DEM%" ^
+  --osm-cache-dir "%OSM_CACHE%" ^
   --real-dir "%DATA%" ^
   --real-cases-csv "%DATA%\real_cases.csv" ^
   --out-dir "%OUT%"

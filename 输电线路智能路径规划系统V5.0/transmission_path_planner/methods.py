@@ -720,25 +720,32 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
                             + row_only * row_m + col_only * col_m)
         return c_min * (max(dr, dc) + (math.sqrt(2) - 1) * min(dr, dc))
 
-    g = {(sr, sc): 0.0}
-    open_set = [(h(sr, sc), 0, (sr, sc))]
-    came = {}
-    closed = set()
+    # Use raster arrays for search state instead of Python tuple-keyed dicts/sets.
+    # Large high-resolution corridors otherwise consume several GiB of Python objects.
+    g = np.full((H, W), np.inf, dtype=np.float64)
+    parent = np.full((H, W), -1, dtype=np.int64)
+    closed = np.zeros((H, W), dtype=bool)
+    g[sr, sc] = 0.0
+    open_set = [(h(sr, sc), 0, sr * W + sc)]
     tb = 0
     while open_set:
-        _, _, cur = heapq.heappop(open_set)
-        if cur in closed:
+        _, _, cur_idx = heapq.heappop(open_set)
+        cr, cc = divmod(cur_idx, W)
+        if closed[cr, cc]:
             continue
-        if cur == (er, ec):
-            p = [cur]
-            while cur in came:
-                cur = came[cur]; p.append(cur)
-            p.reverse(); return p
-        closed.add(cur)
-        cr, cc = cur
+        if (cr, cc) == (er, ec):
+            path = []
+            while True:
+                path.append((cr, cc))
+                if (cr, cc) == (sr, sc):
+                    path.reverse()
+                    return path
+                cur_idx = int(parent[cr, cc])
+                cr, cc = divmod(cur_idx, W)
+        closed[cr, cc] = True
         for ni, (dr, dc) in enumerate(neigh):
             nr, nc = cr + dr, cc + dc
-            if (nr, nc) in closed or not (0 <= nr < H and 0 <= nc < W):
+            if not (0 <= nr < H and 0 <= nc < W) or closed[nr, nc]:
                 continue
             if not np.isfinite(cost_raster[nr, nc]):
                 continue
@@ -758,11 +765,11 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
                 if max_ground_grade is not None and grade > max_ground_grade:
                     continue
                 step_cost += max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0)
-            tg = g[cur] + step_cost * step_len
-            if (nr, nc) not in g or tg < g[(nr, nc)]:
-                g[(nr, nc)] = tg
-                heapq.heappush(open_set, (tg + h(nr, nc), tb, (nr, nc)))
-                came[(nr, nc)] = cur
+            tg = g[cr, cc] + step_cost * step_len
+            if tg < g[nr, nc]:
+                g[nr, nc] = tg
+                heapq.heappush(open_set, (tg + h(nr, nc), tb, nr * W + nc))
+                parent[nr, nc] = cr * W + cc
                 tb += 1
     return None
 

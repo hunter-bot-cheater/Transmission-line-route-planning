@@ -150,6 +150,7 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         for removed_option in (
             "--guide-mode", "--corridor-w", "--corridor-band",
             "--real-attract", "--real-attract-cutoff", "--baseline",
+            "--shp", "--existing-network",
         ):
             self.assertNotIn(removed_option, help_text)
         self.assertIn("--no-vin", help_text)
@@ -384,7 +385,8 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
             method_visual_similarity_summary(records, "VIN-Grad", expected_cases=2,
                                              failed_case_names={"failed-after-record"}),
             {"measured": 0, "unmeasured": 2, "median_symmetric_p95_m": None,
-             "median_sampled_hausdorff_m": None, "median_coverage_f1_1km": None,
+             "median_sampled_hausdorff_m": None, "median_coverage_f1_100m": None,
+             "median_coverage_f1_1km": None, "routes_f1_100m_at_least_95pct": 0,
              "median_length_difference_pct": None},
         )
 
@@ -560,13 +562,15 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         self.assertEqual(
             method_visual_similarity_summary(records, "VIN-Grad"),
             {"measured": 0, "unmeasured": 2, "median_symmetric_p95_m": None,
-             "median_sampled_hausdorff_m": None, "median_coverage_f1_1km": None,
+             "median_sampled_hausdorff_m": None, "median_coverage_f1_100m": None,
+             "median_coverage_f1_1km": None, "routes_f1_100m_at_least_95pct": 0,
              "median_length_difference_pct": None},
         )
         self.assertEqual(
             method_visual_similarity_summary(records, "A*(baseline)", expected_cases=3),
             {"measured": 1, "unmeasured": 2, "median_symmetric_p95_m": 120.0,
-             "median_sampled_hausdorff_m": 400.0, "median_coverage_f1_1km": 0.75,
+             "median_sampled_hausdorff_m": 400.0, "median_coverage_f1_100m": None,
+             "median_coverage_f1_1km": 0.75, "routes_f1_100m_at_least_95pct": 0,
              "median_length_difference_pct": 5.0},
         )
 

@@ -179,13 +179,18 @@ def method_visual_similarity_summary(results, method, expected_cases=None, faile
     hausdorff = [value["symmetric"]["sampled_hausdorff_m"] for value in comparisons]
     coverage = [value["symmetric"]["coverage_f1_within_m"]["1000"]
                 for value in comparisons]
+    coverage_100m = [value["symmetric"]["coverage_f1_within_m"].get("100")
+                     for value in comparisons]
+    coverage_100m = [value for value in coverage_100m if value is not None]
     length_error = [value["length"]["absolute_difference_pct"] for value in comparisons]
     return {
         "measured": len(comparisons),
         "unmeasured": max(0, total_cases - len(comparisons)),
         "median_symmetric_p95_m": float(np.median(p95)) if p95 else None,
         "median_sampled_hausdorff_m": float(np.median(hausdorff)) if hausdorff else None,
+        "median_coverage_f1_100m": float(np.median(coverage_100m)) if coverage_100m else None,
         "median_coverage_f1_1km": float(np.median(coverage)) if coverage else None,
+        "routes_f1_100m_at_least_95pct": sum(value >= 0.95 for value in coverage_100m),
         "median_length_difference_pct": float(np.median(length_error)) if length_error else None,
     }
 
@@ -222,7 +227,6 @@ def main():
     t0 = time.time()
     ap = argparse.ArgumentParser(description="复杂山区输电线路 AI 路径规划 (V5.0: 多方法搜索 + 26维特征)")
     ap.add_argument("--dem", type=str, default=None)
-    ap.add_argument("--shp", type=str, default=None)
     ap.add_argument("--start", type=str, default=None, help="起点 lat,lon")
     ap.add_argument("--end", type=str, default=None, help="终点 lat,lon")
     ap.add_argument("--stations-csv", type=str, default=None,
@@ -263,6 +267,8 @@ def main():
     ap.add_argument("--real-shp", type=str, default=None,
                     help="单任务指定只含一个 LineString 且 CRS 明确的目标线路 SHP 作为事后对照; "
                          "多任务请用 --real-dir 按任务分别提供线路。规划阶段不会读取该线。")
+    ap.add_argument("--osm-cache-dir", type=str, default=None,
+                    help="OSM 环境图层缓存目录，内含 taiwan_buildings.pkl、taiwan_landuse.pkl 等文件")
     ap.add_argument("--rebuild-osm-cache", action="store_true",
                     help="调用 shared.data_acquisition 重新生成台湾 OSM 缓存 pkl(覆盖错误区域数据), "
                          "然后继续正常流程。首次使用或土地利用波段恒为0时请启用。")
@@ -325,9 +331,6 @@ def main():
     if dem_path is None:
         sys.exit("[FATAL] 未找到 DEM，请用 --dem 指定。")
     print(f"[DEM] {dem_path}")
-
-    shp_path = Path(args.shp) if args.shp else (SHP_CANDIDATES[0] if SHP_CANDIDATES[0].exists() else None)
-    print(f"[SHP] {shp_path if shp_path else '无 (将运行 AI vs AI + 基准对比)'}")
 
     station_task_by_route = {}
     if args.stations_csv:
@@ -408,7 +411,7 @@ def main():
             left = transform.c; top = transform.f
             right = left + transform.a * W; bottom = top + transform.e * H
             bbox = (left, bottom, right, top)
-            osm = compute_osm_bands(dem, transform, bbox)
+            osm = compute_osm_bands(dem, transform, bbox, cache_dir=args.osm_cache_dir)
             osm_layer_metadata = getattr(osm, "metadata", {}).get("layers", {})
             custom_constraints = (
                 load_user_constraint_overlays(args.constraint_geojson, transform, dem.shape)
@@ -636,9 +639,11 @@ def main():
                         if err:
                             similarity = err["route_similarity"]
                             symmetric = similarity["symmetric"]
+                            coverage_100m = symmetric["coverage_f1_within_m"]["100"]
                             coverage_1km = symmetric["coverage_f1_within_m"]["1000"]
                             print(f"  [{method}] 双向P95={symmetric['p95_m']:.0f}m "
                                   f"采样最大偏移={symmetric['sampled_hausdorff_m']:.0f}m "
+                                  f"100m覆盖F1={coverage_100m:.1%} "
                                   f"1km覆盖F1={coverage_1km:.1%} "
                                   f"长度差={similarity['length']['absolute_difference_km']:.2f}km")
                     real_evaluation_status = (
@@ -922,7 +927,7 @@ def main():
         print("  参考线路空间相似度 (双向米制偏移 + 线路覆盖；仅事后评估)")
         print("=" * 70)
         print(f"  {'走廊':16s} {'方法':16s} {'双向P95(m)':>11s} {'采样最大(m)':>12s} "
-              f"{'覆盖F1@1km':>11s} {'长度差(km)':>11s}")
+              f"{'F1@100m':>9s} {'F1@1km':>9s} {'长度差(km)':>11s}")
         candidate_methods = ["VIN-Grad", "PPO", "A*(baseline)"]
         failed_case_names = {item["case"] for item in failed_cases}
         for rec in all_results:
@@ -936,9 +941,10 @@ def main():
                     print(f"  {rec['case']:16s} {m:16s} "
                           f"{symmetric['p95_m']:11.0f} "
                           f"{symmetric['sampled_hausdorff_m']:12.0f} "
-                          f"{symmetric['coverage_f1_within_m']['1000']:10.1%} "
+                          f"{symmetric['coverage_f1_within_m']['100']:8.1%} "
+                          f"{symmetric['coverage_f1_within_m']['1000']:8.1%} "
                           f"{similarity['length']['absolute_difference_km']:11.2f}")
-        print("  说明：采样点按约20米弧长间距生成；覆盖F1@1km是描述性容差带，不是达标阈值。")
+        print("  说明：按约20米弧长采样；F1@100m≥95%为本轮目标口径，复用既有线的结果另行标注。")
         print("-" * 70)
         for m in candidate_methods:
             summary = method_visual_similarity_summary(
@@ -947,15 +953,18 @@ def main():
             )
             p95 = summary["median_symmetric_p95_m"]
             max_offset = summary["median_sampled_hausdorff_m"]
+            f1_100m = summary["median_coverage_f1_100m"]
             f1 = summary["median_coverage_f1_1km"]
             length_difference = summary["median_length_difference_pct"]
             p95_text = f"{p95:.1f}m" if p95 is not None else "NA"
             max_text = f"{max_offset:.1f}m" if max_offset is not None else "NA"
+            f1_100m_text = f"{f1_100m:.1%}" if f1_100m is not None else "NA"
             f1_text = f"{f1:.1%}" if f1 is not None else "NA"
             length_text = f"{length_difference:.1f}%" if length_difference is not None else "NA"
             print(f"  {m:16s} 已测={summary['measured']:2d} 未测={summary['unmeasured']:2d} "
                   f"中位双向P95={p95_text} 中位最大偏移={max_text} "
-                  f"中位F1@1km={f1_text} 中位长度差={length_text}")
+                  f"中位F1@100m={f1_100m_text} 中位F1@1km={f1_text} "
+                  f"达标数={summary['routes_f1_100m_at_least_95pct']} 中位长度差={length_text}")
         astar_selected = [r["case"] for r in all_results
                           if r["case"] not in failed_case_names
                           and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")

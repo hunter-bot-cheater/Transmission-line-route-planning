@@ -56,6 +56,17 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertEqual(empty_window["status"], "empty_in_bbox")
         self.assertEqual(empty_window["coverage_status"], "unverified_within_feature_extent")
 
+    def test_outside_features_skip_shapely_geometry_construction(self):
+        cache = self._save_cache("far_polygons.pkl", [
+            _way([(10, 10), (11, 10), (11, 11), (10, 11)], {"landuse": "residential"}),
+        ])
+        with patch.object(osm, "Polygon", side_effect=AssertionError("unexpected geometry build")):
+            geometries, metadata = osm.load_osm_geoms_with_status(
+                cache, "polygon", (0, 0, 1, 1))
+
+        self.assertEqual(geometries, [])
+        self.assertEqual(metadata["status"], "uncovered_bbox")
+
     def test_compute_osm_bands_returns_sidecar_layer_metadata(self):
         def empty_layer(_path, _geom_type, _bbox):
             return [], {"status": "missing_file", "geometry_count_in_bbox": 0}
@@ -68,6 +79,24 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertEqual(result.metadata["layers"]["buildings"]["status"], "missing_file")
         self.assertEqual(result.metadata["layers"]["protected_areas"]["planning_role"], "informational_only")
         self.assertTrue(all(isinstance(value, np.ndarray) for value in result.values()))
+
+    def test_compute_osm_bands_uses_explicit_cache_directory(self):
+        paths = []
+
+        def empty_layer(path, _geom_type, _bbox):
+            paths.append(Path(path))
+            return [], {"status": "missing_file", "geometry_count_in_bbox": 0}
+
+        cache_dir = Path(self.temp_dir.name) / "selected-cache"
+        dem = np.zeros((2, 2), dtype=np.float32)
+        transform = Affine(0.01, 0, 120, 0, -0.01, 25)
+        with patch.object(osm, "load_osm_geoms_with_status", side_effect=empty_layer):
+            osm.compute_osm_bands(dem, transform, (120, 24.98, 120.02, 25), cache_dir=cache_dir)
+
+        self.assertEqual(len(paths), 8)
+        self.assertTrue(all(path.parent == cache_dir for path in paths))
+        self.assertIn(cache_dir / "taiwan_buildings.pkl", paths)
+        self.assertIn(cache_dir / "taiwan_landuse.pkl", paths)
 
     def test_residential_landuse_contributes_soft_cost_without_becoming_a_hard_mask(self):
         residential = box(0.1, 1.1, 1.9, 2.9)

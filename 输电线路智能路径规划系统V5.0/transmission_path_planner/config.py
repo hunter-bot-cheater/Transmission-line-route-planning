@@ -94,10 +94,6 @@ DEM_CANDIDATES = [
     Path(r"D:\地形数据\台湾省_DEM_30m分辨率_SRTM数据.tif"),
     BASE_DIR / "data" / "downloaded" / "taiwan_dem.tif",
 ]
-SHP_CANDIDATES = [
-    BASE_DIR / "输电线数据" / "示例数据-中国输电线路矢量.shp",
-    Path(r"D:\输电线数据\示例数据-中国输电线路矢量.shp"),
-]
 MODEL_WEIGHTS = [
     MODELS_DIR / "cost_unet_improved.pt",
     MODELS_DIR / "cost_unet_best.pt",

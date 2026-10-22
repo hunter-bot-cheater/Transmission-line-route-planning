@@ -1,13 +1,13 @@
 # 输电线路智能路径规划系统 V5.0
 
 > 一套面向固定站点之间输电线路走廊初筛的规划软件。
-> 规划不读取待规划线路作为引导。参考线路只用于路线生成后的独立空间相似度评估。当前 v2 指标双向衡量线路偏移、覆盖、端点/形状和长度差，不输出单一通过率。
+> 路线只根据地形和经核验的环境约束生成。待评估的真实线路仅用于规划后的误差计算，不参与路线生成或候选选择。
 
 ---
 
 ## 一、软件定位
 
-本软件以变电站/线路接入点任务表明确起终点，用数字高程模型（DEM）、地形因子与 OpenStreetMap（OSM）建筑数据进行走廊初筛。默认代价由地形和建成区代理构成；CostUNet 仅在显式启用时作为可选先验。软件保留 VIN-Grad、PPO 候选生成和 A* 基线，但最终路线、硬约束及数据边界见下表和“站点间线路规划设计说明”。
+本软件以变电站/线路接入点任务表明确起终点，用数字高程模型（DEM）、地形因子与 OpenStreetMap（OSM）建筑数据进行走廊初筛。默认代价由地形和建成区代理构成；本轮严格无线路先验评测未加载 CostUNet。软件保留 VIN-Grad、PPO 候选生成和 A* 基线，但最终路线、硬约束及数据边界见下表和“站点间线路规划设计说明”。
 
 | 方法 | 角色 | 原理 |
 | --- | --- | --- |
@@ -19,7 +19,7 @@
 
 VIN-Grad 与 A* 共用 `1 + 4 × route_cost` 像元代价、可通行掩膜和 8 邻域移动规则；VIN 的方向步长按行列实际地面间距比例计价，目标值固定为零，并禁止穿越硬禁区或对角切角。VIN 仍由神经网络近似值场并作梯度追踪，不含 A* 的相邻地面高差惩罚或地面坡度边限制，也不保证找到最短路；生成的候选会经过硬约束和地面坡度复核。最终选路优先采用硬约束可行的 A*；A* 不可用时回退到首个硬约束可行的 VIN/PPO 候选。当前选路规则不在 AI 候选之间比较共同成本分数。真实线路误差在选路之后计算，不改变候选和最终路线。
 
-规划入口不提供参考线引导、走廊惩罚或按真实线路误差选路参数。真实线路在 A*/VIN/PPO 候选生成并选定最终方案后才读取，只用于对照评估。严格的泛化结论还需核验训练数据和已加载模型权重没有包含测试线路。
+规划过程不读取输电线路网络、走廊、参考线或历史线路几何作为先验。我们审计发现，本机现有线路图层与当前评测线路存在同源重合，因此该图层不进入规划流程；真实线路仅在候选生成和选路完成后读取，用于独立计算相似度。测试结果用于衡量当前数据集，不代表对未见区域的泛化能力。
 
 ## 二、目录结构
 
@@ -72,12 +72,14 @@ pip install -r requirements.txt
 # 2. 规划并对真实线路作事后误差评估（真实线不参与规划）
 python -m transmission_path_planner \
     --dem ./data/taiwan_dem_35m.tif \
+    --osm-cache-dir ./data/downloaded \
     --real-cases-csv ../data/real_cases_tw/real_cases.csv \
     --out-dir ./results/v5_full --no-ppp
 
 # 3. 固定站点间规划（先复制模板并填入已核验的站端接入点）
 python -m transmission_path_planner \
     --dem ./data/taiwan_dem_35m.tif \
+    --osm-cache-dir ./data/downloaded \
     --stations-csv ./examples/stations.csv \
     --route-tasks-csv ./examples/route_tasks.csv \
     --constraint-geojson ./data/verified_constraints.geojson \
@@ -89,6 +91,7 @@ python scripts/fetch_taiwan_constraints.py --soft-weight 1.0
 # 4. 纯规划（省略评估线路；也可加 --real-cases-csv 只作事后评分）
 python -m transmission_path_planner \
     --dem ./data/taiwan_dem_35m.tif \
+    --osm-cache-dir ./data/downloaded \
     --out-dir ./results/v5_plan_only --no-ppp
 
 # 5. 或直接调用包内入口
@@ -98,9 +101,9 @@ main()
 
 从本目录运行 `run_real_tw.bat` 可启动规划并在规划结束后对真实线路评分。脚本使用本目录内 DEM 和上一级工作区 `data/real_cases_tw/` 中的 CSV/SHP；将软件包单独复制到其他位置时，需按实际位置修改数据路径。
 
-`config.py` 按软件目录位置解析默认数据与输出根目录，并优先查找随包 DEM；兼容保留旧机器的外部 DEM/SHP 路径作为回退。默认不加载 CostUNet；如要启用，须准备兼容权重并添加 `--use-costunet`。真实站点数据必须由项目方核实后填写模板。
+`config.py` 按软件目录位置解析默认数据与输出根目录，并优先查找随包 DEM。可通过 `--osm-cache-dir` 指定 OSM 环境图层缓存目录；路线规划不读取线路网络或历史线路几何。真实站点数据必须由项目方核实后填写模板。
 
-真实线路输入只用于规划后的空间误差对照。若需要合法的方向先验，应使用有来源记录的宽走廊、多边形禁入区、必经点或经核验站点约束；待评估的真实线路几何不作为规划先验。命令行参数以 `python -m transmission_path_planner --help` 为准。
+真实评测线路只用于规划后的空间误差对照。规划输入限于地形数据、站点和有来源记录的环境约束；线路网络、走廊及任何真实路线几何均不作为规划输入。命令行参数以 `python -m transmission_path_planner --help` 为准。
 
 官方约束数据来源、更新时间、许可、下载方式及使用边界见 `docs/公开数据与获取流程.md`。生成的数据保存在 `data/` 下并由 `.gitignore` 排除，需按数据许可和来源说明管理；仓库包含下载脚本不表示图层已核验或自动生效。
 

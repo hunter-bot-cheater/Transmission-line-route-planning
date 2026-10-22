@@ -93,32 +93,37 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
             except (KeyError, TypeError, ValueError):
                 continue
             if coords:
-                xs, ys = zip(*coords)
-                extent[0] = min(extent[0], min(xs))
-                extent[1] = min(extent[1], min(ys))
-                extent[2] = max(extent[2], max(xs))
-                extent[3] = max(extent[3], max(ys))
+                min_x = min(point[0] for point in coords)
+                min_y = min(point[1] for point in coords)
+                max_x = max(point[0] for point in coords)
+                max_y = max(point[1] for point in coords)
+                extent[0] = min(extent[0], min_x)
+                extent[1] = min(extent[1], min_y)
+                extent[2] = max(extent[2], max_x)
+                extent[3] = max(extent[3], max_y)
+
+            min_coords = 1 if geom_type == "point" else 3 if geom_type == "polygon" else 2
+            if len(coords) < min_coords:
+                continue
+            usable_geometry_count += 1
+            if (max_x < bbox[0] or min_x > bbox[2]
+                    or max_y < bbox[1] or min_y > bbox[3]):
+                continue
             try:
                 if geom_type == "point":
-                    if len(coords) >= 1:
-                        geom = Point(coords[0])
-                    else:
-                        continue
+                    geom = Point(coords[0])
                 elif geom_type == "polygon":
-                    if len(coords) < 3:
-                        continue
                     if coords[0] != coords[-1]:
                         coords = coords + [coords[0]]
                     geom = Polygon(coords)
                 else:
-                    if len(coords) < 2:
-                        continue
                     geom = LineString(coords)
             except Exception:
+                usable_geometry_count -= 1
                 continue
             if geom.is_empty:
+                usable_geometry_count -= 1
                 continue
-            usable_geometry_count += 1
             if box_poly.intersects(geom):
                 out.append((geom, tags))
 
@@ -340,7 +345,7 @@ def compute_vegetation_height(geoms, transform, shape):
     return result
 
 
-def compute_osm_bands(dem, transform, bbox):
+def compute_osm_bands(dem, transform, bbox, cache_dir=None):
     """计算 OSM 波段与风险代理；图层状态可从返回值的 ``metadata`` 属性读取。
 
     Building footprints provide a hard footprint mask and settlement proxy;
@@ -349,6 +354,7 @@ def compute_osm_bands(dem, transform, bbox):
     cost. Protected areas are reported for inspection only.
     """
     H, W = dem.shape
+    cache_dir = Path(cache_dir) if cache_dir else DOWNLOADED_DIR
     layer_specs = {
         "roads": ("taiwan_roads.pkl", "line", "feature_model_input_only_not_default_rule_cost"),
         "water": ("taiwan_water.pkl", "line", "feature_model_input_only_not_default_rule_cost"),
@@ -363,7 +369,7 @@ def compute_osm_bands(dem, transform, bbox):
     layer_metadata = {}
     for name, (filename, geom_type, role) in layer_specs.items():
         layers[name], layer_metadata[name] = load_osm_geoms_with_status(
-            DOWNLOADED_DIR / filename, geom_type, bbox)
+            cache_dir / filename, geom_type, bbox)
         layer_metadata[name]["planning_role"] = role
     roads = layers["roads"]
     water = layers["water"]
