@@ -256,6 +256,18 @@ class StationPlanningTests(unittest.TestCase):
 
         self.assertLessEqual(route_cost(weighted), 1.5 * route_cost(exact) + 1e-9)
 
+    def test_astar_route_is_invariant_to_endpoint_order(self):
+        cost = np.array([[1, 2, 2, 4, 1, 1],
+                         [1, 3, 2, 2, 1, 1],
+                         [1, 1, 1, 4, 2, 1],
+                         [3, 1, 2, 1, 1, 1]], dtype=np.float64)
+        start, end = (0, 0), (3, 5)
+
+        for weight in (1.0, 1.5):
+            forward = astar_search(cost, start, end, heuristic_weight=weight)
+            backward = astar_search(cost, end, start, heuristic_weight=weight)
+            self.assertEqual(forward, backward[::-1])
+
     def test_exports_station_height_and_profile_csv(self):
         transform = Affine(0.001, 0, 120.0, 0, -0.001, 25.0)
         dem = np.zeros((10, 10), dtype=float)

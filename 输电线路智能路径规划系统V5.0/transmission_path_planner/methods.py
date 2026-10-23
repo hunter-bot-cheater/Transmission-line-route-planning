@@ -705,6 +705,9 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
         er, ec = _nearest_valid(cost_raster, er, ec)
     if sr is None or er is None:
         return None
+    reverse_result = sr * W + sc > er * W + ec
+    if reverse_result:
+        (sr, sc), (er, ec) = (er, ec), (sr, sc)
     valid = cost_raster[np.isfinite(cost_raster)]
     c_min = max(float(valid.min()), 1e-6) if valid.size else 1e-6
     neigh = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
@@ -729,10 +732,11 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
     parent = np.full((H, W), -1, dtype=np.int64)
     closed = np.zeros((H, W), dtype=bool)
     g[sr, sc] = 0.0
-    open_set = [(h(sr, sc), 0, sr * W + sc)]
+    start_h = h(sr, sc)
+    open_set = [(start_h, start_h, 0, sr * W + sc)]
     tb = 0
     while open_set:
-        _, _, cur_idx = heapq.heappop(open_set)
+        _, _, _, cur_idx = heapq.heappop(open_set)
         cr, cc = divmod(cur_idx, W)
         if closed[cr, cc]:
             continue
@@ -742,7 +746,7 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
                 path.append((cr, cc))
                 if (cr, cc) == (sr, sc):
                     path.reverse()
-                    return path
+                    return path[::-1] if reverse_result else path
                 cur_idx = int(parent[cr, cc])
                 cr, cc = divmod(cur_idx, W)
         closed[cr, cc] = True
@@ -773,7 +777,9 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
             tg = g[cr, cc] + step_cost * step_len
             if tg < g[nr, nc]:
                 g[nr, nc] = tg
-                heapq.heappush(open_set, (tg + h(nr, nc), tb, nr * W + nc))
+                next_h = h(nr, nc)
+                # Resolve equal f-costs toward the goal before insertion order.
+                heapq.heappush(open_set, (tg + next_h, next_h, tb, nr * W + nc))
                 parent[nr, nc] = cr * W + cc
                 tb += 1
     return None
