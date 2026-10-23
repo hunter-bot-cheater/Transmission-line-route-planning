@@ -33,6 +33,124 @@ class OSMSettlementMetadataTests(unittest.TestCase):
             pickle.dump({"elements": elements}, stream)
         return path
 
+    def test_rasterize_on_propagates_rasterization_errors(self):
+        with patch.object(osm, "rio_rasterize", side_effect=RuntimeError("rasterization failed")):
+            with self.assertRaisesRegex(RuntimeError, "rasterization failed"):
+                osm.rasterize_on([(box(0, 0, 1, 1), {})], Affine.identity(), (2, 2))
+
+    def test_distance_band_uses_axis_spacing_in_geographic_and_projected_crs(self):
+        cases = (
+            ("EPSG:4326", Affine(0.001, 0, 120, 0, -0.002, 25)),
+            ("EPSG:3857", Affine(250, 0, 0, 0, -100, 1000)),
+        )
+        shape = (5, 5)
+        for crs, transform in cases:
+            with self.subTest(crs=crs):
+                lat_center = transform.f + transform.b * (shape[1] / 2) + transform.e * (shape[0] / 2)
+                row_m, col_m = osm.pixel_spacing_meters(transform, lat_center, crs)
+                pad_rows = int(np.ceil(1000 / row_m)) + 1
+                pad_cols = int(np.ceil(1000 / col_m)) + 1
+                padded_on = np.zeros((shape[0] + 2 * pad_rows,
+                                      shape[1] + 2 * pad_cols), dtype=np.uint8)
+                padded_on[pad_rows + 2, pad_cols + 2] = 1
+
+                def rasterize_padded(_geoms, padded_transform, padded_shape):
+                    self.assertEqual(padded_shape, padded_on.shape)
+                    self.assertEqual(
+                        padded_transform,
+                        transform * Affine.translation(-pad_cols, -pad_rows))
+                    return padded_on
+
+                with patch.object(osm, "rasterize_on", side_effect=rasterize_padded):
+                    distance = osm.compute_distance_band(
+                        [(box(0, 0, 1, 1), {})], transform, shape, max_dist_m=1000, crs=crs)
+
+                self.assertAlmostEqual(float(distance[1, 2]), row_m, places=3)
+                self.assertAlmostEqual(float(distance[2, 3]), col_m, places=3)
+                self.assertNotAlmostEqual(row_m, col_m, places=1)
+
+    @unittest.skipUnless(osm.HAS_SCIPY and osm.HAS_RASTERIO,
+                         "distance bands require scipy and rasterio")
+    def test_distance_band_includes_buildings_outside_all_four_window_edges(self):
+        transform = Affine(100, 0, 0, 0, -100, 500)
+        shape = (5, 5)
+        cases = (
+            ("left", (2, 0), box(-99, 201, -1, 299),
+             box(-4899, 201, -4801, 299)),
+            ("right", (2, 4), box(501, 201, 599, 299),
+             box(5301, 201, 5399, 299)),
+            ("top", (0, 2), box(201, 501, 299, 599),
+             box(201, 5301, 299, 5399)),
+            ("bottom", (4, 2), box(201, -99, 299, -1),
+             box(201, -4899, 299, -4801)),
+        )
+
+        for side, edge_cell, near_building, far_building in cases:
+            for distance, building in ((100.0, near_building), (4900.0, far_building)):
+                with self.subTest(side=side, expected_distance_m=distance):
+                    band = osm.compute_distance_band(
+                        [(building, {})], transform, shape, max_dist_m=5000,
+                        crs="EPSG:3857")
+                    row, col = edge_cell
+                    self.assertAlmostEqual(float(band[row, col]), distance, places=3)
+
+    @unittest.skipUnless(osm.HAS_SCIPY, "building density requires scipy")
+    def test_building_density_uses_axis_specific_kernel_and_returns_cell_fraction(self):
+        cases = (
+            ("EPSG:4326", Affine(0.001, 0, 120, 0, -0.002, 25)),
+            ("EPSG:3857", Affine(250, 0, 0, 0, -100, 1000)),
+        )
+        shape = (9, 9)
+        for crs, transform in cases:
+            with self.subTest(crs=crs):
+                lat_center = transform.f + transform.b * (shape[1] / 2) + transform.e * (shape[0] / 2)
+                row_m, col_m = osm.pixel_spacing_meters(transform, lat_center, crs)
+                sigma = (500.0 / row_m, 500.0 / col_m)
+                pad_rows, pad_cols = int(np.ceil(4 * sigma[0])), int(np.ceil(4 * sigma[1]))
+                padded_shape = (shape[0] + 2 * pad_rows, shape[1] + 2 * pad_cols)
+                padded_on = np.zeros(padded_shape, dtype=np.uint8)
+                padded_on[pad_rows + 4, pad_cols + 4] = 1
+                expected_smooth = osm.gaussian_filter(
+                    padded_on.astype(np.float32), sigma=sigma, mode="constant")
+                expected = expected_smooth[
+                    pad_rows:pad_rows + shape[0], pad_cols:pad_cols + shape[1]]
+
+                def rasterize_padded(_geoms, _transform, requested_shape):
+                    self.assertEqual(requested_shape, padded_shape)
+                    return padded_on
+
+                with patch.object(osm, "rasterize_on", side_effect=rasterize_padded):
+                    density = osm.compute_building_density(
+                        [(box(0, 0, 1, 1), {})], transform, shape, crs=crs)
+
+                np.testing.assert_allclose(density, expected, rtol=1e-6)
+                self.assertTrue(np.all((density >= 0.0) & (density <= 1.0)))
+                self.assertNotEqual(sigma[0], sigma[1])
+
+    @unittest.skipUnless(osm.HAS_SCIPY, "building density requires scipy")
+    def test_building_density_is_stable_when_same_cell_moves_to_window_edge(self):
+        building_center = (2050.0, 2050.0)
+        windows = (
+            (Affine(100, 0, 0, 0, -100, 4100), (41, 41), (20, 20)),
+            (Affine(100, 0, 0, 0, -100, 3100), (21, 21), (10, 20)),
+        )
+
+        def rasterize_same_world_building(_geoms, transform, shape):
+            mask = np.zeros(shape, dtype=np.uint8)
+            col, row = ~transform * building_center
+            mask[int(np.floor(row)), int(np.floor(col))] = 1
+            return mask
+
+        sampled = []
+        with patch.object(osm, "rasterize_on", side_effect=rasterize_same_world_building):
+            for transform, shape, cell in windows:
+                density = osm.compute_building_density(
+                    [(box(2050.0, 2050.0, 2051.0, 2051.0), {})],
+                    transform, shape, crs="EPSG:3857")
+                sampled.append(float(density[cell]))
+
+        self.assertAlmostEqual(sampled[0], sampled[1], places=6)
+
     def test_missing_and_empty_caches_have_distinct_statuses(self):
         missing, missing_meta = osm.load_osm_geoms_with_status(
             Path(self.temp_dir.name) / "missing.pkl", "line", (0, 0, 1, 1))
@@ -68,7 +186,10 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertEqual(metadata["status"], "uncovered_bbox")
 
     def test_compute_osm_bands_returns_sidecar_layer_metadata(self):
-        def empty_layer(_path, _geom_type, _bbox):
+        requested = {}
+
+        def empty_layer(path, _geom_type, query_bbox):
+            requested[Path(path).name] = query_bbox
             return [], {"status": "missing_file", "geometry_count_in_bbox": 0}
 
         dem = np.zeros((3, 3), dtype=np.float32)
@@ -79,12 +200,17 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertEqual(result.metadata["layers"]["buildings"]["status"], "missing_file")
         self.assertEqual(result.metadata["layers"]["protected_areas"]["planning_role"], "informational_only")
         self.assertTrue(all(isinstance(value, np.ndarray) for value in result.values()))
+        self.assertLess(requested["taiwan_buildings.pkl"][1], 24.93)
+        self.assertGreater(requested["taiwan_buildings.pkl"][3], 25.04)
+        self.assertEqual(requested["taiwan_landuse.pkl"], (120, 24.97, 120.03, 25))
 
     def test_a_star_mode_loads_only_cost_and_hard_mask_layers(self):
         paths = []
+        requested = {}
 
-        def empty_layer(path, _geom_type, _bbox):
+        def empty_layer(path, _geom_type, bbox):
             paths.append(Path(path).name)
+            requested[Path(path).name] = bbox
             return [], {"status": "empty_in_bbox", "geometry_count_in_bbox": 0}
 
         dem = np.zeros((3, 3), dtype=np.float32)
@@ -102,6 +228,7 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertNotIn("dist_road", result)
         self.assertNotIn("building_distance_m", result)
         self.assertEqual(result.metadata["layers"]["roads"]["status"], "not_loaded")
+        self.assertAlmostEqual(requested["taiwan_buildings.pkl"][1], 24.952, places=3)
 
     def test_a_star_core_bands_match_full_feature_mode(self):
         landuse = [

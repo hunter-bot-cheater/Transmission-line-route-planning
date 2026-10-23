@@ -39,8 +39,7 @@ def build_feature_stack(dem, terrain, osm, dist_existing=None):
     stack[:, :, 17] = np.clip(osm["dist_fault"] / 10000.0, 0, 1)
     # 18-20 分类/密度/植被
     stack[:, :, 18] = osm["landuse_code"].astype(np.float32) / 8.0
-    p99 = np.nanpercentile(osm["building_density"], 99) if np.any(osm["building_density"] > 0) else 1.0
-    stack[:, :, 19] = np.clip(osm["building_density"] / max(p99, 1.0), 0, 1)
+    stack[:, :, 19] = np.clip(osm["building_density"], 0, 1)
     stack[:, :, 20] = np.clip(osm["vegetation_height"] / 30.0, 0, 1)
     # 21-25 风险
     for i, name in enumerate(["typhoon_risk", "seismic_risk", "landslide_risk", "ice_cover_risk", "lightning_risk"]):
@@ -170,17 +169,20 @@ def heuristic_cost(dem, terrain):
 
 def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
                      ridge_penalty_weight=0.10,
-                     landcover_penalty_weight=0.0):
+                     landcover_penalty_weight=0.0,
+                     official_hazard_masks=None,
+                     official_hazard_weight=0.0):
     """Build an interpretable screening cost with a soft built-up proxy.
 
-    The proxy is the maximum of normalized mapped-building density, mapped
+    The proxy is the maximum of mapped-building occupancy fraction, mapped
     residential coverage, and land-use code 4 (residential/retail/commercial/
     urban). Taking the maximum combines overlapping OSM signals without
     double-counting them. Missing bands contribute no proxy; their availability
     must be read from OSM layer metadata. A nonzero land-cover weight adds a
     separate soft cost to mapped forest and wetland codes; missing land use
-    remains neutral. Neither proxy is a hard exclusion or a substitute for
-    legal environmental data.
+    remains neutral. Official hazard masks are unioned before a shared soft
+    penalty is applied, so overlapping hazard categories are not double-counted.
+    None of these screening costs is a hard exclusion or engineering standard.
     """
     slope = np.nan_to_num(terrain["slope"], nan=0.0, posinf=90.0, neginf=0.0)
     roughness = np.nan_to_num(terrain["roughness_27"], nan=0.0, posinf=0.0, neginf=0.0)
@@ -201,12 +203,7 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
         osm.get("building_density", np.zeros_like(terrain_cost)), dtype=np.float32),
         terrain_cost.shape)
     density = np.nan_to_num(density, nan=0.0, posinf=0.0, neginf=0.0)
-    positive = density[density > 0]
-    if positive.size:
-        p99 = max(float(np.percentile(positive, 99)), 1.0)
-        building_proxy = np.clip(np.log1p(density) / np.log1p(p99), 0.0, 1.0)
-    else:
-        building_proxy = np.zeros_like(terrain_cost)
+    building_proxy = np.clip(density, 0.0, 1.0)
     residential = np.broadcast_to(np.asarray(
         osm.get("residential_landuse_mask", np.zeros_like(terrain_cost)), dtype=np.float32),
         terrain_cost.shape)
@@ -219,6 +216,15 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
     settlement_proxy = np.maximum(np.maximum(building_proxy, residential_proxy), builtup_proxy)
     landcover_proxy = np.isin(landuse_code, (1.0, 7.0)).astype(np.float32)
 
+    hazard_proxy = np.zeros_like(terrain_cost)
+    if official_hazard_masks:
+        for mask in official_hazard_masks.values():
+            values = np.broadcast_to(np.asarray(mask, dtype=np.float32), terrain_cost.shape)
+            hazard_proxy = np.maximum(
+                hazard_proxy,
+                np.clip(np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0), 0.0, 1.0),
+            )
+
     if model_cost is not None:
         model = np.nan_to_num(model_cost, nan=0.0, posinf=1.0, neginf=0.0)
         terrain_cost = 0.5 * terrain_cost + 0.5 * np.clip(model, 0.0, 1.0)
@@ -226,4 +232,5 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
         terrain_cost
         + max(float(settlement_weight), 0.0) * settlement_proxy
         + max(float(landcover_penalty_weight), 0.0) * landcover_proxy
+        + max(float(official_hazard_weight), 0.0) * hazard_proxy
     ).astype(np.float32)

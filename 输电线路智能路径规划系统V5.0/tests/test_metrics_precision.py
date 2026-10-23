@@ -30,6 +30,16 @@ class MetricPrecisionTests(unittest.TestCase):
         self.assertLess(score["symmetric"]["coverage_f1_within_m"]["100"], 0.1)
         self.assertEqual(metrics["route_similarity_version"], 2)
 
+    def test_reference_line_coverage_in_planning_window_is_reported(self):
+        route = [(120.0, 24.0), (120.01, 24.0)]
+
+        score = similarity(compute_deviation(
+            route, route, planning_bounds_wgs84=(120.0, 23.999, 120.005, 24.001)))
+
+        coverage = score["planning_window_coverage"]
+        self.assertAlmostEqual(coverage["reference_length_coverage_ratio"], 0.5, delta=0.002)
+        self.assertGreater(coverage["reference_length_outside_window_m"], 500.0)
+
     def test_short_planned_subroute_does_not_hide_uncovered_reference_ends(self):
         planned = [(120.002, 24.0), (120.008, 24.0)]
         reference = [(120.0, 24.0), (120.01, 24.0)]

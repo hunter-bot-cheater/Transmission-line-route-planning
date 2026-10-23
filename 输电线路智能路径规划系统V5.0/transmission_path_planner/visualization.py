@@ -7,7 +7,7 @@ from .data import _hillshade, _fill
 from .io_export import *
 
 def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, title="多算法路径对比",
-                    real_ll=None):
+                    real_ll=None, hazard_masks=None):
     H, W = dem.shape
     hill = _hillshade(dem)
     left = transform.c; bottom = transform.f + transform.e * H
@@ -18,8 +18,30 @@ def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, t
     z = _fill(dem)
     ax.imshow(z, extent=extent, cmap="terrain", origin="upper", aspect="auto",
               alpha=0.30, vmin=np.nanpercentile(z, 2), vmax=np.nanpercentile(z, 98))
+    hazard_colors = {
+        "debris_flow_impact": ("#f39c12", "土石流影响范围"),
+        "landslide_potential": ("#9b59b6", "大规模崩塌潜势区"),
+        "landslide_impact": ("#e74c3c", "大规模崩塌影响范围"),
+    }
+    hazard_legend = None
+    if hazard_masks:
+        from matplotlib.colors import ListedColormap
+        from matplotlib.patches import Patch
+        handles = []
+        for key, (color, label) in hazard_colors.items():
+            mask = hazard_masks.get(key)
+            if mask is None or not np.asarray(mask).any():
+                continue
+            ax.imshow(np.ma.masked_where(np.asarray(mask) == 0, mask),
+                      extent=extent, cmap=ListedColormap([color]),
+                      origin="upper", aspect="auto", alpha=0.28,
+                      interpolation="nearest", zorder=2)
+            handles.append(Patch(facecolor=color, alpha=0.28, label=label))
+        if handles:
+            hazard_legend = ax.legend(handles=handles, loc="lower left", framealpha=0.85,
+                                      title="官方灾害面（软风险）")
     colors = {"VIN-Grad": "#1f77ff", "PPO": "#2ca02c", "A*(baseline)": "#ff7f0e",
-              "A*(weighted)": "#9467bd"}
+              "A*(weighted)": "#9467bd", "A*(turn-aware)": "#17becf"}
     for name, geo in methods_paths.items():
         if not geo:
             continue
@@ -44,6 +66,8 @@ def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, t
     ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
     ax.set_title(title)
     ax.legend(loc="upper right", framealpha=0.9)
+    if hazard_legend:
+        ax.add_artist(hazard_legend)
     ax.set_aspect("equal", adjustable="datalim")
     fig.tight_layout(); fig.savefig(out_path, dpi=160); plt.close(fig)
     print(f"  对比图保存: {out_path}")
@@ -73,7 +97,7 @@ def plot_value_map(V, transform, geo_vin, start_ll, end_ll, out_path):
 
 def plot_algo_comparison(all_results, out_path):
     """多算法指标聚合柱状图。"""
-    methods = ["VIN-Grad", "PPO", "A*(baseline)", "A*(weighted)"]
+    methods = ["VIN-Grad", "PPO", "A*(baseline)", "A*(weighted)", "A*(turn-aware)"]
     metrics_keys = ["length_km", "mean_cost", "sinuosity", "hard_violations", "time_s", "cum_relief_m"]
     agg = {m: {k: [] for k in metrics_keys} for m in methods}
     for rec in all_results:
@@ -91,7 +115,7 @@ def plot_algo_comparison(all_results, out_path):
     fig, axes = plt.subplots(2, 3, figsize=(15, 9), dpi=140)
     axes = axes.ravel()
     colors = {"VIN-Grad": "#1f77ff", "PPO": "#2ca02c", "A*(baseline)": "#ff7f0e",
-              "A*(weighted)": "#9467bd"}
+              "A*(weighted)": "#9467bd", "A*(turn-aware)": "#17becf"}
     for i, k in enumerate(metrics_keys):
         ax = axes[i]
         vals = [means[m][k] for m in methods]

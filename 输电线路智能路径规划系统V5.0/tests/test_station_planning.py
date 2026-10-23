@@ -1,4 +1,5 @@
 import csv
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -125,10 +126,22 @@ class StationPlanningTests(unittest.TestCase):
     def test_building_density_increases_route_cost(self):
         terrain = {"slope": np.zeros((3, 3)), "roughness_27": np.zeros((3, 3))}
         osm = {"building_density": np.zeros((3, 3))}
-        osm["building_density"][1, 1] = 10
+        osm["building_density"][1, 1] = 0.1
         cost = build_route_cost(terrain, osm, settlement_weight=2.0)
         self.assertEqual(cost[0, 0], 0)
-        self.assertGreater(cost[1, 1], 0)
+        self.assertAlmostEqual(cost[1, 1], 0.2)
+
+    def test_building_density_cost_is_independent_of_task_window_extremes(self):
+        terrain = {"slope": np.zeros((3, 3)), "roughness_27": np.zeros((3, 3))}
+        local = {"building_density": np.zeros((3, 3), dtype=np.float32)}
+        local["building_density"][1, 1] = 0.1
+        expanded = {"building_density": np.full((5, 5), 0.9, dtype=np.float32)}
+        expanded["building_density"][2, 2] = 0.1
+        local_cost = build_route_cost(terrain, local)[1, 1]
+        expanded_cost = build_route_cost(
+            {"slope": np.zeros((5, 5)), "roughness_27": np.zeros((5, 5))},
+            expanded)[2, 2]
+        self.assertAlmostEqual(float(local_cost), float(expanded_cost))
 
     def test_astar_can_enforce_local_ground_grade(self):
         cost = np.ones((9, 9), dtype=float)
@@ -268,6 +281,149 @@ class StationPlanningTests(unittest.TestCase):
             backward = astar_search(cost, end, start, heuristic_weight=weight)
             self.assertEqual(forward, backward[::-1])
 
+    @staticmethod
+    def _turn_route_cost(path, cost, turn_weight, pixel_spacing=None):
+        edges = []
+        for (r0, c0), (r1, c1) in zip(path, path[1:]):
+            dr, dc = r1 - r0, c1 - c0
+            length = (math.hypot(dr * pixel_spacing[0], dc * pixel_spacing[1])
+                      if pixel_spacing is not None else math.hypot(dr, dc))
+            edges.append((dr, dc, 0.5 * (cost[r0, c0] + cost[r1, c1]) * length))
+        total = sum(edge[2] for edge in edges)
+        for first, second in zip(edges, edges[1:]):
+            if pixel_spacing is None:
+                v0 = first[:2]
+                v1 = second[:2]
+            else:
+                v0 = (first[0] * pixel_spacing[0], first[1] * pixel_spacing[1])
+                v1 = (second[0] * pixel_spacing[0], second[1] * pixel_spacing[1])
+            cosine = ((v0[0] * v1[0] + v0[1] * v1[1])
+                      / (math.hypot(*v0) * math.hypot(*v1)))
+            total += turn_weight * 0.5 * (first[2] + second[2]) * (1 - cosine)
+        return total
+
+    def _assert_route_legal(self, path, cost):
+        self.assertIsNotNone(path)
+        for (r0, c0), (r1, c1) in zip(path, path[1:]):
+            dr, dc = r1 - r0, c1 - c0
+            self.assertLessEqual(max(abs(dr), abs(dc)), 1)
+            self.assertNotEqual((dr, dc), (0, 0))
+            self.assertTrue(np.isfinite(cost[r1, c1]))
+            if dr and dc:
+                self.assertTrue(np.isfinite(cost[r0 + dr, c0]))
+                self.assertTrue(np.isfinite(cost[r0, c0 + dc]))
+
+    @staticmethod
+    def _direction_changes(path):
+        directions = [(r1 - r0, c1 - c0)
+                      for (r0, c0), (r1, c1) in zip(path, path[1:])]
+        return sum(first != second for first, second in zip(directions, directions[1:]))
+
+    def test_turn_penalty_reduces_corners_around_uniform_cost_obstacle(self):
+        cost = np.ones((15, 25), dtype=np.float64)
+        cost[4:11, 8:17] = np.inf
+        start, end = (7, 0), (7, 24)
+
+        baseline = astar_search(cost, start, end)
+        rounded = astar_search(cost, start, end, turn_penalty_weight=0.5)
+
+        self._assert_route_legal(baseline, cost)
+        self._assert_route_legal(rounded, cost)
+        self.assertLess(self._direction_changes(rounded), self._direction_changes(baseline))
+        self.assertEqual(rounded[0], start)
+        self.assertEqual(rounded[-1], end)
+
+    def test_turn_penalty_astar_matches_dijkstra_on_fixed_random_maps(self):
+        rng = np.random.default_rng(20261023)
+        spacing = (180.0, 100.0)
+        turn_weight = 0.7
+
+        for case in range(16):
+            with self.subTest(case=case):
+                cost = rng.uniform(1.0, 8.0, size=(9, 11))
+                cost[rng.random(cost.shape) < 0.18] = np.inf
+                cost[0, :] = cost[-1, :] = 1.0
+                cost[:, 0] = cost[:, -1] = 1.0
+                start, end = (0, 0), (8, 10)
+
+                astar = astar_search(
+                    cost, start, end, pixel_spacing=spacing,
+                    turn_penalty_weight=turn_weight)
+                dijkstra = astar_search(
+                    cost, start, end, pixel_spacing=spacing, use_dijkstra=True,
+                    turn_penalty_weight=turn_weight)
+
+                self._assert_route_legal(astar, cost)
+                self._assert_route_legal(dijkstra, cost)
+                self.assertAlmostEqual(
+                    self._turn_route_cost(astar, cost, turn_weight, spacing),
+                    self._turn_route_cost(dijkstra, cost, turn_weight, spacing),
+                    places=8,
+                )
+
+    def test_turn_penalty_route_is_symmetric_with_anisotropic_spacing(self):
+        cost = np.ones((13, 19), dtype=np.float64)
+        cost[3:10, 6:13] = np.inf
+        start, end = (6, 0), (6, 18)
+        spacing = (240.0, 100.0)
+
+        forward = astar_search(
+            cost, start, end, pixel_spacing=spacing, turn_penalty_weight=0.8)
+        backward = astar_search(
+            cost, end, start, pixel_spacing=spacing, turn_penalty_weight=0.8)
+
+        self.assertEqual(forward, backward[::-1])
+        self._assert_route_legal(forward, cost)
+
+    def test_turn_angle_uses_physical_anisotropic_pixel_vectors(self):
+        cost = np.ones((2, 4), dtype=np.float64)
+        path = [(1, 1), (0, 2), (0, 3)]
+        spacing = (2.0, 1.0)
+        turn_weight = 1.0
+        diagonal_length = math.sqrt(5.0)
+        physical_cosine = 1.0 / diagonal_length
+        expected = (diagonal_length + 1.0
+                    + 0.5 * (diagonal_length + 1.0) * (1.0 - physical_cosine))
+
+        actual = self._turn_route_cost(path, cost, turn_weight, spacing)
+
+        self.assertAlmostEqual(actual, expected, places=12)
+        self.assertNotAlmostEqual(
+            actual,
+            self._turn_route_cost(path, cost, turn_weight, (1.0, 1.0)),
+            places=6,
+        )
+
+    def test_turn_penalty_search_does_not_cut_diagonal_obstacle_corners(self):
+        cost = np.array([[1.0, np.inf], [1.0, 1.0]])
+
+        path = astar_search(cost, (0, 0), (1, 1), turn_penalty_weight=0.5)
+
+        self.assertEqual(path, [(0, 0), (1, 0), (1, 1)])
+        self._assert_route_legal(path, cost)
+
+        diagonal_only = np.array([[1.0, np.inf], [np.inf, 1.0]])
+        self.assertIsNone(astar_search(
+            diagonal_only, (0, 0), (1, 1), turn_penalty_weight=0.5))
+
+    def test_turn_penalty_weight_must_be_finite_and_nonnegative(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        for weight in (-0.1, float("nan"), float("inf")):
+            with self.subTest(weight=weight), self.assertRaisesRegex(
+                    ValueError, "turn_penalty_weight"):
+                astar_search(cost, (0, 0), (2, 2), turn_penalty_weight=weight)
+
+    def test_zero_turn_penalty_keeps_legacy_path(self):
+        cost = np.array([[1, 2, 2, 4, 1, 1],
+                         [1, 3, 2, 2, 1, 1],
+                         [1, 1, 1, 4, 2, 1],
+                         [3, 1, 2, 1, 1, 1]], dtype=np.float64)
+
+        self.assertEqual(
+            astar_search(cost, (0, 0), (3, 5)),
+            astar_search(cost, (0, 0), (3, 5), turn_penalty_weight=0.0),
+        )
+
     def test_exports_station_height_and_profile_csv(self):
         transform = Affine(0.001, 0, 120.0, 0, -0.001, 25.0)
         dem = np.zeros((10, 10), dtype=float)
@@ -370,6 +526,17 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(status, "incomplete_osm_proxies")
         self.assertEqual(missing, ["landuse"])
 
+    def test_observed_osm_features_do_not_claim_complete_coverage(self):
+        metadata = {
+            name: {"status": "available", "coverage_status": "features_observed"}
+            for name in ("buildings", "landuse")
+        }
+
+        status, missing = screening_data_quality(metadata)
+
+        self.assertEqual(status, "osm_proxy_features_observed_coverage_unverified")
+        self.assertEqual(missing, [])
+
     def test_mean_cost_samples_route_interior_cells(self):
         transform = Affine(1.0, 0.0, 0.0, 0.0, -1.0, 5.0)
         dem = np.zeros((5, 5), dtype=float)
@@ -383,6 +550,88 @@ class StationPlanningTests(unittest.TestCase):
 
         self.assertEqual(metrics["mean_cost"], 2.0)
 
+    def test_path_objective_integral_matches_astar_and_dijkstra(self):
+        from transmission_path_planner.metrics import astar_path_objective, path_cost_integral
+
+        transform = Affine(0.001, 0.0, 120.0, 0.0, -0.001, 25.0)
+        cost = np.array([[1.0, 2.0, 1.5, 1.0],
+                         [2.0, 1.0, 3.0, 2.0],
+                         [1.0, 1.5, 2.0, 1.0],
+                         [2.0, 1.0, 1.0, 2.0]])
+        dem = np.array([[0.0, 10.0, 20.0, 10.0],
+                        [5.0, 15.0, 10.0, 5.0],
+                        [0.0, 10.0, 5.0, 0.0],
+                        [5.0, 0.0, 0.0, 5.0]])
+        start, end = (0, 0), (3, 3)
+        spacing = (111.0, 101.0)
+        weight = 1.2
+
+        astar_path = astar_search(
+            cost, start, end, elevation=dem, grade_penalty_weight=weight,
+            pixel_spacing=spacing)
+        dijkstra_path = astar_search(
+            cost, start, end, use_dijkstra=True, elevation=dem,
+            grade_penalty_weight=weight, pixel_spacing=spacing)
+        astar = astar_path_objective(astar_path, cost, dem, spacing, weight)
+        dijkstra = astar_path_objective(dijkstra_path, cost, dem, spacing, weight)
+
+        self.assertEqual(astar["status"], "measured")
+        self.assertAlmostEqual(astar["total_cost"], dijkstra["total_cost"], places=5)
+        route = [rowcol_to_geo(row, col, transform) for row, col in astar_path]
+        sampled = path_cost_integral(route, dem, transform, cost, weight, 0.0, spacing)
+        self.assertAlmostEqual(sampled["base_cost_meter"] + sampled["grade_cost_meter"],
+                               astar["total_cost"], places=2)
+
+    def test_continuous_base_cost_integrates_exact_cell_crossing_lengths(self):
+        from transmission_path_planner.metrics import path_cost_integral
+
+        transform = Affine(0.001, 0.0, 120.0, 0.0, -0.001, 25.0)
+        cost = np.array([[0.0, 100.0], [0.0, 100.0]])
+        dem = np.zeros((2, 2), dtype=float)
+        route = [transform * (0.1, 0.5), transform * (1.1, 0.5)]
+
+        measured = path_cost_integral(route, dem, transform, cost, 0.0,
+                                      pixel_spacing=(100.0, 100.0))
+
+        self.assertEqual(measured["base_cost_meter"], 1000.0)
+        self.assertEqual(measured["base_cost_method"], "piecewise_constant_grid_cell_exact")
+
+    def test_continuous_base_cost_splits_simultaneous_row_and_column_crossing(self):
+        from transmission_path_planner.metrics import path_cost_integral
+
+        transform = Affine(0.001, 0.0, 120.0, 0.0, -0.001, 25.0)
+        cost = np.array([[1.0, 0.0], [0.0, 3.0]])
+        dem = np.zeros((2, 2), dtype=float)
+        route = [transform * (0.5, 0.5), transform * (1.5, 1.5)]
+
+        forward = path_cost_integral(route, dem, transform, cost, 0.0,
+                                     pixel_spacing=(100.0, 100.0))
+        reverse = path_cost_integral(route[::-1], dem, transform, cost, 0.0,
+                                     pixel_spacing=(100.0, 100.0))
+
+        self.assertAlmostEqual(forward["base_cost_meter"], 2.0 * math.sqrt(2) * 100.0, places=3)
+        self.assertEqual(forward["base_cost_meter"], reverse["base_cost_meter"])
+
+    def test_discrete_objective_matches_pixel_m_only_grade_units(self):
+        from transmission_path_planner.metrics import astar_path_objective
+
+        measured = astar_path_objective(
+            [(0, 0), (0, 1)], np.ones((1, 2)), np.array([[0.0, 10.0]]),
+            grade_penalty_weight=1.0, pixel_m=100.0)
+
+        self.assertEqual(measured["unit"], "cost_pixel")
+        self.assertAlmostEqual(measured["base_cost"], 1.0)
+        self.assertAlmostEqual(measured["grade_cost"], 1.0 / 3.0, places=6)
+        self.assertAlmostEqual(measured["total_cost"], 4.0 / 3.0, places=6)
+
+    def test_discrete_objective_rejects_diagonal_corner_cutting(self):
+        from transmission_path_planner.metrics import astar_path_objective
+
+        cost = np.array([[1.0, np.inf], [np.inf, 1.0]])
+
+        measured = astar_path_objective([(0, 0), (1, 1)], cost)
+
+        self.assertEqual(measured["status"], "corner_cut_path")
 
 if __name__ == "__main__":
     unittest.main()

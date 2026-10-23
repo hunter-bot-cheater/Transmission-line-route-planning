@@ -49,7 +49,188 @@ def write_elevation_profile_csv(geo, dem, transform, path):
                 distance_km += haversine_km(*geo[i - 1], lon, lat)
             writer.writerow([i, lon, lat, round(distance_km, 3), elevation if np.isfinite(elevation) else ""])
 
-def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_ll):
+
+def path_cost_integral(geo, dem, transform, cost_surface, grade_penalty_weight=1.0,
+                       turn_penalty_weight=0.0, pixel_spacing=None):
+    """Integrate cell cost exactly under an axis-aligned local grid metric.
+
+    Grade and turn terms remain one-pixel sampled estimates for non-grid paths.
+    """
+    dense = densify_path_for_raster(geo, transform)
+    if len(dense) < 2:
+        return {"status": "insufficient_path", "base_cost_meter": None,
+                "grade_cost_meter": None, "turn_cost_meter": None,
+                "total_cost_meter": None,
+                "base_cost_method": "piecewise_constant_grid_cell_exact",
+                "grade_cost_method": "one_pixel_sampled_segment_estimate"}
+
+    height, width = cost_surface.shape
+    center_lat = float(np.mean([lat for _, lat in dense]))
+    row_m, col_m = (pixel_spacing if pixel_spacing is not None
+                    else pixel_spacing_meters(transform, center_lat))
+
+    # Split each segment at every raster boundary. Midpoint cell lookup then
+    # integrates the piecewise-constant surface over the actual traversed length.
+    inverse = ~transform
+    base_total = 0.0
+    for (lon0, lat0), (lon1, lat1) in zip(geo, geo[1:]):
+        c0, r0 = inverse * (lon0, lat0)
+        c1, r1 = inverse * (lon1, lat1)
+        cuts = [0.0, 1.0]
+        for start, end in ((r0, r1), (c0, c1)):
+            delta = end - start
+            if delta == 0.0:
+                continue
+            low, high = sorted((start, end))
+            for boundary in range(math.floor(low) + 1, math.ceil(high)):
+                t = (boundary - start) / delta
+                if 0.0 < t < 1.0:
+                    cuts.append(t)
+        cuts.sort()
+        for t0, t1 in zip(cuts, cuts[1:]):
+            midpoint = (t0 + t1) * 0.5
+            row = math.floor(r0 + midpoint * (r1 - r0))
+            col = math.floor(c0 + midpoint * (c1 - c0))
+            if (not (0 <= row < height and 0 <= col < width)
+                    or not np.isfinite(cost_surface[row, col])):
+                return {"status": "outside_or_invalid_cost", "base_cost_meter": None,
+                        "grade_cost_meter": None, "turn_cost_meter": None,
+                        "total_cost_meter": None}
+            dr = (r1 - r0) * (t1 - t0)
+            dc = (c1 - c0) * (t1 - t0)
+            base_total += float(cost_surface[row, col]) * math.hypot(dr * row_m, dc * col_m)
+
+    cells = [geo_to_rowcol(lat, lon, transform) for lon, lat in dense]
+    if any(not (0 <= row < height and 0 <= col < width)
+           or not np.isfinite(cost_surface[row, col]) for row, col in cells):
+        return {"status": "outside_or_invalid_cost", "base_cost_meter": None,
+                "grade_cost_meter": None, "turn_cost_meter": None,
+                "total_cost_meter": None,
+                "base_cost_method": "piecewise_constant_grid_cell_exact",
+                "grade_cost_method": "one_pixel_sampled_segment_estimate"}
+
+    elevations = sample_dem(dense, dem, transform)
+    edge_base_estimate = []
+    edge_grade = []
+    edge_vectors = []
+    grade_total = 0.0
+    for index, ((r0, c0), (r1, c1)) in enumerate(zip(cells, cells[1:])):
+        # Use transformed fractional coordinates for metric length and direction;
+        # integer cells above are only used to sample raster values.
+        c0f, r0f = (~transform) * dense[index]
+        c1f, r1f = (~transform) * dense[index + 1]
+        drf, dcf = r1f - r0f, c1f - c0f
+        length_m = math.hypot(drf * row_m, dcf * col_m)
+        if length_m <= 0.0:
+            edge_base_estimate.append(0.0)
+            edge_grade.append(0.0)
+            edge_vectors.append((0.0, 0.0))
+            continue
+        base_estimate = 0.5 * (float(cost_surface[r0, c0]) + float(cost_surface[r1, c1])) * length_m
+        grade_cost = 0.0
+        e0, e1 = elevations[index], elevations[index + 1]
+        if np.isfinite(e0) and np.isfinite(e1):
+            grade = abs(float(e1) - float(e0)) / length_m
+            grade_cost = max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0) * length_m
+        edge_base_estimate.append(base_estimate)
+        edge_grade.append(grade_cost)
+        edge_vectors.append((drf * row_m, dcf * col_m))
+        grade_total += grade_cost
+
+    turn_total = 0.0
+    turn_weight = max(float(turn_penalty_weight), 0.0)
+    if turn_weight:
+        edge_costs = [base + grade for base, grade in zip(edge_base_estimate, edge_grade)]
+        for index in range(1, len(edge_vectors)):
+            previous, following = edge_vectors[index - 1], edge_vectors[index]
+            previous_length = math.hypot(*previous)
+            following_length = math.hypot(*following)
+            if previous_length == 0.0 or following_length == 0.0:
+                continue
+            cosine = ((previous[0] * following[0] + previous[1] * following[1])
+                      / (previous_length * following_length))
+            turn_total += (turn_weight * 0.5 * (edge_costs[index - 1] + edge_costs[index])
+                           * (1.0 - min(max(cosine, -1.0), 1.0)))
+
+    return {
+        "status": "measured",
+        "base_cost_meter": round(base_total, 3),
+        "grade_cost_meter": round(grade_total, 3),
+        "turn_cost_meter": round(turn_total, 3),
+        "total_cost_meter": round(base_total + grade_total + turn_total, 3),
+        "base_cost_method": "piecewise_constant_grid_cell_exact",
+        "grade_cost_method": "one_pixel_sampled_segment_estimate",
+        "turn_cost_method": "one_pixel_sampled_segment_estimate" if turn_weight else "disabled",
+    }
+
+
+def astar_path_objective(path_rc, cost_surface, elevation=None, pixel_spacing=None,
+                         grade_penalty_weight=1.0, turn_penalty_weight=0.0,
+                         pixel_m=None):
+    """Recompute the discrete A* objective from a valid cell-center search path."""
+    path = list(path_rc or [])
+    if not path:
+        return {"status": "insufficient_path", "total_cost": None, "unit": None}
+    height, width = cost_surface.shape
+    if any(not (0 <= row < height and 0 <= col < width)
+           or not np.isfinite(cost_surface[row, col]) for row, col in path):
+        return {"status": "outside_or_invalid_cost", "total_cost": None, "unit": None}
+
+    spacing = None if pixel_spacing is None else tuple(map(float, pixel_spacing))
+    directions = [(-1, 0), (-1, 1), (0, 1), (1, 1),
+                  (1, 0), (1, -1), (0, -1), (-1, -1)]
+    edges = []
+    base_total = grade_total = 0.0
+    for (r0, c0), (r1, c1) in zip(path, path[1:]):
+        dr, dc = r1 - r0, c1 - c0
+        if (dr, dc) not in directions:
+            return {"status": "non_neighbor_path", "total_cost": None, "unit": None}
+        if (dr and dc and
+                (not np.isfinite(cost_surface[r0 + dr, c0])
+                 or not np.isfinite(cost_surface[r0, c0 + dc]))):
+            return {"status": "corner_cut_path", "total_cost": None, "unit": None}
+        step_length = (math.hypot(dr * spacing[0], dc * spacing[1])
+                       if spacing is not None else math.hypot(dr, dc))
+        base = 0.5 * (float(cost_surface[r0, c0]) + float(cost_surface[r1, c1])) * step_length
+        grade_cost = 0.0
+        if elevation is not None and (spacing is not None or pixel_m):
+            e0, e1 = float(elevation[r0, c0]), float(elevation[r1, c1])
+            if np.isfinite(e0) and np.isfinite(e1):
+                horizontal_m = (step_length if spacing is not None
+                                else float(pixel_m) * step_length)
+                grade = abs(e1 - e0) / horizontal_m
+                grade_cost = (max(float(grade_penalty_weight), 0.0)
+                              * min(grade / 0.30, 1.0) * step_length)
+        scale = spacing if spacing is not None else (1.0, 1.0)
+        vector = (dr * scale[0], dc * scale[1])
+        edges.append((base + grade_cost, vector))
+        base_total += base
+        grade_total += grade_cost
+
+    turn_total = 0.0
+    for index in range(1, len(edges)):
+        previous_cost, previous = edges[index - 1]
+        following_cost, following = edges[index]
+        previous_length = math.hypot(*previous)
+        following_length = math.hypot(*following)
+        cosine = (previous[0] * following[0] + previous[1] * following[1]) / (previous_length * following_length)
+        turn_total += (max(float(turn_penalty_weight), 0.0)
+                       * 0.5 * (previous_cost + following_cost)
+                       * (1.0 - min(max(cosine, -1.0), 1.0)))
+
+    return {
+        "status": "measured",
+        "unit": "cost_meter" if spacing is not None else "cost_pixel",
+        "base_cost": round(base_total, 6),
+        "grade_cost": round(grade_total, 6),
+        "turn_cost": round(turn_total, 6),
+        "total_cost": round(base_total + grade_total + turn_total, 6),
+    }
+
+
+def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_ll,
+                    grade_penalty_weight=1.0, turn_penalty_weight=0.0,
+                    pixel_spacing=None):
     length = path_length_km(geo)
     hs = sample_dem(densify_path_for_raster(geo, transform), dem, transform)
     cum, net = cumulative_relief(hs)
@@ -64,6 +245,9 @@ def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_
         if np.isfinite(v):
             costs.append(float(v))
     mean_cost = float(np.mean(costs)) if costs else float("nan")
+    path_cost = path_cost_integral(
+        geo, dem, transform, cost_surface, grade_penalty_weight, turn_penalty_weight,
+        pixel_spacing)
     # 弯曲度
     straight = haversine_km(start_ll[1], start_ll[0], end_ll[1], end_ll[0])
     sinuosity = length / straight if straight > 0 else 1.0
@@ -75,6 +259,7 @@ def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_
         "net_relief_m": round(net, 1),
         **route_profile_metrics(geo, dem, transform),
         "mean_cost": round(mean_cost, 4),
+        "path_cost_integral": path_cost,
         "sinuosity": round(sinuosity, 3),
         "hard_violations": viol,
         "n_points": len(geo),
@@ -199,7 +384,7 @@ def _resample_line(coordinates, count):
     ], dtype=np.float64)
 
 
-def compute_deviation(planned_geo, real_geo):
+def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
     """Compare route geometries in both directions using arc-length samples in meters.
 
     Distance quantiles and coverage are sampled approximations at
@@ -210,7 +395,7 @@ def compute_deviation(planned_geo, real_geo):
     try:
         from pyproj import CRS, Transformer
         from shapely import linestrings, points
-        from shapely.geometry import LineString
+        from shapely.geometry import LineString, Polygon
         from shapely.strtree import STRtree
 
         real_polys = real_geo if isinstance(real_geo[0][0], (list, tuple)) else [real_geo]
@@ -273,6 +458,35 @@ def compute_deviation(planned_geo, real_geo):
 
         reference_length_m = float(sum(real_component_lengths))
         planned_length_m = float(sum(planned_component_lengths))
+        planning_window_coverage = None
+        if planning_bounds_wgs84 is not None:
+            left, bottom, right, top = map(float, planning_bounds_wgs84)
+            window_geo = [
+                (left + (right - left) * step / 20.0, bottom)
+                for step in range(21)
+            ] + [
+                (right, bottom + (top - bottom) * step / 20.0)
+                for step in range(1, 21)
+            ] + [
+                (right - (right - left) * step / 20.0, top)
+                for step in range(1, 21)
+            ] + [
+                (left, top - (top - bottom) * step / 20.0)
+                for step in range(1, 20)
+            ]
+            window_polygon = Polygon(project_coordinates(window_geo))
+            reference_lines = [LineString(line) for line in real_projected if len(line) >= 2]
+            inside_m = float(sum(line.intersection(window_polygon).length
+                                 for line in reference_lines))
+            planning_window_coverage = {
+                "reference_length_within_window_m": inside_m,
+                "reference_length_outside_window_m": max(reference_length_m - inside_m, 0.0),
+                "reference_length_coverage_ratio": (
+                    min(max(inside_m / reference_length_m, 0.0), 1.0)
+                    if reference_length_m > 0.0 else None
+                ),
+                "bounds_wgs84": [left, bottom, right, top],
+            }
         route_similarity = {
             "comparison_crs": local_crs.to_string(),
             "sampling_interval_m": ROUTE_SAMPLE_STEP_M,
@@ -291,6 +505,7 @@ def compute_deviation(planned_geo, real_geo):
                 "absolute_difference_km": abs(planned_length_m - reference_length_m) / 1000.0,
                 "absolute_difference_pct": abs(planned_length_m - reference_length_m) / reference_length_m * 100.0,
             },
+            "planning_window_coverage": planning_window_coverage,
             "endpoint_offsets": None,
             "discrete_frechet_approx": None,
             "buffer_iou": {},

@@ -173,31 +173,44 @@ def rasterize_on(geoms, transform, shape):
     if not geoms:
         return np.zeros(shape, np.uint8)
     shapes = [(g, 1) for g, _ in geoms]
-    try:
-        return rio_rasterize(shapes, out_shape=shape, transform=transform,
-                             fill=0, all_touched=True, dtype=np.uint8)
-    except Exception:
-        return np.zeros(shape, np.uint8)
+    return rio_rasterize(shapes, out_shape=shape, transform=transform,
+                         fill=0, all_touched=True, dtype=np.uint8)
 
 
-def compute_distance_band(geoms, transform, shape, max_dist_m=5000.0):
-    on = rasterize_on(geoms, transform, shape)
+def _pixel_spacing_for_shape(transform, shape, crs=None):
+    lat_center = transform.f + transform.b * (shape[1] / 2.0) + transform.e * (shape[0] / 2.0)
+    return pixel_spacing_meters(transform, lat_center, crs)
+
+
+def compute_distance_band(geoms, transform, shape, max_dist_m=5000.0, *, crs=None):
+    row_m, col_m = _pixel_spacing_for_shape(transform, shape, crs)
+    pad_rows = int(math.ceil(max_dist_m / row_m)) + 1
+    pad_cols = int(math.ceil(max_dist_m / col_m)) + 1
+    padded_shape = (shape[0] + 2 * pad_rows, shape[1] + 2 * pad_cols)
+    padded_transform = transform * Affine.translation(-pad_cols, -pad_rows)
+    on = rasterize_on(geoms, padded_transform, padded_shape)
     if on.sum() == 0:
         return np.full(shape, max_dist_m, np.float32)
-    cell_m = pixel_meters(transform, transform.f + transform.e * (shape[0] / 2.0))
-    dist_px = distance_transform_edt(1 - on)
-    return np.clip(dist_px * cell_m, 0, max_dist_m).astype(np.float32)
+    distance_m = distance_transform_edt(1 - on, sampling=(row_m, col_m))
+    cropped = distance_m[pad_rows:pad_rows + shape[0],
+                         pad_cols:pad_cols + shape[1]]
+    return np.clip(cropped, 0, max_dist_m).astype(np.float32)
 
 
-def compute_building_density(geoms, transform, shape):
-    on = rasterize_on(geoms, transform, shape)
+def compute_building_density(geoms, transform, shape, *, crs=None):
+    """Return a 500 m-smoothed share of cells touched by mapped building footprints."""
+    row_m, col_m = _pixel_spacing_for_shape(transform, shape, crs)
+    sigma = (500.0 / row_m, 500.0 / col_m)
+    pad_rows = int(math.ceil(4.0 * sigma[0]))
+    pad_cols = int(math.ceil(4.0 * sigma[1]))
+    padded_shape = (shape[0] + 2 * pad_rows, shape[1] + 2 * pad_cols)
+    padded_transform = transform * Affine.translation(-pad_cols, -pad_rows)
+    on = rasterize_on(geoms, padded_transform, padded_shape)
     if on.sum() == 0:
         return np.zeros(shape, np.float32)
-    cell_m = pixel_meters(transform, transform.f + transform.e * (shape[0] / 2.0))
-    sigma = max(2, int(500 / cell_m))
-    density = gaussian_filter(on.astype(np.float32), sigma=sigma)
-    cell_area_km2 = (cell_m / 1000.0) ** 2
-    return (density / cell_area_km2).astype(np.float32)
+    smooth = gaussian_filter(on.astype(np.float32), sigma=sigma, mode="constant")
+    return np.clip(smooth[pad_rows:pad_rows + shape[0],
+                          pad_cols:pad_cols + shape[1]], 0.0, 1.0).astype(np.float32)
 
 
 def compute_landuse_code(geoms, transform, shape):
@@ -434,8 +447,16 @@ def compute_osm_bands(dem, transform, bbox, cache_dir=None, *,
                 "coverage_status": "not_checked", "planning_role": role,
             }
             continue
+        query_bbox = bbox
+        if name == "buildings":
+            latitude = 0.5 * (bbox[1] + bbox[3])
+            buffer_m = 5000.0 if include_building_distance else 2000.0
+            lat_buffer = buffer_m / 111320.0
+            lon_buffer = lat_buffer / max(math.cos(math.radians(latitude)), 1e-6)
+            query_bbox = (bbox[0] - lon_buffer, bbox[1] - lat_buffer,
+                          bbox[2] + lon_buffer, bbox[3] + lat_buffer)
         layers[name], layer_metadata[name] = load_osm_geoms_with_status(
-            cache_dir / filename, geom_type, bbox)
+            cache_dir / filename, geom_type, query_bbox)
         layer_metadata[name]["planning_role"] = role
     roads = layers["roads"]
     water = layers["water"]

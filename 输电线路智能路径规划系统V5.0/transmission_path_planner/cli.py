@@ -12,6 +12,7 @@ from .metrics import *
 from .visualization import *
 from .io_export import *
 from .stations import *
+from .official_hazards import load_official_hazard_masks
 
 
 FINAL_ROUTE_LABEL = "最终路线"
@@ -19,6 +20,7 @@ FINAL_ROUTE_LABEL = "最终路线"
 
 def _select_final_route(methods, case_metrics):
     for method, rule in (
+        ("A*(turn-aware)", "turn_penalized_screening_candidate"),
         ("A*(baseline)", "astar_min_cost_priority"),
         ("A*(weighted)", "weighted_astar_only_candidate"),
     ):
@@ -74,16 +76,44 @@ def screening_data_quality(osm_layer_metadata):
         name for name in required_layers
         if osm_layer_metadata.get(name, {}).get("status") != "available"
     ]
-    return ("incomplete_osm_proxies" if missing else "osm_proxy_features_observed"), missing
+    return ("incomplete_osm_proxies" if missing
+            else "osm_proxy_features_observed_coverage_unverified"), missing
 
 
-def validate_endpoint_cells(start, end, shape, hard_mask):
+def route_hazard_exposure(geo, hazard_masks, transform, shape):
+    """Report raster-cell contact with hazard masks for the selected route."""
+    if not geo or len(geo) < 2:
+        return {"status": "route_too_short", "route_cell_count": 0, "layers": {}}
+    route_mask = rasterize_on([(LineString(geo), {})], transform, shape) > 0
+    route_cells = int(np.count_nonzero(route_mask))
+    layers = {}
+    for name, mask in hazard_masks.items():
+        hazard = np.asarray(mask) > 0
+        cells = int(np.count_nonzero(route_mask & hazard))
+        layers[name] = {
+            "route_cell_count": cells,
+            "route_cell_fraction": cells / route_cells if route_cells else None,
+        }
+    return {
+        "status": "measured" if route_cells else "route_not_rasterized",
+        "route_cell_count": route_cells,
+        "cell_fraction_is_approximate": True,
+        "layers": layers,
+    }
+
+
+def validate_endpoint_cells(start, end, shape, hard_mask, blocking_layers=None):
     """Require fixed endpoints to lie inside the DEM and the complete passable mask."""
     height, width = shape
     for label, (row, col) in (("起点", start), ("终点", end)):
         if not (0 <= row < height and 0 <= col < width):
             raise ValueError(f"{label}超出DEM范围")
         if not hard_mask[row, col]:
+            reasons = [name for name, mask in (blocking_layers or {}).items()
+                       if mask is not None and bool(mask[row, col])]
+            if reasons:
+                reason_text = "、".join(reasons)
+                raise ValueError(f"{label}位于不可通行像元（{reason_text}）；请核对接入点坐标或约束")
             raise ValueError(f"{label}位于NoData/建筑/配置禁区内；请核对接入点坐标或约束")
     return start, end
 
@@ -187,7 +217,6 @@ def method_visual_similarity_summary(results, method, expected_cases=None, faile
         "median_sampled_hausdorff_m": float(np.median(hausdorff)) if hausdorff else None,
         "median_coverage_f1_100m": float(np.median(coverage_100m)) if coverage_100m else None,
         "median_coverage_f1_1km": float(np.median(coverage)) if coverage else None,
-        "routes_f1_100m_at_least_95pct": sum(value >= 0.95 for value in coverage_100m),
         "median_length_difference_pct": float(np.median(length_error)) if length_error else None,
     }
 
@@ -232,6 +261,13 @@ def main():
                     help="站间任务表: route_id,from_station_id,to_station_id")
     ap.add_argument("--constraint-geojson", type=str, default=None,
                     help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight")
+    default_hazard_dir = PACKAGE_DIR / "data" / "official_sources" / "ardswc_115_mvt_z10_20261023"
+    ap.add_argument("--official-hazards-dir", type=str, default=str(default_hazard_dir),
+                    help="农业部 115 年土石流/大规模崩塌 MVT 数据目录；默认读取软件包内离线图层")
+    ap.add_argument("--official-hazard-weight", type=float, default=1.0,
+                    help="官方土石流/崩塌图层联合软代价权重；重叠类别不重复累计，0 表示关闭")
+    ap.add_argument("--turn-penalty-weight", type=float, default=0.0,
+                    help="A* 转弯平滑代价系数；0 关闭。启用后使用8方向状态、内存占用显著增加")
     ap.add_argument("--settlement-weight", type=float, default=2.0,
                     help="OSM建筑密度/住宅与商业用地代理的软避让权重(方案筛选参数, 默认2.0)")
     ap.add_argument("--ridge-penalty-weight", type=float, default=0.10,
@@ -242,8 +278,8 @@ def main():
                     help="建筑物栅格硬避让距离(米, 必须小于5000); 0仅屏蔽已映射建筑足迹，不代表规范净距")
     ap.add_argument("--grade-penalty-weight", type=float, default=1.0,
                     help="沿线相邻DEM高差软惩罚权重(以30%%地面坡度作为一个参考级)")
-    ap.add_argument("--astar-heuristic-weight", type=float, default=1.5,
-                    help="A*启发函数权重；默认1.5作走廊筛查，1.0为当前代价面的最优基础A*")
+    ap.add_argument("--astar-heuristic-weight", type=float, default=1.0,
+                    help="A*启发函数权重；默认1.0保证当前离散代价面的最优性，大于1时为加权近似搜索")
     ap.add_argument("--max-ground-grade", type=float, default=None,
                     help="可选地面相邻栅格最大坡度比，如0.30; 属于筛选阈值，不是线路设计限值")
     ap.add_argument("--max-surface-slope-deg", type=float, default=None,
@@ -305,6 +341,8 @@ def main():
         "--landcover-penalty-weight": args.landcover_penalty_weight,
         "--settlement-weight": args.settlement_weight,
         "--grade-penalty-weight": args.grade_penalty_weight,
+        "--official-hazard-weight": args.official_hazard_weight,
+        "--turn-penalty-weight": args.turn_penalty_weight,
         "--astar-heuristic-weight": args.astar_heuristic_weight,
         "--max-ground-grade": args.max_ground_grade,
         "--max-surface-slope-deg": args.max_surface_slope_deg,
@@ -316,7 +354,9 @@ def main():
     if (args.building_clearance_m < 0 or args.ridge_penalty_weight < 0
             or args.landcover_penalty_weight < 0
             or args.settlement_weight < 0
-            or args.grade_penalty_weight < 0):
+            or args.grade_penalty_weight < 0
+            or args.official_hazard_weight < 0
+            or args.turn_penalty_weight < 0):
         ap.error("避让距离与代价权重不能为负数")
     if args.astar_heuristic_weight < 1:
         ap.error("--astar-heuristic-weight 必须大于或等于 1.0")
@@ -417,6 +457,10 @@ def main():
             minlat, maxlat = min(slat, elat) - margin, max(slat, elat) + margin
             dem, transform, crs, pm = load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, args.max_side)
             H, W = dem.shape
+            if args.turn_penalty_weight > 0:
+                state_gib = H * W * (8 * 8 + 8) / (1024 ** 3)
+                if state_gib >= 0.5:
+                    print(f"  [warn] 转弯状态数组约需 {state_gib:.2f} GiB；还未包含其他栅格和搜索队列")
 
             sr, sc = geo_to_rowcol(slat, slon, transform)
             er, ec = geo_to_rowcol(elat, elon, transform)
@@ -426,6 +470,13 @@ def main():
             left = transform.c; top = transform.f
             right = left + transform.a * W; bottom = top + transform.e * H
             bbox = (left, bottom, right, top)
+            official_hazard_masks, official_hazard_metadata = load_official_hazard_masks(
+                args.official_hazards_dir, bbox, transform, dem.shape)
+            official_hazard_metadata["soft_weight_applied_in_run"] = args.official_hazard_weight
+            if official_hazard_metadata.get("coverage_status") != "complete":
+                print("  [warn] 官方灾害图层覆盖不完整；未知瓦片不按无风险处理。"
+                      f" status={official_hazard_metadata.get('status')}, "
+                      f"coverage={official_hazard_metadata.get('coverage_status')}")
             needs_feature_stack = costunet is not None or (
                 args.include_ai_diagnostics and HAS_TORCH and not args.no_vin)
             osm = compute_osm_bands(
@@ -451,6 +502,8 @@ def main():
                 terrain, osm, args.settlement_weight, model_cost,
                 ridge_penalty_weight=args.ridge_penalty_weight,
                 landcover_penalty_weight=args.landcover_penalty_weight,
+                official_hazard_masks=official_hazard_masks,
+                official_hazard_weight=args.official_hazard_weight,
             )
 
             real_geo = None
@@ -475,7 +528,20 @@ def main():
                 hard_mask[np.asarray(building_mask) > 0] = 0
             if args.building_clearance_m > 0 and "building_distance_m" in osm:
                 hard_mask[osm["building_distance_m"] <= args.building_clearance_m] = 0
-            validate_endpoint_cells((sr, sc), (er, ec), dem.shape, hard_mask)
+            endpoint_blockers = {"DEM NoData": ~np.isfinite(dem)}
+            if custom_constraints:
+                endpoint_blockers["用户硬约束"] = custom_constraints["hard_mask"] > 0
+            if args.max_surface_slope_deg is not None:
+                endpoint_blockers["地表坡度阈值"] = slope > args.max_surface_slope_deg
+            if args.max_terrain_elevation_m is not None:
+                endpoint_blockers["地形海拔阈值"] = elev > args.max_terrain_elevation_m
+            if building_mask is not None:
+                endpoint_blockers["OSM建筑足迹"] = np.asarray(building_mask) > 0
+            if args.building_clearance_m > 0 and "building_distance_m" in osm:
+                endpoint_blockers["建筑净距阈值"] = (
+                    osm["building_distance_m"] <= args.building_clearance_m)
+            validate_endpoint_cells((sr, sc), (er, ec), dem.shape, hard_mask,
+                                    endpoint_blockers)
             same_grid_cell = (sr, sc) == (er, ec)
             cost_grid = (1.0 + 4.0 * cost).astype(np.float64)
             cost_grid = np.where(hard_mask == 0, np.inf, cost_grid)
@@ -568,8 +634,11 @@ def main():
 
             # Weighted A*: epsilon=1 is optimal A*; epsilon>1 trades bounded
             # search-cost optimality for fewer expansions.
-            astar_method = ("A*(baseline)" if args.astar_heuristic_weight == 1.0
-                            else "A*(weighted)")
+            astar_method = (
+                "A*(turn-aware)" if args.turn_penalty_weight > 0 else
+                "A*(baseline)" if args.astar_heuristic_weight == 1.0 else
+                "A*(weighted)"
+            )
             t_astar = time.time()
             a_path = astar_search(
                 cost_grid, (sr, sc), (er, ec), elevation=dem, pixel_m=pm,
@@ -577,7 +646,10 @@ def main():
                 max_ground_grade=args.max_ground_grade,
                 pixel_spacing=route_pixel_spacing,
                 heuristic_weight=args.astar_heuristic_weight,
+                turn_penalty_weight=args.turn_penalty_weight,
             )
+            raw_astar_geo = ([rowcol_to_geo(r, c, transform) for r, c in a_path]
+                             if a_path else None)
             geo_astar = [rowcol_to_geo(r, c, transform) for r, c in a_path] if a_path else None
             if geo_astar:
                 geo_astar = smooth_path_with_constraints(geo_astar, transform, hard_mask)
@@ -618,16 +690,34 @@ def main():
             case_metrics = {}
             for m, geo in methods.items():
                 if geo:
-                    met = compute_metrics(geo, dem, transform, cost_grid, hard_mask, start_ll, end_ll)
+                    method_turn_weight = (args.turn_penalty_weight
+                                          if m == "A*(turn-aware)" else 0.0)
+                    met = compute_metrics(
+                        geo, dem, transform, cost_grid, hard_mask, start_ll, end_ll,
+                        grade_penalty_weight=args.grade_penalty_weight,
+                        turn_penalty_weight=method_turn_weight,
+                        pixel_spacing=route_pixel_spacing)
+                    if m == astar_method and raw_astar_geo:
+                        met["astar_search_path_objective"] = astar_path_objective(
+                            a_path, cost_grid, dem, route_pixel_spacing,
+                            args.grade_penalty_weight, args.turn_penalty_weight)
                     if m in ("A*(baseline)", "A*(weighted)"):
                         met["astar_heuristic_weight"] = args.astar_heuristic_weight
                         met["ridge_penalty_weight"] = args.ridge_penalty_weight
                         met["landcover_penalty_weight"] = args.landcover_penalty_weight
+                        met["official_hazard_weight"] = args.official_hazard_weight
+                    if m == "A*(turn-aware)":
+                        met["astar_heuristic_weight"] = args.astar_heuristic_weight
+                        met["turn_penalty_weight"] = args.turn_penalty_weight
+                        met["ridge_penalty_weight"] = args.ridge_penalty_weight
+                        met["landcover_penalty_weight"] = args.landcover_penalty_weight
+                        met["official_hazard_weight"] = args.official_hazard_weight
                     met["time_s"] = round({
                         "VIN-Grad": t_vin,
                         "PPO": t_ppo,
                         "A*(baseline)": t_astar,
                         "A*(weighted)": t_astar,
+                        "A*(turn-aware)": t_astar,
                     }.get(m, 0.0), 2)
                     if not station_task:
                         start_center = rowcol_to_geo(sr, sc, transform)
@@ -654,6 +744,17 @@ def main():
             final_geo = methods.get(best_method) if best_method else None
             final_is_ai = False if best_method else None
             osm_data_quality, missing_osm_layers = screening_data_quality(osm_layer_metadata)
+            hazard_coverage_complete = (
+                official_hazard_metadata.get("coverage_status") == "complete")
+            missing_hazard_layers = (
+                [] if args.official_hazard_weight == 0 or hazard_coverage_complete
+                else ["official_hazards"])
+            missing_screening_layers = missing_osm_layers + missing_hazard_layers
+            screening_quality = (
+                "incomplete_screening_layers" if missing_screening_layers
+                else "configured_layers_present_osm_coverage_unverified")
+            hazard_route_exposure = route_hazard_exposure(
+                final_geo, official_hazard_masks, transform, dem.shape)
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
 
             real_evaluation_status = "not_requested"
@@ -675,10 +776,19 @@ def main():
                         real_geo, real_evaluation_status = load_case_reference(rp)
                 if real_geo:
                     print(f"  [POST-EVAL] 加载真实线路: {len(real_geo)}条折线")
+                    grid_corners = [transform * point for point in (
+                        (0, 0), (W, 0), (W, H), (0, H))]
+                    planning_bounds = (
+                        min(point[0] for point in grid_corners),
+                        min(point[1] for point in grid_corners),
+                        max(point[0] for point in grid_corners),
+                        max(point[1] for point in grid_corners),
+                    )
                     for method, geo in methods.items():
                         if not geo or method not in case_metrics:
                             continue
-                        dev = compute_deviation(geo, real_geo)
+                        dev = compute_deviation(
+                            geo, real_geo, planning_bounds_wgs84=planning_bounds)
                         if not dev:
                             continue
                         metrics = case_metrics[method]
@@ -703,7 +813,7 @@ def main():
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
             planning_status = (
                 "no_hard_constraint_compliant_route" if not final_geo else
-                "screening_candidate_data_incomplete" if missing_osm_layers else
+                "screening_candidate_data_incomplete" if missing_screening_layers else
                 "screening_candidate")
             case_metrics[FINAL_ROUTE_LABEL] = {
                 "method": best_method,
@@ -717,7 +827,11 @@ def main():
                 "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
                 "hard_violations": selected_metrics.get("hard_violations"),
                 "osm_data_quality": osm_data_quality,
+                "screening_data_quality": screening_quality,
                 "missing_osm_screening_layers": missing_osm_layers,
+                "missing_screening_layers": missing_screening_layers,
+                "official_hazard_metadata": official_hazard_metadata,
+                "official_hazard_route_exposure": hazard_route_exposure,
                 "constraint_layer_metadata": custom_constraint_metadata,
                 "length_km": round(path_length_km(final_geo), 3) if final_geo else None}
             case_metrics[FINAL_ROUTE_LABEL].update(selected_metrics)
@@ -728,6 +842,8 @@ def main():
             case_metrics[FINAL_ROUTE_LABEL].update(station_offsets_by_method.get(best_method, {}))
             case_metrics[FINAL_ROUTE_LABEL].update({
                 "settlement_weight": args.settlement_weight,
+                "official_hazard_weight": args.official_hazard_weight,
+                "turn_penalty_weight": args.turn_penalty_weight,
                 "ridge_penalty_weight": args.ridge_penalty_weight,
                 "landcover_penalty_weight": args.landcover_penalty_weight,
                 "building_clearance_m": args.building_clearance_m,
@@ -789,12 +905,18 @@ def main():
                                            "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
                                            "hard_violations": selected_metrics.get("hard_violations"),
                                            "osm_data_quality": osm_data_quality,
+                                           "screening_data_quality": screening_quality,
                                            "missing_osm_screening_layers": missing_osm_layers,
+                                           "missing_screening_layers": missing_screening_layers,
+                                           "official_hazard_metadata": official_hazard_metadata,
+                                           "official_hazard_route_exposure": hazard_route_exposure,
                                            "constraint_layer_metadata": custom_constraint_metadata,
                                            "length_km": selected_metrics.get("length_km"),
                                            "start_input_to_grid_center_offset_m": selected_metrics.get("start_input_to_grid_center_offset_m"),
                                            "end_input_to_grid_center_offset_m": selected_metrics.get("end_input_to_grid_center_offset_m"),
                                            "mean_cost": selected_metrics.get("mean_cost"),
+                                           "path_cost_integral": selected_metrics.get("path_cost_integral"),
+                                           "astar_search_path_objective": selected_metrics.get("astar_search_path_objective"),
                                            "sinuosity": selected_metrics.get("sinuosity"),
                                            "cum_relief_m": selected_metrics.get("cum_relief_m"),
                                            "net_relief_m": selected_metrics.get("net_relief_m"),
@@ -810,6 +932,8 @@ def main():
                                            **station_measurements,
                                            "voltage_rules_applied": False,
                                            "settlement_weight": args.settlement_weight,
+                                           "official_hazard_weight": args.official_hazard_weight,
+                                           "turn_penalty_weight": args.turn_penalty_weight,
                                            "ridge_penalty_weight": args.ridge_penalty_weight,
                                            "landcover_penalty_weight": args.landcover_penalty_weight,
                                            "building_clearance_m": args.building_clearance_m,
@@ -864,7 +988,8 @@ def main():
             cdir.mkdir(parents=True, exist_ok=True)
             plot_comparison(dem, transform, methods, start_ll, end_ll,
                             cdir / f"path_comparison_{safe}.png",
-                            title=f"多算法路径对比 - {cname}", real_ll=real_geo)
+                            title=f"多算法路径对比 - {cname}", real_ll=real_geo,
+                            hazard_masks=official_hazard_masks)
             # 逐用例导出矢量与坐标(便于复用/二次绘图)
             for m, geo in methods.items():
                 tag = m.split("(")[0].strip().lower().replace("*", "astar").replace("-", "")
@@ -887,7 +1012,7 @@ def main():
                 try:
                     plot_comparison(dem, transform, methods, start_ll, end_ll,
                                     OUT / "path_comparison.png", title=f"多算法路径对比 - {cname}",
-                                    real_ll=real_geo)
+                                    real_ll=real_geo, hazard_masks=official_hazard_masks)
                 except Exception as _pe:
                     print(f"[WARN] 主对比图绘制失败(跳过, 不影响本走廊其余产出): {_pe}")
                 if "VIN-Grad" in methods and HAS_TORCH and V_main is not None:
@@ -984,7 +1109,7 @@ def main():
         print("=" * 70)
         print(f"  {'走廊':16s} {'方法':16s} {'较差方向P95(m)':>14s} {'采样最大(m)':>12s} "
               f"{'F1@100m':>9s} {'F1@1km':>9s} {'长度差(km)':>11s}")
-        candidate_methods = ["A*(baseline)", "A*(weighted)", "VIN-Grad", "PPO"]
+        candidate_methods = ["A*(baseline)", "A*(weighted)", "A*(turn-aware)", "VIN-Grad", "PPO"]
         failed_case_names = {item["case"] for item in failed_cases}
         for rec in all_results:
             if rec["case"] in failed_case_names or rec["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status") == "no_hard_constraint_compliant_route":
@@ -1000,7 +1125,7 @@ def main():
                           f"{symmetric['coverage_f1_within_m']['100']:8.1%} "
                           f"{symmetric['coverage_f1_within_m']['1000']:8.1%} "
                           f"{similarity['length']['absolute_difference_km']:11.2f}")
-        print("  说明：按约20米弧长采样；F1@100m≥95%为本轮目标口径，复用既有线的结果另行标注。")
+        print("  说明：误差与覆盖率只作事后诊断，不设贴合率达标线，也不参与选路。")
         print("-" * 70)
         for m in candidate_methods:
             summary = method_visual_similarity_summary(
@@ -1020,13 +1145,13 @@ def main():
             print(f"  {m:16s} 已测={summary['measured']:2d} 未测={summary['unmeasured']:2d} "
                   f"中位较差方向P95={p95_text} 中位最大偏移={max_text} "
                   f"中位F1@100m={f1_100m_text} 中位F1@1km={f1_text} "
-                  f"达标数={summary['routes_f1_100m_at_least_95pct']} 中位长度差={length_text}")
+                  f"中位长度差={length_text}")
         heuristic_selected = [r["case"] for r in all_results
                           if r["case"] not in failed_case_names
                           and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
                           != "no_hard_constraint_compliant_route"
                           if r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("method")
-                          in ("A*(baseline)", "A*(weighted)")]
+                          in ("A*(baseline)", "A*(weighted)", "A*(turn-aware)")]
         if heuristic_selected:
             print(f"  启发式搜索生成最终路线的走廊: {heuristic_selected}")
         print("=" * 70)
@@ -1035,7 +1160,7 @@ def main():
     print("\n" + "=" * 70)
     print("  结果摘要（各走廊均值）")
     print("=" * 70)
-    for m in ["A*(baseline)", "A*(weighted)", "VIN-Grad", "PPO"]:
+    for m in ["A*(baseline)", "A*(weighted)", "A*(turn-aware)", "VIN-Grad", "PPO"]:
         lens = [r["metrics"][m]["length_km"] for r in all_results if m in r["metrics"]]
         mc = [r["metrics"][m]["mean_cost"] for r in all_results if m in r["metrics"]]
         if lens:

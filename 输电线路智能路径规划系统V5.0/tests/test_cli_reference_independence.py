@@ -119,6 +119,18 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
             ("A*(weighted)", None, "weighted_astar_only_candidate"),
         )
 
+    def test_final_route_selects_turn_aware_candidate_without_reference_score(self):
+        methods = {"A*(turn-aware)": [(1, 1)], "A*(baseline)": [(1, 1)]}
+        metrics = {
+            "A*(turn-aware)": {"hard_violations": 0, "route_similarity": {"p95_m": 99999}},
+            "A*(baseline)": {"hard_violations": 0, "route_similarity": {"p95_m": 1}},
+        }
+
+        self.assertEqual(
+            _select_final_route(methods, metrics),
+            ("A*(turn-aware)", None, "turn_penalized_screening_candidate"),
+        )
+
     def test_final_route_never_falls_back_to_ai_candidates(self):
         methods = {"PPO": [(1, 1)], "VIN-Grad": [(1, 1)], "A*(baseline)": None}
         metrics = {
@@ -208,6 +220,18 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "禁区"):
             validate_endpoint_cells((0, 0), (4, 4), hard_mask.shape, hard_mask)
         np.testing.assert_array_equal(hard_mask, before)
+
+    def test_fixed_endpoint_error_identifies_the_blocking_layer(self):
+        hard_mask = np.ones((3, 3), dtype=np.uint8)
+        hard_mask[1, 1] = 0
+        building_mask = np.zeros((3, 3), dtype=bool)
+        building_mask[1, 1] = True
+
+        with self.assertRaisesRegex(ValueError, "起点位于不可通行像元（OSM建筑足迹）"):
+            validate_endpoint_cells(
+                (1, 1), (2, 2), hard_mask.shape, hard_mask,
+                {"OSM建筑足迹": building_mask},
+            )
 
     def test_vin_out_of_memory_skips_only_vin(self):
         class FakeOutOfMemoryError(RuntimeError):
@@ -382,7 +406,7 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
                                              failed_case_names={"failed-after-record"}),
             {"measured": 0, "unmeasured": 2, "median_symmetric_p95_m": None,
              "median_sampled_hausdorff_m": None, "median_coverage_f1_100m": None,
-             "median_coverage_f1_1km": None, "routes_f1_100m_at_least_95pct": 0,
+             "median_coverage_f1_1km": None,
              "median_length_difference_pct": None},
         )
 
@@ -559,14 +583,14 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
             method_visual_similarity_summary(records, "VIN-Grad"),
             {"measured": 0, "unmeasured": 2, "median_symmetric_p95_m": None,
              "median_sampled_hausdorff_m": None, "median_coverage_f1_100m": None,
-             "median_coverage_f1_1km": None, "routes_f1_100m_at_least_95pct": 0,
+             "median_coverage_f1_1km": None,
              "median_length_difference_pct": None},
         )
         self.assertEqual(
             method_visual_similarity_summary(records, "A*(baseline)", expected_cases=3),
             {"measured": 1, "unmeasured": 2, "median_symmetric_p95_m": 120.0,
              "median_sampled_hausdorff_m": 400.0, "median_coverage_f1_100m": None,
-             "median_coverage_f1_1km": 0.75, "routes_f1_100m_at_least_95pct": 0,
+             "median_coverage_f1_1km": 0.75,
              "median_length_difference_pct": 5.0},
         )
 

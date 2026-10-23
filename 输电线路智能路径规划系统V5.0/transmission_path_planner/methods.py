@@ -689,12 +689,178 @@ def gradient_track_path(V, cost, hard_mask, start, end, transform,
     return geo
 
 
+def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
+                                   elevation, pixel_m, grade_penalty_weight,
+                                   max_ground_grade, pixel_spacing,
+                                   heuristic_weight, turn_penalty_weight):
+    """Direction-state A*: turn cost is dimensionless weight times cost*meters.
+
+    At each interior cell, the added cost is
+    ``weight * (incoming_edge_cost + outgoing_edge_cost) / 2 * (1 - cos(theta))``.
+    Edge costs are the same trapezoidal cost-by-distance integrals used below.
+    This is non-negative and symmetric when a route is reversed; endpoints have
+    no turn cost. ``weight`` is a user-tunable tradeoff, not an engineering
+    standard.
+    """
+    import heapq
+
+    H, W = cost_raster.shape
+    sr, sc = start_rc
+    er, ec = end_rc
+    if not (0 <= sr < H and 0 <= sc < W) or not (0 <= er < H and 0 <= ec < W):
+        return None
+    if not np.isfinite(cost_raster[sr, sc]):
+        sr, sc = _nearest_valid(cost_raster, sr, sc)
+    if not np.isfinite(cost_raster[er, ec]):
+        er, ec = _nearest_valid(cost_raster, er, ec)
+    if sr is None or er is None:
+        return None
+    if pixel_spacing is not None:
+        row_m, col_m = map(float, pixel_spacing)
+        if (not math.isfinite(row_m) or not math.isfinite(col_m)
+                or row_m <= 0.0 or col_m <= 0.0):
+            raise ValueError("pixel_spacing values must be finite and positive")
+
+    reverse_result = sr * W + sc > er * W + ec
+    if reverse_result:
+        (sr, sc), (er, ec) = (er, ec), (sr, sc)
+    if (sr, sc) == (er, ec):
+        return [(sr, sc)]
+
+    valid = cost_raster[np.isfinite(cost_raster)]
+    if valid.size and np.any(valid < 0.0):
+        raise ValueError("cost_raster must be non-negative when turn penalties are enabled")
+    c_min = max(float(valid.min()), 0.0) if valid.size else 0.0
+    neigh = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0),
+             (1, -1), (0, -1), (-1, -1)]
+    ndist = [1.0, math.sqrt(2), 1.0, math.sqrt(2), 1.0,
+             math.sqrt(2), 1.0, math.sqrt(2)]
+
+    def heuristic(r, c):
+        if use_dijkstra:
+            return 0.0
+        dr, dc = abs(r - er), abs(c - ec)
+        if pixel_spacing is not None:
+            row_m, col_m = pixel_spacing
+            diagonal = min(dr, dc)
+            return heuristic_weight * c_min * (
+                diagonal * math.hypot(row_m, col_m)
+                + (dr - diagonal) * row_m + (dc - diagonal) * col_m
+            )
+        return heuristic_weight * c_min * (
+            max(dr, dc) + (math.sqrt(2) - 1) * min(dr, dc)
+        )
+
+    def edge_cost(r, c, nr, nc, direction):
+        dr, dc = neigh[direction]
+        step_len = (math.hypot(dr * pixel_spacing[0], dc * pixel_spacing[1])
+                    if pixel_spacing is not None else ndist[direction])
+        step_cost = 0.5 * (float(cost_raster[r, c]) + float(cost_raster[nr, nc]))
+        if (elevation is not None and (pixel_spacing is not None or pixel_m)
+                and np.isfinite(elevation[r, c]) and np.isfinite(elevation[nr, nc])):
+            horizontal_m = step_len if pixel_spacing is not None else pixel_m * step_len
+            grade = abs(float(elevation[nr, nc]) - float(elevation[r, c])) / horizontal_m
+            if max_ground_grade is not None and grade > max_ground_grade:
+                return None
+            step_cost += max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0)
+        return step_cost * step_len
+
+    # The initial state uses direction 8 and does not incur an endpoint turn.
+    g = np.full((H, W, 8), np.inf, dtype=np.float64)
+    parent_dir = np.full((H, W, 8), 255, dtype=np.uint8)
+    start_flat = sr * W + sc
+    start_h = heuristic(sr, sc)
+    open_set = [(start_h, start_h, 0, start_flat, 8, 0.0)]
+    sequence = 1
+
+    while open_set:
+        _, _, _, cell_idx, in_dir, popped_g = heapq.heappop(open_set)
+        r, c = divmod(cell_idx, W)
+        if in_dir != 8 and popped_g > g[r, c, in_dir]:
+            continue
+        if (r, c) == (er, ec):
+            path = [(r, c)]
+            while (r, c) != (sr, sc):
+                previous_dir = int(parent_dir[r, c, in_dir])
+                dr, dc = neigh[in_dir]
+                r, c = r - dr, c - dc
+                path.append((r, c))
+                if previous_dir == 8:
+                    break
+                in_dir = previous_dir
+            path.reverse()
+            return path[::-1] if reverse_result else path
+
+        for next_dir, (dr, dc) in enumerate(neigh):
+            nr, nc = r + dr, c + dc
+            if not (0 <= nr < H and 0 <= nc < W):
+                continue
+            if not np.isfinite(cost_raster[nr, nc]):
+                continue
+            if dr and dc and (
+                not np.isfinite(cost_raster[r + dr, c])
+                or not np.isfinite(cost_raster[r, c + dc])
+            ):
+                continue
+            next_edge = edge_cost(r, c, nr, nc, next_dir)
+            if next_edge is None:
+                continue
+
+            turn_cost = 0.0
+            if in_dir != 8:
+                pdr, pdc = neigh[in_dir]
+                pr, pc = r - pdr, c - pdc
+                previous_edge = edge_cost(pr, pc, r, c, in_dir)
+                if pixel_spacing is None:
+                    cosine = (pdr * dr + pdc * dc) / (ndist[in_dir] * ndist[next_dir])
+                else:
+                    row_m, col_m = pixel_spacing
+                    previous_vector = (pdr * row_m, pdc * col_m)
+                    next_vector = (dr * row_m, dc * col_m)
+                    cosine = ((previous_vector[0] * next_vector[0]
+                               + previous_vector[1] * next_vector[1])
+                              / (math.hypot(*previous_vector)
+                                 * math.hypot(*next_vector)))
+                turn_cost = (turn_penalty_weight
+                             * 0.5 * (previous_edge + next_edge)
+                             * (1.0 - min(max(cosine, -1.0), 1.0)))
+
+            next_g = popped_g + next_edge + turn_cost
+            if next_g < g[nr, nc, next_dir]:
+                g[nr, nc, next_dir] = next_g
+                parent_dir[nr, nc, next_dir] = in_dir
+                next_h = heuristic(nr, nc)
+                heapq.heappush(
+                    open_set,
+                    (next_g + next_h, next_h, sequence,
+                     nr * W + nc, next_dir, next_g),
+                )
+                sequence += 1
+    return None
+
+
 def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=None,
                  pixel_m=None, grade_penalty_weight=1.0, max_ground_grade=None,
-                 pixel_spacing=None, heuristic_weight=1.0):
+                 pixel_spacing=None, heuristic_weight=1.0, turn_penalty_weight=0.0):
+    """Search a 8-neighbor raster; turn penalty is a dimensionless tradeoff.
+
+    For positive ``turn_penalty_weight``, each interior turn adds
+    ``weight * mean(adjacent edge costs) * (1 - cos(turn_angle))``. Edge costs
+    use the same cost-by-meter integral as the base objective, making the added
+    term have matching units. Endpoints have no turn cost. The weight is not an
+    electrical design standard. Zero preserves the original cell-only A*.
+    """
     import heapq
     if not math.isfinite(float(heuristic_weight)) or heuristic_weight < 1.0:
         raise ValueError("heuristic_weight must be finite and at least 1")
+    if not math.isfinite(float(turn_penalty_weight)) or turn_penalty_weight < 0.0:
+        raise ValueError("turn_penalty_weight must be finite and non-negative")
+    if turn_penalty_weight > 0.0:
+        return _astar_search_with_turn_penalty(
+            cost_raster, start_rc, end_rc, use_dijkstra, elevation, pixel_m,
+            grade_penalty_weight, max_ground_grade, pixel_spacing,
+            heuristic_weight, float(turn_penalty_weight),
+        )
     H, W = cost_raster.shape
     sr, sc = start_rc; er, ec = end_rc
     if not (0 <= sr < H and 0 <= sc < W) or not (0 <= er < H and 0 <= ec < W):
