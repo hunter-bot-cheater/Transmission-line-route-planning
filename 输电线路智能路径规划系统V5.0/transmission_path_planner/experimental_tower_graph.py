@@ -104,9 +104,15 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
     row_radius = max_span / row_m
     col_radius = max_span / col_m
     adjacency = [[] for _ in nodes]
+    adjacency_ready = [False] * len(nodes)
+    checked_edges = set()
     edge_cost = {} if turn_weight > 0.0 else None
 
-    for first_id, (row, col) in enumerate(nodes):
+    def get_neighbors(first_id):
+        if adjacency_ready[first_id]:
+            return adjacency[first_id]
+
+        row, col = nodes[first_id]
         first_row = bisect_left(candidate_rows, row - row_radius)
         last_row = bisect_right(candidate_rows, row + row_radius)
         for next_row in candidate_rows[first_row:last_row]:
@@ -115,32 +121,49 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
             row_candidates = rows_to_cols[next_row]
             left = bisect_left(row_candidates, (col - col_radius, -1))
             right = bisect_right(row_candidates, (col + col_radius, len(nodes)))
-            for next_col, second_id in row_candidates[left:right]:
-                if second_id <= first_id:
+            for _, second_id in row_candidates[left:right]:
+                if second_id == first_id:
                     continue
-                distance = math.hypot((next_row - row) * row_m,
-                                      (next_col - col) * col_m)
+                edge = (min(first_id, second_id), max(first_id, second_id))
+                if edge in checked_edges:
+                    continue
+                checked_edges.add(edge)
+
+                first, second = nodes[edge[0]], nodes[edge[1]]
+                distance = math.hypot((second[0] - first[0]) * row_m,
+                                      (second[1] - first[1]) * col_m)
                 if distance < min_span or distance > max_span:
                     continue
-                second = (next_row, next_col)
-                if not _segment_is_clear((row, col), second, traversable):
+                if not _segment_is_clear(first, second, traversable):
                     continue
-                span_cost = _segment_cost((row, col), second, cost, spacing)
+                span_cost = _segment_cost(first, second, cost, spacing)
                 if not math.isfinite(span_cost):
                     continue
-                adjacency[first_id].append((second_id, span_cost))
-                adjacency[second_id].append((first_id, span_cost))
+                adjacency[edge[0]].append((edge[1], span_cost))
+                adjacency[edge[1]].append((edge[0], span_cost))
                 if edge_cost is not None:
-                    edge_cost[first_id, second_id] = span_cost
-                    edge_cost[second_id, first_id] = span_cost
+                    edge_cost[edge] = span_cost
+                    edge_cost[edge[1], edge[0]] = span_cost
+
+        adjacency_ready[first_id] = True
+        return adjacency[first_id]
+
+    minimum_cost = float(cost[traversable].min())
+
+    def heuristic(node_id):
+        row, col = nodes[node_id]
+        goal_row, goal_col = nodes[goal_id]
+        distance = math.hypot((goal_row - row) * row_m,
+                              (goal_col - col) * col_m)
+        return minimum_cost * distance
 
     if turn_weight == 0.0:
         best_cost = {start_id: 0.0}
         parent = {}
         sequence = count()
-        open_set = [(0.0, next(sequence), start_id)]
+        open_set = [(heuristic(start_id), 0.0, next(sequence), start_id)]
         while open_set:
-            current_cost, _, current_id = heapq.heappop(open_set)
+            _, current_cost, _, current_id = heapq.heappop(open_set)
             if current_cost != best_cost[current_id]:
                 continue
             if current_id == goal_id:
@@ -153,7 +176,7 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                 route = [nodes[index] for index in route_ids]
                 return route[::-1] if reversed_result else route
 
-            for next_id, span_cost in adjacency[current_id]:
+            for next_id, span_cost in get_neighbors(current_id):
                 added_cost = span_cost
                 if next_id != goal_id and next_id != start_id:
                     next_row, next_col = nodes[next_id]
@@ -163,17 +186,18 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                     continue
                 best_cost[next_id] = candidate_cost
                 parent[next_id] = current_id
-                heapq.heappush(open_set,
-                               (candidate_cost, next(sequence), next_id))
+                estimated_total = candidate_cost + heuristic(next_id)
+                heapq.heappush(open_set, (estimated_total, candidate_cost,
+                                          next(sequence), next_id))
         return None
 
     start_state = (-1, start_id)
     best = {start_state: 0.0}
     parent = {}
     sequence = count()
-    open_set = [(0.0, next(sequence), start_state)]
+    open_set = [(heuristic(start_id), 0.0, next(sequence), start_state)]
     while open_set:
-        current_cost, _, state = heapq.heappop(open_set)
+        _, current_cost, _, state = heapq.heappop(open_set)
         if current_cost != best[state]:
             continue
         previous_id, current_id = state
@@ -187,7 +211,7 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
             route = [nodes[index] for index in route_ids]
             return route[::-1] if reversed_result else route
 
-        for next_id, span_cost in adjacency[current_id]:
+        for next_id, span_cost in get_neighbors(current_id):
             # A tower span cannot be used as an immediate out-and-back detour
             # to manipulate the direction penalty.
             if next_id == previous_id:
@@ -219,6 +243,7 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                 continue
             best[next_state] = candidate_cost
             parent[next_state] = state
-            heapq.heappush(open_set,
-                           (candidate_cost, next(sequence), next_state))
+            estimated_total = candidate_cost + heuristic(next_id)
+            heapq.heappush(open_set, (estimated_total, candidate_cost,
+                                      next(sequence), next_state))
     return None
