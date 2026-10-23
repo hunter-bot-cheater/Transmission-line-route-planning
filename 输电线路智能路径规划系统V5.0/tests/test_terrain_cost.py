@@ -12,7 +12,6 @@ class TerrainCostTests(unittest.TestCase):
             "slope": np.zeros((1, 3), dtype=np.float32),
             "roughness_27": np.zeros((1, 3), dtype=np.float32),
             "tpi_300": np.array([[0.0, 100.0, 400.0]], dtype=np.float32),
-            "tpi_900": np.array([[0.0, 200.0, 800.0]], dtype=np.float32),
         }
 
         cost = build_route_cost(
@@ -25,7 +24,6 @@ class TerrainCostTests(unittest.TestCase):
             "slope": np.zeros((1, 2), dtype=np.float32),
             "roughness_27": np.zeros((1, 2), dtype=np.float32),
             "tpi_300": np.array([[-200.0, np.nan]], dtype=np.float32),
-            "tpi_900": np.array([[-400.0, np.nan]], dtype=np.float32),
         }
         expected = build_route_cost(terrain, {}, settlement_weight=0.0)
         without_tpi = build_route_cost(
@@ -34,19 +32,6 @@ class TerrainCostTests(unittest.TestCase):
 
         np.testing.assert_allclose(expected, without_tpi)
         np.testing.assert_allclose(expected, [[0.0, 0.0]])
-
-    def test_broad_positive_tpi_contributes_half_of_ridge_weight(self):
-        terrain = {
-            "slope": np.zeros((1, 2), dtype=np.float32),
-            "roughness_27": np.zeros((1, 2), dtype=np.float32),
-            "tpi_300": np.zeros((1, 2), dtype=np.float32),
-            "tpi_900": np.array([[0.0, 400.0]], dtype=np.float32),
-        }
-
-        cost = build_route_cost(
-            terrain, {}, settlement_weight=0.0, ridge_penalty_weight=0.10)
-
-        np.testing.assert_allclose(cost, [[0.0, 0.05]])
 
     def test_astar_prefers_a_lower_corridor_around_a_high_ridge(self):
         shape = (5, 7)

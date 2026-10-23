@@ -235,7 +235,7 @@ def main():
     ap.add_argument("--settlement-weight", type=float, default=2.0,
                     help="OSM建筑密度/住宅与商业用地代理的软避让权重(方案筛选参数, 默认2.0)")
     ap.add_argument("--ridge-penalty-weight", type=float, default=0.10,
-                    help="基于300/900米TPI的高脊软惩罚权重；仅用地形，不读取线路几何")
+                    help="基于300米TPI的高脊软惩罚权重；仅用地形，不读取线路几何")
     ap.add_argument("--building-clearance-m", type=float, default=0.0,
                     help="建筑物栅格硬避让距离(米, 必须小于5000); 0仅屏蔽已映射建筑足迹，不代表规范净距")
     ap.add_argument("--grade-penalty-weight", type=float, default=1.0,

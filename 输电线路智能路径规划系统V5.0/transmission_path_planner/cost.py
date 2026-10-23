@@ -183,19 +183,13 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
     roughness = np.nan_to_num(terrain["roughness_27"], nan=0.0, posinf=0.0, neginf=0.0)
     terrain_cost = 0.75 * np.clip(slope / 45.0, 0.0, 1.0) ** 1.5
     terrain_cost += 0.25 * np.clip(roughness / 100.0, 0.0, 1.0)
-    # Positive TPI marks terrain above its neighborhood; combine 300 m and
-    # 900 m scales to screen both local crests and broader ridges.
+    # Positive TPI marks terrain above its local 300 m neighborhood; a weak
+    # penalty prefers lower saddles over exposed crests without using route data.
     tpi_300 = np.broadcast_to(np.asarray(
         terrain.get("tpi_300", np.zeros_like(terrain_cost)), dtype=np.float32),
         terrain_cost.shape)
-    tpi_900 = np.broadcast_to(np.asarray(
-        terrain.get("tpi_900", np.zeros_like(terrain_cost)), dtype=np.float32),
-        terrain_cost.shape)
-    ridge_proxy = 0.5 * np.clip(
+    ridge_proxy = np.clip(
         np.nan_to_num(tpi_300, nan=0.0, posinf=200.0, neginf=0.0) / 200.0,
-        0.0, 1.0,
-    ) + 0.5 * np.clip(
-        np.nan_to_num(tpi_900, nan=0.0, posinf=400.0, neginf=0.0) / 400.0,
         0.0, 1.0,
     )
     terrain_cost += max(float(ridge_penalty_weight), 0.0) * ridge_proxy
