@@ -322,6 +322,18 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
             (None, None, "no_hard_constraint_compliant_route"),
         )
 
+    def test_final_route_does_not_select_experimental_16_neighbor_astar(self):
+        methods = {
+            "A*(8-neighbor exact experimental)": [(1, 1)],
+            "A*(16-neighbor experimental)": [(1, 1)],
+        }
+        metrics = {method: {"hard_violations": 0} for method in methods}
+
+        self.assertEqual(
+            _select_final_route(methods, metrics),
+            (None, None, "no_hard_constraint_compliant_route"),
+        )
+
     def test_cli_does_not_expose_reference_guidance_options(self):
         output = StringIO()
         with patch("sys.argv", ["planner", "--help"]), redirect_stdout(output):
@@ -335,6 +347,7 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
             "--shp", "--existing-network",
         ):
             self.assertNotIn(removed_option, help_text)
+        self.assertIn("--experimental-astar-16", help_text)
         self.assertIn("--no-vin", help_text)
         self.assertIn("--include-ai-diagnostics", help_text)
 

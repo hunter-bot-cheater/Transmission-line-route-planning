@@ -79,13 +79,24 @@ def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, t
                 hazard_legend = ax.legend(handles=handles, loc="lower left", framealpha=0.85,
                                           title="官方灾害面（软风险）")
         colors = {"VIN-Grad": "#1f77ff", "PPO": "#2ca02c", "A*(baseline)": "#ff7f0e",
-                  "A*(weighted)": "#9467bd", "A*(turn-aware)": "#17becf"}
+                  "A*(weighted)": "#9467bd", "A*(turn-aware)": "#17becf",
+                  "A*(8-neighbor exact experimental)": "#8c564b",
+                  "A*(16-neighbor experimental)": "#7f7f7f",
+                  "Theta*(experimental)": "#e377c2"}
+        line_styles = {
+            "A*(baseline)": "-",
+            "A*(weighted)": "--",
+            "A*(turn-aware)": ":",
+            "A*(8-neighbor exact experimental)": "-.",
+            "A*(16-neighbor experimental)": (0, (3, 1, 1, 1)),
+            "Theta*(experimental)": (0, (5, 1)),
+        }
         for name, geo in methods_paths.items():
             if not geo:
                 continue
             ax.plot([p[0] for p in geo], [p[1] for p in geo],
                     color=colors.get(name, "#555"),
-                    linestyle=("--" if "A*" in name else "-"),
+                    linestyle=line_styles.get(name, "-"),
                     linewidth=2.2, label=f"{name} ({path_length_km(geo):.1f}km)", zorder=4)
         if real_ll and len(real_ll) >= 1:
             from matplotlib.collections import LineCollection
@@ -135,36 +146,80 @@ def plot_value_map(V, transform, geo_vin, start_ll, end_ll, out_path):
     print(f"  值传播概率图保存: {out_path}")
 
 
-def plot_algo_comparison(all_results, out_path):
-    """多算法指标聚合柱状图。"""
-    methods = ["VIN-Grad", "PPO", "A*(baseline)", "A*(weighted)", "A*(turn-aware)"]
-    metrics_keys = ["length_km", "mean_cost", "sinuosity", "hard_violations", "time_s", "cum_relief_m"]
-    agg = {m: {k: [] for k in metrics_keys} for m in methods}
+_COMPARISON_METHODS = [
+    "VIN-Grad", "PPO", "A*(baseline)", "A*(weighted)", "A*(turn-aware)",
+    "A*(8-neighbor exact experimental)", "A*(16-neighbor experimental)",
+    "Theta*(experimental)",
+]
+_COMPARISON_METRICS = [
+    "length_km", "mean_cost", "sinuosity", "hard_violations", "time_s", "cum_relief_m",
+]
+
+
+def _algo_comparison_data(all_results):
+    methods = [m for m in _COMPARISON_METHODS
+               if any(m in rec["metrics"] for rec in all_results)]
+    agg = {m: {k: [] for k in _COMPARISON_METRICS} for m in methods}
     for rec in all_results:
         for m, met in rec["metrics"].items():
             if m not in agg:   # 跳过最终路线记录等非量化对比条目
                 continue
-            for k in metrics_keys:
-                if k in met and met[k] is not None and not (isinstance(met[k], float) and math.isnan(met[k])):
-                    agg[m][k].append(met[k])
-    means = {m: {k: (sum(v) / len(v) if v else 0.0) for k, v in agg[m].items()} for m in methods}
+            for k in _COMPARISON_METRICS:
+                if (k == "hard_violations"
+                        and met.get("hard_constraint_status") == "no_path"):
+                    continue
+                value = met.get(k)
+                if value is not None and isinstance(value, (int, float)) and math.isfinite(value):
+                    agg[m][k].append(value)
+    return methods, agg
+
+
+def plot_algo_comparison(all_results, out_path):
+    """多算法指标聚合柱状图。"""
+    methods, agg = _algo_comparison_data(all_results)
+    if not methods:
+        return
+    metrics_keys = _COMPARISON_METRICS
+    means = {m: {k: (sum(v) / len(v) if v else None)
+                 for k, v in agg[m].items()} for m in methods}
+    short_names = {
+        "A*(baseline)": "A* 基线", "A*(weighted)": "A* 加权",
+        "A*(turn-aware)": "A* 转向代价", "A*(8-neighbor exact experimental)": "A* 8邻域精确",
+        "A*(16-neighbor experimental)": "A* 16邻域", "Theta*(experimental)": "Theta*",
+        "VIN-Grad": "VIN-Grad", "PPO": "PPO",
+    }
     labels = {
-        "length_km": "路径长度 (km)", "mean_cost": "平均建设代价",
+        "length_km": "路径长度 (km)", "mean_cost": "平均相对代价",
         "sinuosity": "弯曲度", "hard_violations": "硬约束违规(点)",
-        "time_s": "耗时 (s)", "cum_relief_m": "累计高差 (m)"}
+        "time_s": "路径生成总耗时 (s)", "cum_relief_m": "累计高差 (m)"}
     fig, axes = plt.subplots(2, 3, figsize=(15, 9), dpi=140)
     axes = axes.ravel()
     colors = {"VIN-Grad": "#1f77ff", "PPO": "#2ca02c", "A*(baseline)": "#ff7f0e",
-              "A*(weighted)": "#9467bd", "A*(turn-aware)": "#17becf"}
+              "A*(weighted)": "#9467bd", "A*(turn-aware)": "#17becf",
+              "A*(8-neighbor exact experimental)": "#8c564b",
+              "A*(16-neighbor experimental)": "#7f7f7f",
+              "Theta*(experimental)": "#e377c2"}
     for i, k in enumerate(metrics_keys):
         ax = axes[i]
         vals = [means[m][k] for m in methods]
-        bars = ax.bar(methods, vals, color=[colors[m] for m in methods])
+        positions = list(range(len(methods)))
+        for position, method, value in zip(positions, methods, vals):
+            if value is None:
+                ax.text(position, 0.02, "N/A", transform=ax.get_xaxis_transform(),
+                        ha="center", va="bottom", fontsize=9)
+            else:
+                bar = ax.bar(position, value, color=colors[method])[0]
+                ax.text(bar.get_x() + bar.get_width() / 2, value,
+                        f"{value:.2f}", ha="center", va="bottom", fontsize=8)
         ax.set_title(labels[k])
         ax.set_ylabel(labels[k])
-        for b, v in zip(bars, vals):
-            ax.text(b.get_x() + b.get_width() / 2, v, f"{v:.2f}", ha="center", va="bottom", fontsize=9)
-        ax.tick_params(axis="x", rotation=15)
+        tick_labels = [
+            f"{short_names[m]}\nN={len(agg[m][k])}"
+            if means[m][k] is not None else f"{short_names[m]}\nN/A"
+            for m in methods
+        ]
+        ax.set_xticks(positions, tick_labels, fontsize=8)
+        ax.margins(y=0.16)
     fig.suptitle("多算法路径规划量化对比（各走廊均值）", fontsize=14)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     try:

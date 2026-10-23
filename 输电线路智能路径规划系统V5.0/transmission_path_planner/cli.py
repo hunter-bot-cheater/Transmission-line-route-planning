@@ -14,10 +14,18 @@ from .io_export import *
 from .stations import *
 from .official_hazards import load_official_hazard_masks
 from .experimental_theta_star import theta_star_cost_path
+from .experimental_astar_16 import (
+    NEIGHBORS_8,
+    NEIGHBORS_16,
+    astar_exact_integral_path,
+    integrate_path_cost,
+)
 from shapely import make_valid
 
 
 FINAL_ROUTE_LABEL = "最终路线"
+ASTAR_16_METHOD = "A*(16-neighbor experimental)"
+ASTAR_8_EXACT_METHOD = "A*(8-neighbor exact experimental)"
 
 
 def _select_final_route(methods, case_metrics):
@@ -407,6 +415,10 @@ def main():
     ap.add_argument("--experimental-theta-star", action="store_true",
                     help="额外生成 Theta* 实验候选；复用 A* 栅格代价面，不计软坡度/转弯代价，"
                          "经常规约束复核但不参与最终选路")
+    ap.add_argument("--experimental-astar-16", action="store_true",
+                    help="额外运行同目标的 8/16 邻域精确积分 A* 对照；复用含地形与约束图层的代价面，"
+                         "关闭相邻地面坡度附加惩罚和转弯惩罚，"
+                         "配置的地面坡度上限仍作硬约束；均不参与最终选路")
     ap.add_argument("--max-ground-grade", type=float, default=None,
                     help="可选地面相邻栅格最大坡度比，如0.30; 属于筛选阈值，不是线路设计限值")
     ap.add_argument("--max-surface-slope-deg", type=float, default=None,
@@ -815,7 +827,45 @@ def main():
                 geo_astar, dem, transform, args.max_ground_grade, crs)
             methods[astar_method] = geo_astar
             t_astar = time.time() - t_astar
-            print(f"  [{astar_method}] 路径 {len(geo_astar) if geo_astar else 0} 点, 耗时 {t_astar:.1f}s")
+            print(f"  [{astar_method}] 路径 {len(geo_astar) if geo_astar else 0} 点, "
+                  f"路径生成总耗时 {t_astar:.1f}s")
+
+            experimental_neighbor_results = {}
+            if args.experimental_astar_16:
+                for method, neighbors in ((ASTAR_8_EXACT_METHOD, NEIGHBORS_8),
+                                          (ASTAR_16_METHOD, NEIGHBORS_16)):
+                    started = time.time()
+                    raw_path = astar_exact_integral_path(
+                        cost_grid, hard_mask, (sr, sc), (er, ec), neighbors,
+                        pixel_spacing=route_pixel_spacing, elevation=dem,
+                        max_ground_grade=args.max_ground_grade,
+                    )
+                    geo_path = ([rowcol_to_geo(r, c, transform) for r, c in raw_path]
+                                if raw_path else None)
+                    if geo_path:
+                        geo_path = smooth_path_with_constraints(
+                            geo_path, transform, hard_mask, cost_grid, dem,
+                            0.0, 0.0, route_pixel_spacing,
+                            max_ground_grade=args.max_ground_grade, crs=crs,
+                            shortcut_endpoints=shortcut_endpoints,
+                        )
+                    geo_path, grade_reports[method] = filter_path_by_ground_grade(
+                        geo_path, dem, transform, args.max_ground_grade, crs)
+                    elapsed = time.time() - started
+                    search_cost = integrate_path_cost(
+                        raw_path, cost_grid, hard_mask,
+                        pixel_spacing=route_pixel_spacing,
+                        neighbor_offsets=neighbors,
+                    ) if raw_path else math.inf
+                    methods[method] = geo_path
+                    experimental_neighbor_results[method] = {
+                        "path": raw_path,
+                        "neighbors": neighbors,
+                        "search_cost": search_cost,
+                        "time_s": elapsed,
+                    }
+                    print(f"  [{method}] 路径 {len(geo_path) if geo_path else 0} 点, "
+                          f"路径生成总耗时 {elapsed:.1f}s；精确积分代价，仅关闭附加地面坡度/转弯惩罚")
 
             if args.experimental_theta_star:
                 t_theta = time.time()
@@ -892,11 +942,13 @@ def main():
             case_metrics = {}
             for m, geo in methods.items():
                 if geo:
+                    method_grade_weight = (0.0 if m in experimental_neighbor_results
+                                           else args.grade_penalty_weight)
                     method_turn_weight = (args.turn_penalty_weight
                                           if m == "A*(turn-aware)" else 0.0)
                     met = compute_metrics(
                         geo, dem, transform, cost_grid, hard_mask, start_ll, end_ll,
-                        grade_penalty_weight=args.grade_penalty_weight,
+                        grade_penalty_weight=method_grade_weight,
                         turn_penalty_weight=method_turn_weight,
                         pixel_spacing=route_pixel_spacing)
                     met["weight_independent_exposure"] = route_layer_exposure(
@@ -926,7 +978,26 @@ def main():
                         "A*(baseline)": t_astar,
                         "A*(weighted)": t_astar,
                         "A*(turn-aware)": t_astar,
-                    }.get(m, 0.0), 2)
+                    }.get(m, experimental_neighbor_results.get(m, {}).get("time_s", 0.0)), 2)
+                    if m in experimental_neighbor_results:
+                        experiment = experimental_neighbor_results[m]
+                        search_cost = experiment["search_cost"]
+                        met["search_path_objective"] = {
+                            "status": ("measured" if math.isfinite(search_cost)
+                                       else "invalid_path" if experiment["path"] else "no_path"),
+                            "unit": "cost_meter",
+                            "raster_cost": search_cost if math.isfinite(search_cost) else None,
+                            "neighbor_count": len(experiment["neighbors"]),
+                            "soft_grade_penalty": 0.0,
+                            "turn_penalty": 0.0,
+                            "hard_ground_grade_limit": args.max_ground_grade,
+                            "objective_scope": "piecewise_constant_raster_cost_only",
+                        }
+                        met["candidate_validation_status"] = (
+                            "survived_validation" if geo else
+                            "rejected_after_search" if experiment["path"] else "no_path")
+                        met["search_objective_model"] = (
+                            f"{len(experiment['neighbors'])}_neighbor_exact_raster_integral")
                     if not station_task:
                         start_center = rowcol_to_geo(sr, sc, transform)
                         end_center = rowcol_to_geo(er, ec, transform)
@@ -941,6 +1012,25 @@ def main():
                 if m in grade_reports:
                     met.update(grade_reports[m])
                 met.update(hard_violation_reports.get(m, {}))
+                if m in experimental_neighbor_results:
+                    experiment = experimental_neighbor_results[m]
+                    search_cost = experiment["search_cost"]
+                    met["time_s"] = round(experiment["time_s"], 2)
+                    met.setdefault("search_objective_model",
+                                   f"{len(experiment['neighbors'])}_neighbor_exact_raster_integral")
+                    met.setdefault("search_path_objective", {
+                        "status": ("measured" if math.isfinite(search_cost)
+                                   else "invalid_path" if experiment["path"] else "no_path"),
+                        "unit": "cost_meter",
+                        "raster_cost": search_cost if math.isfinite(search_cost) else None,
+                        "neighbor_count": len(experiment["neighbors"]),
+                        "soft_grade_penalty": 0.0,
+                        "turn_penalty": 0.0,
+                        "hard_ground_grade_limit": args.max_ground_grade,
+                        "objective_scope": "piecewise_constant_raster_cost_only",
+                    })
+                    met.setdefault("candidate_validation_status", (
+                        "rejected_after_search" if experiment["path"] else "no_path"))
                 if geo and "hard_constraint_status" not in met:
                     met["hard_constraint_status"] = (
                         "pass" if met.get("hard_violations", 0) == 0 else "fail")
@@ -1324,6 +1414,7 @@ def main():
         print(f"  {'走廊':16s} {'方法':16s} {'较差方向P95(m)':>14s} {'采样最大(m)':>12s} "
               f"{'F1@100m':>9s} {'F1@1km':>9s} {'长度差(km)':>11s}")
         candidate_methods = ["A*(baseline)", "A*(weighted)", "A*(turn-aware)",
+                             ASTAR_8_EXACT_METHOD, ASTAR_16_METHOD,
                              "Theta*(experimental)", "VIN-Grad", "PPO"]
         failed_case_names = {item["case"] for item in failed_cases}
         for rec in all_results:
@@ -1376,6 +1467,7 @@ def main():
     print("  结果摘要（各走廊均值）")
     print("=" * 70)
     for m in ["A*(baseline)", "A*(weighted)", "A*(turn-aware)",
+              ASTAR_8_EXACT_METHOD, ASTAR_16_METHOD,
               "Theta*(experimental)", "VIN-Grad", "PPO"]:
         lens = [r["metrics"][m]["length_km"] for r in all_results if m in r["metrics"]]
         mc = [r["metrics"][m]["mean_cost"] for r in all_results if m in r["metrics"]]
