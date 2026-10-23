@@ -7,6 +7,7 @@ data/
 **/cnn_model/*.log
 
 # 输出产物
+输电线路智能路径规划系统V5.0/outputs/
 v1_20260525/output/
 v2_20260525/output/
 v3_20260710/output/

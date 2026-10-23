@@ -8,19 +8,24 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 from affine import Affine
-from shapely.geometry import LineString, MultiLineString
+from shapely.geometry import LineString, MultiLineString, Polygon, box
 
 from transmission_path_planner.cli import (
     _select_final_route,
+    annotate_route_validation_context,
+    attach_input_endpoints,
     expand_single_cell_route,
     geojson_coordinates,
     load_case_reference,
+    open_safe_building_endpoint_pixels,
     main,
     resolve_real_path,
     method_visual_similarity_summary,
     run_method_or_skip_on_oom,
     train_vin_or_skip_on_oom,
     validate_endpoint_cells,
+    validate_route_against_buildings,
+    validate_route_hard_constraints,
     validate_cases_available,
     validate_real_shp_argument,
     validate_unique_case_names,
@@ -35,6 +40,171 @@ from transmission_path_planner import metrics
 
 
 class ReferenceIndependentPlanningTests(unittest.TestCase):
+    def test_restores_both_exact_input_endpoints(self):
+        snapped_route = [(120.0, 22.0), (120.1, 22.1), (120.2, 22.2)]
+        restored = attach_input_endpoints(
+            snapped_route, (22.00001, 120.00002), (22.19997, 120.20003))
+
+        self.assertEqual(restored[0], (120.00002, 22.00001))
+        self.assertEqual(restored[-1], (120.20003, 22.19997))
+        self.assertEqual(restored[1], snapped_route[1])
+
+    def test_restores_exact_endpoints_for_single_cell_route(self):
+        restored = attach_input_endpoints(
+            [(120.0, 22.0)], (22.1, 120.1), (22.2, 120.2))
+
+        self.assertEqual(restored, [(120.1, 22.1), (120.2, 22.2)])
+
+    def test_rejects_identical_endpoints_for_single_cell_route(self):
+        with self.assertRaisesRegex(ValueError, "零长度线路"):
+            attach_input_endpoints([(120.0, 22.0)], (22.1, 120.1), (22.1, 120.1))
+
+    def test_exact_endpoint_restoration_still_rejects_a_blocked_route_cell(self):
+        restored = attach_input_endpoints(
+            [(0.5, 0.5), (1.5, 1.5), (2.5, 2.5)],
+            (0.5, 0.5), (2.5, 2.5))
+        hard_mask = np.ones((3, 3), dtype=np.uint8)
+        hard_mask[1, 1] = 0
+
+        accepted, report = validate_route_hard_constraints(
+            restored, Affine.identity(), hard_mask)
+
+        self.assertIsNone(accepted)
+        self.assertEqual(report["hard_constraint_status"], "fail")
+        self.assertGreater(report["hard_violations"], 0)
+
+    def test_validation_context_records_exception_pixel_and_coverage(self):
+        report = {"hard_constraint_status": "pass", "hard_violations": 0}
+        annotate_route_validation_context(
+            report,
+            [{"label": "起点", "row": 1, "col": 2, "point_xy": (120.1, 22.2)}],
+            {"status": "available", "coverage_status": "features_observed",
+             "geometry_repaired_count": 2})
+
+        self.assertEqual(report["endpoint_rasterization_exceptions"][0]["row"], 1)
+        self.assertEqual(report["building_geometry_coverage_status"], "features_observed")
+        self.assertIsNone(report["building_geometry_coverage_reason"])
+        self.assertEqual(report["building_geometry_check_scope"], "loaded_osm_features_only")
+        self.assertEqual(report["building_geometry_source_repair_count"], 2)
+        self.assertEqual(report["building_geometry_skipped_nonfinite_count"], 0)
+
+    def test_validation_context_reports_partial_osm_coverage_and_skipped_geometry(self):
+        report = {}
+        annotate_route_validation_context(
+            report, [], {
+                "status": "available",
+                "coverage_status": "partial",
+                "coverage_reason": "nonfinite_geometry_skipped_outside_bbox",
+                "nonfinite_geometry_outside_bbox_count": 1,
+            })
+
+        self.assertEqual(report["building_geometry_coverage_status"], "partial")
+        self.assertEqual(
+            report["building_geometry_coverage_reason"],
+            "nonfinite_geometry_skipped_outside_bbox")
+        self.assertEqual(report["building_geometry_skipped_nonfinite_count"], 1)
+
+    def test_building_touch_endpoint_pixel_opens_only_with_exactly_clear_connector(self):
+        transform = Affine.identity()
+        hard_mask = np.ones((3, 3), dtype=np.uint8)
+        hard_mask[1, 1] = 0
+        building_mask = np.zeros((3, 3), dtype=bool)
+        building_mask[1, 1] = True
+        buildings = [(box(1.75, 1.75, 1.9, 1.9), {})]
+
+        exceptions = open_safe_building_endpoint_pixels(
+            (("起点", (1, 1), (1.1, 1.5)),), hard_mask,
+            {"OSM建筑足迹": building_mask}, buildings, transform)
+
+        self.assertEqual(len(exceptions), 1)
+        self.assertEqual(exceptions[0]["point_xy"], (1.1, 1.5))
+        self.assertEqual(hard_mask[1, 1], 1)
+        self.assertEqual(path_hard_violations([(1.1, 1.5), (1.5, 1.5)],
+                                              transform, hard_mask), 0)
+
+    def test_building_endpoint_exception_rejects_point_or_connector_intersections(self):
+        transform = Affine.identity()
+        for obstacle in (box(1.05, 1.4, 1.2, 1.6), box(1.25, 1.4, 1.35, 1.6)):
+            hard_mask = np.ones((3, 3), dtype=np.uint8)
+            hard_mask[1, 1] = 0
+            building_mask = np.zeros((3, 3), dtype=bool)
+            building_mask[1, 1] = True
+
+            exceptions = open_safe_building_endpoint_pixels(
+                (("起点", (1, 1), (1.1, 1.5)),), hard_mask,
+                {"OSM建筑足迹": building_mask}, [(obstacle, {})], transform)
+
+            self.assertEqual(exceptions, [])
+            self.assertEqual(hard_mask[1, 1], 0)
+
+    def test_building_endpoint_exception_rejects_other_hard_blockers_and_clearance(self):
+        transform = Affine.identity()
+        for clearance in (0.0, 20.0):
+            hard_mask = np.ones((3, 3), dtype=np.uint8)
+            hard_mask[1, 1] = 0
+            building_mask = np.zeros((3, 3), dtype=bool)
+            building_mask[1, 1] = True
+            blockers = {"OSM建筑足迹": building_mask}
+            if clearance == 0.0:
+                other_mask = np.zeros((3, 3), dtype=bool)
+                other_mask[1, 1] = True
+                blockers["用户硬约束"] = other_mask
+
+            exceptions = open_safe_building_endpoint_pixels(
+                (("起点", (1, 1), (1.1, 1.5)),), hard_mask,
+                blockers, [(box(1.75, 1.75, 1.9, 1.9), {})], transform,
+                building_clearance_m=clearance)
+
+            self.assertEqual(exceptions, [])
+            self.assertEqual(hard_mask[1, 1], 0)
+
+    def test_final_route_is_rejected_if_it_intersects_building_geometry(self):
+        route = [(1.1, 1.5), (2.5, 1.5)]
+        accepted, report = validate_route_against_buildings(
+            route, [(box(2.0, 1.4, 2.2, 1.6), {})])
+
+        self.assertIsNone(accepted)
+        self.assertEqual(report["building_geometry_status"], "fail")
+        self.assertEqual(report["building_geometry_intersections"], 1)
+
+    def test_building_geometry_report_counts_all_intersected_features(self):
+        route = [(1.1, 1.5), (3.5, 1.5)]
+        buildings = [
+            (box(1.4, 1.4, 1.6, 1.6), {}),
+            (box(2.4, 1.4, 2.6, 1.6), {}),
+        ]
+
+        accepted, report = validate_route_against_buildings(route, buildings)
+
+        self.assertIsNone(accepted)
+        self.assertEqual(report["building_geometry_intersections"], 2)
+
+    def test_building_intersection_check_repairs_invalid_geometry_and_checks_it(self):
+        invalid = Polygon([(1.0, 1.0), (2.0, 2.0), (1.0, 2.0),
+                           (2.0, 1.0), (1.0, 1.0)])
+
+        accepted, report = validate_route_against_buildings(
+            [(1.2, 1.2), (1.8, 1.8)], [(invalid, {})])
+
+        self.assertIsNone(accepted)
+        self.assertEqual(report["building_geometry_status"], "fail")
+        self.assertEqual(report["building_geometry_intersections"], 1)
+        self.assertEqual(report["building_geometry_repaired_features"], 1)
+
+    def test_out_of_bounds_building_endpoint_does_not_mutate_mask(self):
+        hard_mask = np.zeros((3, 3), dtype=np.uint8)
+        building_mask = np.ones((3, 3), dtype=bool)
+        before = hard_mask.copy()
+
+        exceptions = open_safe_building_endpoint_pixels(
+            (("起点", (-1, 0), (0.5, 0.5)),
+             ("终点", (3, 0), (0.5, 0.5))),
+            hard_mask, {"OSM建筑足迹": building_mask},
+            [(box(0.1, 0.1, 0.2, 0.2), {})], Affine.identity())
+
+        self.assertEqual(exceptions, [])
+        np.testing.assert_array_equal(hard_mask, before)
+
     def test_continuous_tracers_stay_in_degenerate_grid_bounds(self):
         transform = Affine(0.001, 0, 120.0, 0, -0.001, 25.0)
         for shape in ((1, 3), (3, 1)):
@@ -137,6 +307,15 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
             "PPO": {"hard_violations": 0},
             "VIN-Grad": {"hard_violations": 0},
         }
+
+        self.assertEqual(
+            _select_final_route(methods, metrics),
+            (None, None, "no_hard_constraint_compliant_route"),
+        )
+
+    def test_final_route_does_not_select_experimental_theta_star(self):
+        methods = {"Theta*(experimental)": [(1, 1)]}
+        metrics = {"Theta*(experimental)": {"hard_violations": 0}}
 
         self.assertEqual(
             _select_final_route(methods, metrics),

@@ -33,6 +33,71 @@ class OSMSettlementMetadataTests(unittest.TestCase):
             pickle.dump({"elements": elements}, stream)
         return path
 
+    def test_invalid_building_polygon_is_repaired_before_rasterization(self):
+        cache = self._save_cache("bow_tie_building.pkl", [
+            _way([(0.1, 1.9), (1.9, 0.1), (0.1, 0.1),
+                  (1.9, 1.9), (0.1, 1.9)], {"building": "yes"})
+        ])
+
+        buildings, metadata = osm.load_osm_geoms_with_status(
+            cache, "polygon", (0, 0, 2, 2))
+        mask = osm.rasterize_on(buildings, Affine(1, 0, 0, 0, -1, 2), (2, 2))
+
+        self.assertEqual(metadata["geometry_repaired_count"], 1)
+        self.assertTrue(buildings[0][0].is_valid)
+        self.assertTrue(mask.any())
+
+    def test_nonfinite_osm_coordinates_fail_closed(self):
+        cache = self._save_cache("nonfinite_building.pkl", [
+            _way([(0.1, 0.1), (1.9, 0.1), (1.9, float("nan")),
+                  (0.1, 0.1)], {"building": "yes"})
+        ])
+
+        with self.assertRaisesRegex(ValueError, "含非有限坐标"):
+            osm.load_osm_geoms_with_status(cache, "polygon", (0, 0, 2, 2))
+
+    def test_nonfinite_geometry_outside_request_bbox_does_not_fail_case(self):
+        cache = self._save_cache("remote_nonfinite_building.pkl", [
+            _way([(120.1, 24.1), (120.2, 24.1), (120.2, 24.2),
+                  (120.1, 24.2), (120.1, 24.1)], {"building": "yes"}),
+            _way([(110.1, 10.1), (110.2, 10.1), (float("nan"), 10.2),
+                  (110.1, 10.1)], {"building": "yes"}),
+        ])
+
+        buildings, metadata = osm.load_osm_geoms_with_status(
+            cache, "polygon", (120, 24, 121, 25))
+
+        self.assertEqual(len(buildings), 1)
+        self.assertEqual(metadata["nonfinite_geometry_outside_bbox_count"], 1)
+        self.assertEqual(metadata["status"], "available")
+        self.assertEqual(metadata["coverage_status"], "partial")
+        self.assertEqual(
+            metadata["coverage_reason"],
+            "nonfinite_geometry_skipped_outside_bbox")
+
+    def test_only_skipped_nonfinite_geometry_cannot_claim_observed_coverage(self):
+        cache = self._save_cache("only_remote_nonfinite_building.pkl", [
+            _way([(110.1, 10.1), (110.2, 10.1), (float("nan"), 10.2),
+                  (110.1, 10.1)], {"building": "yes"}),
+        ])
+
+        buildings, metadata = osm.load_osm_geoms_with_status(
+            cache, "polygon", (120, 24, 121, 25))
+
+        self.assertEqual(buildings, [])
+        self.assertEqual(metadata["status"], "no_usable_geometry")
+        self.assertEqual(metadata["coverage_status"], "partial")
+        self.assertEqual(metadata["nonfinite_geometry_outside_bbox_count"], 1)
+
+    def test_nonfinite_geometry_with_no_finite_location_still_fails_closed(self):
+        cache = self._save_cache("unlocated_nonfinite_building.pkl", [
+            _way([(float("nan"), float("inf")), (float("nan"), float("inf")),
+                  (float("nan"), float("inf"))], {"building": "yes"})
+        ])
+
+        with self.assertRaisesRegex(ValueError, "无法定位的非有限坐标"):
+            osm.load_osm_geoms_with_status(cache, "polygon", (120, 24, 121, 25))
+
     def test_rasterize_on_propagates_rasterization_errors(self):
         with patch.object(osm, "rio_rasterize", side_effect=RuntimeError("rasterization failed")):
             with self.assertRaisesRegex(RuntimeError, "rasterization failed"):

@@ -14,24 +14,44 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
 from matplotlib.lines import Line2D
 from pyproj import CRS, Transformer
-from shapely.geometry import shape
+from shapely.geometry import LineString, MultiLineString, shape
 from shapely.ops import transform
 
 
 def load_line(path: Path):
-    feature = json.loads(path.read_text(encoding="utf-8"))["features"][0]
-    return shape(feature["geometry"])
+    document = json.loads(path.read_text(encoding="utf-8"))
+    lines = []
+    for feature in document.get("features", []):
+        geometry = shape(feature["geometry"])
+        if geometry.geom_type == "LineString":
+            lines.append(geometry)
+        elif geometry.geom_type == "MultiLineString":
+            lines.extend(part for part in geometry.geoms if part.length > 0)
+    if not lines:
+        raise ValueError(f"No LineString geometry in {path}")
+    return lines[0] if len(lines) == 1 else MultiLineString(lines)
+
+
+def line_parts(line):
+    return [line] if line.geom_type == "LineString" else list(line.geoms)
 
 
 def color_segments(line, other, interval_m: float):
-    distances = np.arange(0.0, line.length, interval_m)
-    if not len(distances) or distances[-1] < line.length:
-        distances = np.append(distances, line.length)
-    points = [line.interpolate(float(d)) for d in distances]
-    coords = np.asarray([(p.x, p.y) for p in points])
-    segments = np.stack((coords[:-1], coords[1:]), axis=1)
-    values = [other.distance(line.interpolate(float((a + b) / 2))) / 1000 for a, b in zip(distances[:-1], distances[1:])]
-    return segments, np.asarray(values)
+    segments, values = [], []
+    for part in line_parts(line):
+        distances = np.arange(0.0, part.length, interval_m)
+        if not len(distances) or distances[-1] < part.length:
+            distances = np.append(distances, part.length)
+        if len(distances) < 2:
+            continue
+        coords = np.asarray([(point.x, point.y)
+                             for point in (part.interpolate(float(d)) for d in distances)])
+        segments.append(np.stack((coords[:-1], coords[1:]), axis=1))
+        values.extend(other.distance(part.interpolate(float((a + b) / 2))) / 1000
+                      for a, b in zip(distances[:-1], distances[1:]))
+    if not segments:
+        return np.empty((0, 2, 2)), np.empty(0)
+    return np.concatenate(segments), np.asarray(values)
 
 
 def draw_colored_route(ax, line, other, cmap, norm, interval_m: float):
@@ -43,7 +63,12 @@ def draw_colored_route(ax, line, other, cmap, norm, interval_m: float):
 
 
 def line_xy(line):
-    return np.asarray(line.coords)[:, :2] / 1000
+    return [np.asarray(part.coords)[:, :2] / 1000 for part in line_parts(line)]
+
+
+def draw_line(ax, line, **kwargs):
+    for coordinates in line_xy(line):
+        ax.plot(coordinates[:, 0], coordinates[:, 1], **kwargs)
 
 
 def prepare_routes(results_dir: Path):
@@ -77,10 +102,11 @@ def prepare_routes(results_dir: Path):
 
 
 def set_limits(ax, planned, reference):
-    px, py = line_xy(planned).T
-    rx, ry = line_xy(reference).T
-    xmin, xmax = min(px.min(), rx.min()), max(px.max(), rx.max())
-    ymin, ymax = min(py.min(), ry.min()), max(py.max(), ry.max())
+    planned_xy = np.concatenate(line_xy(planned))
+    reference_xy = np.concatenate(line_xy(reference))
+    all_xy = np.concatenate((planned_xy, reference_xy))
+    xmin, ymin = all_xy.min(axis=0)
+    xmax, ymax = all_xy.max(axis=0)
     pad = max(xmax - xmin, ymax - ymin) * 0.04
     ax.set_xlim(xmin - pad, xmax + pad)
     ax.set_ylim(ymin - pad, ymax + pad)
@@ -98,17 +124,18 @@ def plot_case(case, planned, reference, metrics, out_path, cmap, norm, interval_
         (axes[1], reference, planned, "参考线 → 规划线"),
     ):
         draw_colored_route(ax, colored, other, cmap, norm, interval_m)
-        ax.plot(*line_xy(other).T, color="#343a40", linestyle="--", linewidth=1.35, zorder=2)
+        draw_line(ax, other, color="#343a40", linestyle="--", linewidth=1.35, zorder=2)
         ax.set_title(title)
         set_limits(ax, planned, reference)
-    start, end = planned.coords[0], planned.coords[-1]
+    parts = line_parts(planned)
+    start, end = parts[0].coords[0], parts[-1].coords[-1]
     axes[0].scatter([start[0] / 1000], [start[1] / 1000], s=25, color="#16803c", zorder=5)
     axes[0].scatter([end[0] / 1000], [end[1] / 1000], s=25, color="#c0392b", zorder=5)
     axes[1].scatter([start[0] / 1000], [start[1] / 1000], s=25, color="#16803c", zorder=5)
     axes[1].scatter([end[0] / 1000], [end[1] / 1000], s=25, color="#c0392b", zorder=5)
     f1 = sim["symmetric"]["coverage_f1_within_m"]["100"] * 100
     p95 = sim["symmetric"]["p95_m"] / 1000
-    fig.suptitle(f"{case} | 双向 F1@100米 {f1:.1f}% | 较差方向 P95 {p95:.2f} km")
+    fig.suptitle(f"{case} | 较差方向 P95 {p95:.2f} km | F1@100米 {f1:.1f}%（覆盖诊断）")
     fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axes, label="彩线到另一条线路的距离（km）")
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
@@ -124,10 +151,10 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
         planned, reference, metrics = routes[case]
         sim = metrics["route_similarity"]
         draw_colored_route(ax, planned, reference, cmap, norm, interval_m)
-        ax.plot(*line_xy(reference).T, color="#343a40", linestyle="--", linewidth=1.05, zorder=2)
+        draw_line(ax, reference, color="#343a40", linestyle="--", linewidth=1.05, zorder=2)
         f1 = sim["symmetric"]["coverage_f1_within_m"]["100"] * 100
         p95 = sim["symmetric"]["p95_m"] / 1000
-        ax.set_title(f"{case}\nF1@100m {f1:.1f}% | 较差方向 P95 {p95:.1f} km", fontsize=9)
+        ax.set_title(f"{case}\n较差方向 P95 {p95:.1f} km | F1@100m {f1:.1f}%", fontsize=9)
         set_limits(ax, planned, reference)
     for ax in axes.flat[len(cases):]:
         ax.axis("off")
@@ -136,7 +163,7 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
     methods = sorted({metrics.get("method", "A*") for _, _, metrics in routes.values()})
     method_label = "/".join(methods)
     fig.suptitle(
-        f"严格无线路先验评测｜{len(cases)} 条线路｜20 米来源 DEM｜{method_label}",
+        f"配对参考线空间偏差｜{len(cases)} 条线路｜{method_label}",
         fontsize=15,
     )
     fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axes, label="规划线到参考线距离（km）", shrink=0.75)
@@ -147,8 +174,11 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results-dir", type=Path, required=True)
-    parser.add_argument("--sample-interval-m", type=float, default=200.0)
+    parser.add_argument("--sample-interval-m", type=float, default=20.0,
+                        help="沿线颜色采样间距（米），默认 20 米")
     args = parser.parse_args()
+    if not math.isfinite(args.sample_interval_m) or args.sample_interval_m <= 0:
+        parser.error("--sample-interval-m must be a positive finite number")
     results_dir = args.results_dir.resolve()
     out_dir = results_dir / "error_maps_100m"
     out_dir.mkdir(parents=True, exist_ok=True)

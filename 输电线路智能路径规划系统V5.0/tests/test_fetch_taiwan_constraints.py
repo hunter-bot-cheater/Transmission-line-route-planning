@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -85,6 +86,31 @@ class TaiwanConstraintFetcherTests(unittest.TestCase):
         self.assertEqual(features[0]["properties"]["mode"], "soft")
         self.assertEqual(features[0]["properties"]["NAME"], "sample reserve")
         self.assertEqual(layers[0]["source_crs"], "EPSG:3826")
+
+    def test_corrects_oca_geojson_that_declares_crs84_but_contains_twd97(self):
+        from shapely.geometry import Polygon, mapping, shape
+
+        polygon = Polygon([(184000, 2660000), (184100, 2660000),
+                           (184100, 2660100), (184000, 2660100)])
+        document = {
+            "type": "FeatureCollection",
+            "crs": {"type": "name", "properties": {
+                "name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
+            "features": [{"type": "Feature", "properties": {"name": "habitat"},
+                          "geometry": mapping(polygon)}],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "marine.geojson"
+            path.write_text(json.dumps(document), encoding="utf-8")
+            features, layers = fetcher._read_marine_habitat(path, weight=1.0)
+
+        geometry = shape(features[0]["geometry"])
+        min_lon, min_lat, max_lon, max_lat = geometry.bounds
+        self.assertTrue(120 <= min_lon < max_lon <= 121)
+        self.assertTrue(24 <= min_lat < max_lat <= 25)
+        self.assertEqual(layers[0]["declared_crs"], "urn:ogc:def:crs:OGC:1.3:CRS84")
+        self.assertEqual(layers[0]["source_crs_used"], "EPSG:3826")
+        self.assertEqual(features[0]["properties"]["mode"], "soft")
 
 
 if __name__ == "__main__":

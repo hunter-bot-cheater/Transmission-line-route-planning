@@ -1,7 +1,9 @@
 import csv
+import heapq
 import math
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import numpy as np
@@ -14,11 +16,12 @@ from transmission_path_planner.cli import (
     screening_data_quality,
     validate_route_hard_constraints,
 )
-from transmission_path_planner.geometry import rowcol_to_geo
+from transmission_path_planner.geometry import pixel_spacing_meters, rowcol_to_geo
 from transmission_path_planner.methods import astar_search
 from transmission_path_planner.metrics import compute_metrics, route_profile_metrics, write_elevation_profile_csv
 from transmission_path_planner.smoothing import (
     filter_path_by_ground_grade,
+    ground_grade_limit_report,
     path_hard_violations,
     sample_dem,
     smooth_path,
@@ -131,6 +134,21 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(cost[0, 0], 0)
         self.assertAlmostEqual(cost[1, 1], 0.2)
 
+    def test_terrain_component_weights_preserve_defaults_and_can_be_ablated(self):
+        terrain = {
+            "slope": np.array([[45.0, 0.0]], dtype=np.float32),
+            "roughness_27": np.array([[0.0, 100.0]], dtype=np.float32),
+        }
+        default_cost = build_route_cost(terrain, {})
+        explicit_defaults = build_route_cost(
+            terrain, {}, terrain_slope_weight=0.75, roughness_weight=0.25)
+        ablated = build_route_cost(
+            terrain, {}, terrain_slope_weight=0.0, roughness_weight=0.0)
+
+        np.testing.assert_allclose(default_cost, explicit_defaults)
+        np.testing.assert_allclose(default_cost, [[0.75, 0.25]])
+        np.testing.assert_allclose(ablated, 0.0)
+
     def test_building_density_cost_is_independent_of_task_window_extremes(self):
         terrain = {"slope": np.zeros((3, 3)), "roughness_27": np.zeros((3, 3))}
         local = {"building_density": np.zeros((3, 3), dtype=np.float32)}
@@ -152,6 +170,29 @@ class StationPlanningTests(unittest.TestCase):
         self.assertTrue(path)
         self.assertNotIn((4, 4), path)
 
+    def test_astar_grade_cap_matches_final_validator_on_diagonal_edges(self):
+        transform = Affine(0.0001, 0, 120.0, 0, -0.0001, 25.0)
+        elevation = np.zeros((12, 12), dtype=float)
+        elevation[5, 5] = 100.0
+        cost = np.full(elevation.shape, 20.0)
+        cost[5, :] = 1.0
+        spacing = pixel_spacing_meters(
+            transform, transform.f + transform.e * (elevation.shape[0] / 2),
+            "EPSG:4326")
+
+        for start, goal in (((5, 0), (5, 10)), ((5, 10), (5, 0))):
+            for turn_weight in (0.0, 0.4):
+                with self.subTest(start=start, turn_penalty_weight=turn_weight):
+                    path = astar_search(
+                        cost, start, goal, elevation=elevation,
+                        pixel_spacing=spacing, max_ground_grade=0.3,
+                        turn_penalty_weight=turn_weight)
+                    self.assertTrue(path)
+                    route = [rowcol_to_geo(row, col, transform) for row, col in path]
+                    report = ground_grade_limit_report(
+                        route, elevation, transform, 0.3, "EPSG:4326")
+                    self.assertEqual(report["grade_limit_status"], "pass")
+
     def test_smoothed_candidate_fails_grade_cap_and_reports_violations(self):
         transform = Affine(0.0002, 0, 120.0, 0, -0.0002, 25.0)
         dem = np.zeros((12, 12), dtype=float)
@@ -166,6 +207,39 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(report["grade_limit_status"], "fail")
         self.assertGreater(report["grade_limit_violation_count"], 0)
         self.assertEqual(report["grade_limit_threshold_ratio"], 0.3)
+
+    def test_smoothing_rejects_higher_cost_corridor(self):
+        transform = Affine(0.001, 0, 120.0, 0, -0.001, 25.0)
+        raw = [rowcol_to_geo(3, 0, transform), rowcol_to_geo(2, 0, transform),
+               rowcol_to_geo(2, 6, transform), rowcol_to_geo(3, 6, transform)]
+        straight = [raw[0], raw[-1]]
+        cost = np.ones((7, 7), dtype=np.float32)
+        cost[3, 1:6] = 20.0
+        dem = np.zeros(cost.shape, dtype=np.float32)
+        hard_mask = np.ones(cost.shape, dtype=np.uint8)
+
+        with patch("transmission_path_planner.smoothing.smooth_path", return_value=straight):
+            result = smooth_path_with_constraints(
+                raw, transform, hard_mask, cost, dem, 0.0,
+                pixel_spacing=(100.0, 100.0))
+
+        self.assertEqual(result, raw)
+
+    def test_smoothing_keeps_equal_cost_route(self):
+        transform = Affine(0.001, 0, 120.0, 0, -0.001, 25.0)
+        raw = [rowcol_to_geo(3, 0, transform), rowcol_to_geo(2, 0, transform),
+               rowcol_to_geo(2, 6, transform), rowcol_to_geo(3, 6, transform)]
+        straight = [raw[0], raw[-1]]
+        cost = np.ones((7, 7), dtype=np.float32)
+        dem = np.zeros(cost.shape, dtype=np.float32)
+        hard_mask = np.ones(cost.shape, dtype=np.uint8)
+
+        with patch("transmission_path_planner.smoothing.smooth_path", return_value=straight):
+            result = smooth_path_with_constraints(
+                raw, transform, hard_mask, cost, dem, 0.0,
+                pixel_spacing=(100.0, 100.0))
+
+        self.assertEqual(result, straight)
 
     def test_smoothing_keeps_features_that_exceed_50_meter_tolerance(self):
         x_scale = 111320.0 * np.cos(np.radians(25.0))
@@ -255,7 +329,57 @@ class StationPlanningTests(unittest.TestCase):
 
         self.assertAlmostEqual(physical_cost(astar), physical_cost(dijkstra))
 
-    def test_weighted_astar_respects_bounded_suboptimality(self):
+    def test_astar_uses_zero_lower_bound_when_raster_has_zero_cost(self):
+        cost = np.full((3, 22), np.inf, dtype=np.float64)
+        cost[0, :] = 0.0
+        cost[1, :] = 1e-7
+        cost[1, [0, -1]] = 0.0
+        start, end = (1, 0), (1, 21)
+
+        def route_cost(path):
+            return sum(0.5 * (cost[r0, c0] + cost[r1, c1])
+                       * math.hypot(r1 - r0, c1 - c0)
+                       for (r0, c0), (r1, c1) in zip(path, path[1:]))
+
+        astar = astar_search(cost, start, end)
+        dijkstra = astar_search(cost, start, end, use_dijkstra=True)
+
+        self.assertAlmostEqual(route_cost(dijkstra), 0.0)
+        self.assertAlmostEqual(route_cost(astar), route_cost(dijkstra))
+
+    def test_zero_cost_astar_uses_goal_distance_only_as_tie_break(self):
+        cost = np.zeros((32, 64), dtype=np.float32)
+        pop_count = 0
+        heap_pop = heapq.heappop
+
+        def counted_pop(heap):
+            nonlocal pop_count
+            pop_count += 1
+            return heap_pop(heap)
+
+        with patch("heapq.heappop", side_effect=counted_pop):
+            path = astar_search(cost, (16, 2), (16, 61))
+
+        self.assertEqual(len(path), 60)
+        self.assertLess(pop_count, 2 * len(path))
+
+    def test_zero_cost_turn_astar_uses_goal_distance_only_as_tie_break(self):
+        cost = np.zeros((32, 64), dtype=np.float32)
+        pop_count = 0
+        heap_pop = heapq.heappop
+
+        def counted_pop(heap):
+            nonlocal pop_count
+            pop_count += 1
+            return heap_pop(heap)
+
+        with patch("heapq.heappop", side_effect=counted_pop):
+            path = astar_search(cost, (16, 2), (16, 61), turn_penalty_weight=1.0)
+
+        self.assertEqual(len(path), 60)
+        self.assertLess(pop_count, 2 * len(path))
+
+    def test_weighted_astar_cost_on_nonuniform_fixture(self):
         cost = np.array([[1.0, 4.0, 4.0, 4.0, 1.0],
                          [1.0, 4.0, 1.0, 4.0, 1.0],
                          [1.0, 1.0, 1.0, 1.0, 1.0]], dtype=np.float64)
@@ -360,6 +484,30 @@ class StationPlanningTests(unittest.TestCase):
                     self._turn_route_cost(dijkstra, cost, turn_weight, spacing),
                     places=8,
                 )
+
+    def test_zero_lower_bound_turn_astar_matches_dijkstra(self):
+        cost = np.full((9, 15), 2.0, dtype=np.float64)
+        cost[0, :] = 0.0
+        cost[2:7, 7] = np.inf
+        spacing = (240.0, 100.0)
+        turn_weight = 0.8
+        start, end = (4, 0), (4, 14)
+
+        astar = astar_search(
+            cost, start, end, pixel_spacing=spacing,
+            turn_penalty_weight=turn_weight)
+        dijkstra = astar_search(
+            cost, start, end, pixel_spacing=spacing, use_dijkstra=True,
+            turn_penalty_weight=turn_weight)
+
+        self._assert_route_legal(astar, cost)
+        self._assert_route_legal(dijkstra, cost)
+        self.assertGreater(self._turn_route_cost(astar, cost, turn_weight, spacing), 0.0)
+        self.assertAlmostEqual(
+            self._turn_route_cost(astar, cost, turn_weight, spacing),
+            self._turn_route_cost(dijkstra, cost, turn_weight, spacing),
+            places=8,
+        )
 
     def test_turn_penalty_route_is_symmetric_with_anisotropic_spacing(self):
         cost = np.ones((13, 19), dtype=np.float64)

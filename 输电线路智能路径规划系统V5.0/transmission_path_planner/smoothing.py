@@ -189,6 +189,59 @@ def path_hard_violations(geo, transform, hard_mask):
                or hard_mask[r, c] == 0)
 
 
+def _ground_grade_segment_cells(c0, r0, c1, r1, dem):
+    """Sample the DEM cells along one segment using the final route validator's rule."""
+    H, W = dem.shape
+    steps = max(1, int(math.ceil(4 * max(abs(r1 - r0), abs(c1 - c0)))))
+    cells = []
+    for i in range(steps + 1):
+        t = i / steps
+        r, c = r0 + (r1 - r0) * t, c0 + (c1 - c0) * t
+        rr, cc = int(math.floor(r)), int(math.floor(c))
+        cell = ((rr, cc) if 0 <= rr < H and 0 <= cc < W
+                and np.isfinite(dem[rr, cc]) else None)
+        if not cells or cell != cells[-1]:
+            cells.append(cell)
+    return cells
+
+
+def _ground_grade_cells_report(cells, dem, row_spacing_m, col_spacing_m,
+                               max_ground_grade):
+    violations = 0
+    unassessed = 0
+    max_ratio = 0.0
+    for first, second in zip(cells, cells[1:]):
+        if first is None or second is None:
+            unassessed += 1
+            continue
+        r0, c0 = first
+        r1, c1 = second
+        if first == second:
+            continue
+        distance_m = math.hypot((r1 - r0) * row_spacing_m,
+                                (c1 - c0) * col_spacing_m)
+        if distance_m <= 0:
+            unassessed += 1
+            continue
+        ratio = abs(float(dem[r1, c1]) - float(dem[r0, c0])) / distance_m
+        max_ratio = max(max_ratio, ratio)
+        if ratio > max_ground_grade + 1e-9:
+            violations += 1
+    return violations, unassessed, max_ratio
+
+
+def _ground_grade_grid_edge_passes(start_rc, end_rc, dem, pixel_spacing,
+                                   max_ground_grade):
+    """Check a cell-center A* edge with the same DEM sampling as route validation."""
+    row0, col0 = start_rc
+    row1, col1 = end_rc
+    cells = _ground_grade_segment_cells(
+        col0 + 0.5, row0 + 0.5, col1 + 0.5, row1 + 0.5, dem)
+    violations, unassessed, _ = _ground_grade_cells_report(
+        cells, dem, pixel_spacing[0], pixel_spacing[1], max_ground_grade)
+    return violations == 0 and unassessed == 0
+
+
 def ground_grade_limit_report(geo, dem, transform, max_ground_grade, crs=None):
     """Check consecutive DEM cells crossed by a route against a ground-grade ratio cap."""
     if max_ground_grade is None:
@@ -209,8 +262,7 @@ def ground_grade_limit_report(geo, dem, transform, max_ground_grade, crs=None):
         }
 
     inv = ~transform
-    H, W = dem.shape
-    lat_center = transform.f + transform.e * (H / 2.0)
+    lat_center = transform.f + transform.e * (dem.shape[0] / 2.0)
     row_spacing_m, col_spacing_m = pixel_spacing_meters(transform, lat_center, crs)
     cells = []
     last_cell = object()
@@ -220,40 +272,13 @@ def ground_grade_limit_report(geo, dem, transform, max_ground_grade, crs=None):
     else:
         segments = zip(grid_points, grid_points[1:])
     for (c0, r0), (c1, r1) in segments:
-        steps = max(1, int(math.ceil(4 * max(abs(r1 - r0), abs(c1 - c0)))))
-        for i in range(steps + 1):
-            t = i / steps
-            r, c = r0 + (r1 - r0) * t, c0 + (c1 - c0) * t
-            cell = (int(math.floor(r)), int(math.floor(c)))
-            rr, cc = cell
-            if not (0 <= rr < H and 0 <= cc < W) or not np.isfinite(dem[rr, cc]):
-                marker = None
-            else:
-                marker = cell
+        for marker in _ground_grade_segment_cells(c0, r0, c1, r1, dem):
             if marker != last_cell:
                 cells.append(marker)
                 last_cell = marker
 
-    violations = 0
-    unassessed = 0
-    max_ratio = 0.0
-    for first, second in zip(cells, cells[1:]):
-        if first is None or second is None:
-            unassessed += 1
-            continue
-        r0, c0 = first
-        r1, c1 = second
-        if first == second:
-            continue
-        z0, z1 = float(dem[r0, c0]), float(dem[r1, c1])
-        distance_m = math.hypot((r1 - r0) * row_spacing_m, (c1 - c0) * col_spacing_m)
-        if distance_m <= 0:
-            unassessed += 1
-            continue
-        ratio = abs(z1 - z0) / distance_m
-        max_ratio = max(max_ratio, ratio)
-        if ratio > max_ground_grade + 1e-9:
-            violations += 1
+    violations, unassessed, max_ratio = _ground_grade_cells_report(
+        cells, dem, row_spacing_m, col_spacing_m, max_ground_grade)
 
     status = "fail" if violations or unassessed else "pass"
     return {
@@ -273,14 +298,82 @@ def filter_path_by_ground_grade(geo, dem, transform, max_ground_grade, crs=None)
     return geo, report
 
 
-def smooth_path_with_constraints(geo, transform, hard_mask):
-    """Keep a smoothed route only when every sampled segment remains inside the hard mask."""
+def smooth_path_with_constraints(geo, transform, hard_mask, cost_surface=None, dem=None,
+                                grade_penalty_weight=1.0, turn_penalty_weight=0.0,
+                                pixel_spacing=None, max_ground_grade=None, crs=None,
+                                shortcut_endpoints=None):
+    """Try a legal, non-increasing direct shortcut, then use the existing smoother."""
     if not geo:
         return None
+
+    def grade_is_valid(path):
+        return (max_ground_grade is None or (dem is not None and
+                ground_grade_limit_report(
+                    path, dem, transform, max_ground_grade, crs
+                )["grade_limit_status"] == "pass"))
+
+    if len(geo) >= 3 and cost_surface is not None and dem is not None:
+        direct = [geo[0], geo[-1]]
+        raw_for_guard = list(geo)
+        direct_for_guard = direct
+        if shortcut_endpoints is not None:
+            start, end = shortcut_endpoints
+            start = tuple(map(float, start))
+            end = tuple(map(float, end))
+            raw_for_guard[0], raw_for_guard[-1] = start, end
+            direct_for_guard = [start, end]
+        if path_hard_violations(direct_for_guard, transform, hard_mask) == 0:
+            grade_routes = (
+                [direct] if direct_for_guard == direct else [direct, direct_for_guard]
+            )
+            grade_ok = max_ground_grade is None or all(
+                ground_grade_limit_report(
+                    route, dem, transform, max_ground_grade, crs
+                )["grade_limit_status"] == "pass"
+                for route in grade_routes
+            )
+            if grade_ok:
+                # Import at call time to avoid the metrics -> smoothing import cycle.
+                from .metrics import path_cost_integral
+
+                raw_objective = path_cost_integral(
+                    raw_for_guard, dem, transform, cost_surface, grade_penalty_weight,
+                    turn_penalty_weight, pixel_spacing)
+                direct_objective = path_cost_integral(
+                    direct_for_guard, dem, transform, cost_surface, grade_penalty_weight,
+                    turn_penalty_weight, pixel_spacing)
+                if (raw_objective.get("status") == "measured"
+                        and direct_objective.get("status") == "measured"):
+                    raw_cost = raw_objective["total_cost_meter"]
+                    direct_cost = direct_objective["total_cost_meter"]
+                    tolerance = max(abs(raw_cost), 1.0) * 1e-9
+                    if direct_cost <= raw_cost + tolerance:
+                        return direct
+
     candidate = snap_to_valid(smooth_path(geo), transform, hard_mask)
-    if candidate and path_hard_violations(candidate, transform, hard_mask) == 0:
-        return candidate
-    if path_hard_violations(geo, transform, hard_mask) == 0:
+    if (candidate and path_hard_violations(candidate, transform, hard_mask) == 0
+            and grade_is_valid(candidate)):
+        if cost_surface is None:
+            return candidate
+        if dem is not None:
+            # Import at call time to avoid the metrics -> smoothing import cycle.
+            from .metrics import path_cost_integral
+
+            raw_objective = path_cost_integral(
+                geo, dem, transform, cost_surface, grade_penalty_weight,
+                turn_penalty_weight, pixel_spacing)
+            smooth_objective = path_cost_integral(
+                candidate, dem, transform, cost_surface, grade_penalty_weight,
+                turn_penalty_weight, pixel_spacing)
+            if (raw_objective.get("status") == "measured"
+                    and smooth_objective.get("status") == "measured"):
+                raw_cost = raw_objective["total_cost_meter"]
+                smooth_cost = smooth_objective["total_cost_meter"]
+                tolerance = max(abs(raw_cost), 1.0) * 1e-9
+                if smooth_cost <= raw_cost + tolerance:
+                    return candidate
+    if (path_hard_violations(geo, transform, hard_mask) == 0
+            and grade_is_valid(geo)):
         return geo
     return None
 

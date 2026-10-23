@@ -1,9 +1,12 @@
 import unittest
 
+import numpy as np
 from pyproj import Transformer
 
 from transmission_path_planner.geometry import path_length_km
 from transmission_path_planner.metrics import (
+    _distance_summary,
+    _line_samples,
     compute_deviation,
     eval_error,
     eval_planned_route_error,
@@ -28,7 +31,7 @@ class MetricPrecisionTests(unittest.TestCase):
         self.assertAlmostEqual(score["symmetric"]["sampled_hausdorff_m"], score["planned_to_reference"]["sampled_max_m"])
         self.assertEqual(score["sampling_interval_m"], 20.0)
         self.assertLess(score["symmetric"]["coverage_f1_within_m"]["100"], 0.1)
-        self.assertEqual(metrics["route_similarity_version"], 2)
+        self.assertEqual(metrics["route_similarity_version"], 4)
 
     def test_reference_line_coverage_in_planning_window_is_reported(self):
         route = [(120.0, 24.0), (120.01, 24.0)]
@@ -84,7 +87,7 @@ class MetricPrecisionTests(unittest.TestCase):
 
         score = similarity(compute_deviation(planned, reference))
 
-        self.assertLess(score["planned_to_reference"]["mean_m"], 90)
+        self.assertGreater(score["planned_to_reference"]["mean_m"], 100)
         self.assertGreater(score["reference_to_planned"]["sampled_max_m"], 100)
 
     def test_reversed_reference_keeps_endpoint_and_frechet_similarity(self):
@@ -121,17 +124,165 @@ class MetricPrecisionTests(unittest.TestCase):
         self.assertIn("1000", score["buffer_iou"])
         self.assertLess(score["buffer_iou"]["100"], score["buffer_iou"]["1000"])
 
-    def test_multipart_reference_skips_order_and_endpoint_metrics(self):
+    def test_connected_reference_fragments_merge_for_order_and_endpoint_metrics(self):
+        planned = [(121.0, 24.0), (121.005, 24.004), (121.01, 24.0)]
+        reference = [
+            planned[1:],
+            planned[:2],
+        ]
+
+        score = similarity(compute_deviation(planned, reference))
+        single_line_score = similarity(compute_deviation(planned, planned))
+
+        self.assertIsNotNone(score["endpoint_offsets"])
+        self.assertLess(score["discrete_frechet_approx"]["distance_m"], 0.01)
+        self.assertAlmostEqual(score["length"]["reference_km"],
+                               single_line_score["length"]["reference_km"], delta=0.001)
+        for direction in ("planned_to_reference", "reference_to_planned"):
+            for field in ("sampled_length_m", "mean_m", "p95_m", "sampled_max_m"):
+                self.assertAlmostEqual(score[direction][field],
+                                       single_line_score[direction][field], delta=0.001)
+        self.assertEqual(score["symmetric"]["coverage_f1_within_m"],
+                         single_line_score["symmetric"]["coverage_f1_within_m"])
+        self.assertEqual(score["endpoint_offsets"]["orientation"],
+                         single_line_score["endpoint_offsets"]["orientation"])
+        self.assertAlmostEqual(score["discrete_frechet_approx"]["distance_m"],
+                               single_line_score["discrete_frechet_approx"]["distance_m"],
+                               delta=0.001)
+
+    def test_disconnected_reference_components_skip_order_and_endpoint_metrics(self):
         planned = [(121.0, 24.0), (121.01, 24.0)]
         reference = [
-            [(121.0, 24.0), (121.005, 24.0)],
-            [(121.005, 24.0), (121.01, 24.0)],
+            [(121.0, 24.0), (121.004, 24.0)],
+            [(121.006, 24.0), (121.01, 24.0)],
         ]
 
         score = similarity(compute_deviation(planned, reference))
 
         self.assertIsNone(score["endpoint_offsets"])
         self.assertIsNone(score["discrete_frechet_approx"])
+
+    def test_closed_reference_line_skips_start_dependent_order_metrics(self):
+        ring = [(121.0, 24.0), (121.01, 24.0), (121.01, 24.01),
+                (121.0, 24.0)]
+
+        score = similarity(compute_deviation(ring, ring))
+
+        self.assertIsNone(score["endpoint_offsets"])
+        self.assertIsNone(score["discrete_frechet_approx"])
+
+    def test_multipart_metrics_weight_components_by_arc_length_not_fragment_count(self):
+        from shapely.geometry import LineString
+
+        bad_samples, bad_weights, _ = _line_samples(
+            [np.asarray([[0.0, 500.0], [10_000.0, 500.0]])], 20.0)
+        fragmented_good = [np.asarray(LineString([(x, 0), (x + 10, 0)]).coords)
+                           for x in range(10_000, 20_000, 10)]
+        good_samples, good_weights, _ = _line_samples(fragmented_good, 20.0)
+        self.assertEqual(len(bad_samples), 500)
+        self.assertEqual(len(good_samples), 1_000)
+        self.assertAlmostEqual(bad_weights.sum(), good_weights.sum(), delta=1e-6)
+
+        reference_distances = np.concatenate((np.full(len(bad_samples), 500.0),
+                                              np.zeros(len(good_samples))))
+        reference_weights = np.concatenate((bad_weights, good_weights))
+        reference = _distance_summary(reference_distances, reference_weights)
+        planned = _distance_summary(np.zeros(1_000), np.full(1_000, 20.0))
+        f1 = 2 * planned["coverage_within_m"]["100"] * reference["coverage_within_m"]["100"] \
+            / (planned["coverage_within_m"]["100"] + reference["coverage_within_m"]["100"])
+
+        self.assertAlmostEqual(reference["coverage_within_m"]["100"], 0.5, delta=0.002)
+        self.assertAlmostEqual(f1, 2 / 3, delta=0.003)
+        self.assertGreater(reference["p95_m"], 450)
+
+    def test_public_metric_weights_fragmented_reference_by_arc_length(self):
+        from pyproj import Transformer
+        from shapely.geometry import LineString, MultiLineString
+        from shapely.ops import transform
+
+        local = "+proj=aeqd +lat_0=24 +lon_0=121 +datum=WGS84 +units=m +no_defs"
+        to_wgs = Transformer.from_crs(local, "EPSG:4326", always_xy=True)
+        planned_line = transform(
+            to_wgs.transform, LineString([(2000, 0), (4000, 0)]))
+        reference_line = transform(to_wgs.transform, MultiLineString(
+            [[(0, 500), (2000, 500)]]
+            + [[(2000 + 10 * i, 0), (2010 + 10 * i, 0)] for i in range(200)]))
+        planned = list(planned_line.coords)
+        reference = [list(part.coords) for part in reference_line.geoms]
+
+        score = similarity(compute_deviation(planned, reference))
+
+        self.assertAlmostEqual(
+            score["planned_to_reference"]["coverage_within_m"]["100"], 1.0, delta=0.002)
+        self.assertAlmostEqual(
+            score["reference_to_planned"]["coverage_within_m"]["100"], 0.5, delta=0.002)
+        self.assertAlmostEqual(score["symmetric"]["coverage_f1_within_m"]["100"],
+                               2 / 3, delta=0.003)
+        self.assertGreater(score["reference_to_planned"]["p95_m"], 100)
+        self.assertAlmostEqual(score["reference_to_planned"]["sampled_length_m"],
+                               4000, delta=0.1)
+
+    def test_symmetric_mean_averages_directional_means_for_unequal_lengths(self):
+        from pyproj import Transformer
+        from shapely.geometry import LineString
+        from shapely.ops import transform
+
+        local = "+proj=aeqd +lat_0=24 +lon_0=121 +datum=WGS84 +units=m +no_defs"
+        to_wgs = Transformer.from_crs(local, "EPSG:4326", always_xy=True)
+        planned = list(transform(
+            to_wgs.transform, LineString([(0, 0), (10_000, 0)])).coords)
+        reference = list(transform(
+            to_wgs.transform, LineString([(0, 0), (20_000, 0)])).coords)
+
+        score = similarity(compute_deviation(planned, reference))
+
+        self.assertAlmostEqual(score["planned_to_reference"]["mean_m"], 0, delta=0.01)
+        self.assertAlmostEqual(score["reference_to_planned"]["mean_m"], 2500, delta=0.01)
+        self.assertAlmostEqual(score["symmetric"]["mean_m"], 1250, delta=0.01)
+
+    def test_duplicate_reference_components_do_not_reweight_spatial_similarity(self):
+        route = [(121.0, 24.0), (121.01, 24.0)]
+        duplicate = [route, route]
+
+        single = similarity(compute_deviation(route, route))
+        repeated = similarity(compute_deviation(route, duplicate))
+
+        self.assertAlmostEqual(repeated["length"]["reference_km"],
+                               single["length"]["reference_km"], delta=0.001)
+        self.assertEqual(repeated["symmetric"]["coverage_f1_within_m"],
+                         single["symmetric"]["coverage_f1_within_m"])
+        self.assertAlmostEqual(repeated["symmetric"]["mean_m"],
+                               single["symmetric"]["mean_m"], delta=0.001)
+        self.assertIsNotNone(repeated["endpoint_offsets"])
+        self.assertAlmostEqual(
+            repeated["discrete_frechet_approx"]["distance_m"],
+            single["discrete_frechet_approx"]["distance_m"], delta=0.001)
+
+    def test_partial_overlap_is_dissolved_before_projection_and_length_weighting(self):
+        first = [(121.0, 24.0), (121.1, 24.0)]
+        second = [(121.05, 24.0), (121.15, 24.0)]
+        unique_support = [(121.0, 24.0), (121.15, 24.0)]
+
+        score = similarity(compute_deviation(unique_support, [first, second]))
+
+        self.assertAlmostEqual(score["length"]["reference_km"],
+                               score["length"]["planned_km"], delta=0.01)
+        self.assertAlmostEqual(score["length"]["absolute_difference_pct"], 0, delta=0.1)
+        self.assertGreater(score["symmetric"]["coverage_f1_within_m"]["100"], 0.999)
+        self.assertLess(score["symmetric"]["mean_m"], 5)
+
+    def test_partial_overlap_across_dateline_is_dissolved_on_one_longitude_branch(self):
+        planned = [(179.9, 10.0), (-179.9, 10.0)]
+        reference = [
+            [(179.9, 10.0), (-179.95, 10.0)],
+            [(180.0, 10.0), (-179.9, 10.0)],
+        ]
+
+        score = similarity(compute_deviation(planned, reference))
+
+        self.assertAlmostEqual(score["length"]["reference_km"],
+                               score["length"]["planned_km"], delta=0.01)
+        self.assertAlmostEqual(score["symmetric"]["sampled_hausdorff_m"], 0.0, delta=0.01)
 
     def test_dateline_projection_and_batched_long_route(self):
         route = [(179.99, 10.0), (-179.99, 10.0)]
@@ -156,7 +307,7 @@ class MetricPrecisionTests(unittest.TestCase):
         dev = compute_deviation(route, route)
         error = eval_error(dev["route_similarity"]["length"]["reference_km"] * 1.2, dev)
 
-        self.assertEqual(error["route_similarity_version"], 2)
+        self.assertEqual(error["route_similarity_version"], 4)
         self.assertAlmostEqual(error["route_similarity"]["length"]["absolute_difference_pct"], 20.0)
         self.assertEqual(error["route_similarity"]["symmetric"]["sampled_hausdorff_m"], 0.0)
         self.assertNotIn("pass8", error)

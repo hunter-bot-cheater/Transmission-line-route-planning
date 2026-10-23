@@ -1,6 +1,8 @@
 """OpenStreetMap 矢量数据的栅格化与距离/密度/用地波段。"""
 
 import ast
+from shapely import make_valid
+from shapely.ops import unary_union
 
 from .config import *
 from .geometry import *
@@ -12,16 +14,19 @@ _PKL_CACHE = _PKG_CACHE
 class OSMBands(dict):
     """栅格波段字典；状态元数据放在属性中，不影响 ``items()`` 的数组接口。"""
 
-    def __init__(self, *args, metadata=None, **kwargs):
+    def __init__(self, *args, metadata=None, geometries=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.metadata = metadata or {}
+        self.geometries = geometries or {}
 
 
 def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
     """读取 Overpass 缓存并返回 (bbox 内几何, 图层状态元数据)。
 
     ``uncovered_bbox`` 表示请求框完全位于缓存中观察到的要素范围之外；
-    ``empty_in_bbox`` 表示范围框相交但没有要素命中。OSM 覆盖完整性仍需另行核验。
+    ``empty_in_bbox`` 表示范围框相交但没有要素命中。跳过范围外非有限坐标要素时，
+    ``coverage_status`` 标记为 ``partial``，因为无法确认缺失坐标是否影响请求范围。
+    OSM 覆盖完整性仍需另行核验。
     """
     pkl_path = Path(pkl_path)
     metadata = {
@@ -29,6 +34,8 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
         "geometry_count_in_bbox": 0, "observed_feature_bounds": None,
         "coverage_basis": "observed_feature_extent",
         "tag_wrapper_count": 0, "tag_parse_error_count": 0,
+        "geometry_repaired_count": 0,
+        "nonfinite_geometry_outside_bbox_count": 0,
     }
     if not HAS_SHAPELY:
         metadata.update(status="unavailable_dependency", reason="shapely_missing")
@@ -113,15 +120,30 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
                 coords = [(float(pt["lon"]), float(pt["lat"])) for pt in g]
             except (KeyError, TypeError, ValueError):
                 continue
-            if coords:
-                min_x = min(point[0] for point in coords)
-                min_y = min(point[1] for point in coords)
-                max_x = max(point[0] for point in coords)
-                max_y = max(point[1] for point in coords)
+            finite_coords = [point for point in coords
+                             if math.isfinite(point[0]) and math.isfinite(point[1])]
+            has_nonfinite = len(finite_coords) != len(coords)
+            if has_nonfinite and not finite_coords:
+                raise ValueError(
+                    f"OSM 要素 {el.get('id', 'unknown')} 含无法定位的非有限坐标，拒绝规划")
+            bounds_coords = finite_coords if has_nonfinite else coords
+            if bounds_coords:
+                min_x = min(point[0] for point in bounds_coords)
+                min_y = min(point[1] for point in bounds_coords)
+                max_x = max(point[0] for point in bounds_coords)
+                max_y = max(point[1] for point in bounds_coords)
                 extent[0] = min(extent[0], min_x)
                 extent[1] = min(extent[1], min_y)
                 extent[2] = max(extent[2], max_x)
                 extent[3] = max(extent[3], max_y)
+
+            if has_nonfinite:
+                if (max_x < bbox[0] or min_x > bbox[2]
+                        or max_y < bbox[1] or min_y > bbox[3]):
+                    metadata["nonfinite_geometry_outside_bbox_count"] += 1
+                    continue
+                raise ValueError(
+                    f"OSM 要素 {el.get('id', 'unknown')} 在请求范围内含非有限坐标，拒绝规划")
 
             min_coords = 1 if geom_type == "point" else 3 if geom_type == "polygon" else 2
             if len(coords) < min_coords:
@@ -145,6 +167,25 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
             if geom.is_empty:
                 usable_geometry_count -= 1
                 continue
+            if geom_type == "polygon" and not geom.is_valid:
+                try:
+                    geom = make_valid(geom)
+                    if geom.geom_type == "GeometryCollection":
+                        polygons = []
+                        for part in geom.geoms:
+                            if part.geom_type == "Polygon":
+                                polygons.append(part)
+                            elif part.geom_type == "MultiPolygon":
+                                polygons.extend(part.geoms)
+                        geom = unary_union(polygons) if polygons else geom
+                except Exception as exc:
+                    raise ValueError(
+                        f"OSM 面要素 {el.get('id', 'unknown')} 几何修复失败") from exc
+                if (geom.is_empty or not geom.is_valid
+                        or geom.geom_type not in {"Polygon", "MultiPolygon"}):
+                    raise ValueError(
+                        f"OSM 面要素 {el.get('id', 'unknown')} 几何修复后仍不可用")
+                metadata["geometry_repaired_count"] += 1
             if box_poly.intersects(geom):
                 out.append((geom, tags))
 
@@ -160,6 +201,11 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
         metadata.update(status="uncovered_bbox", coverage_status="outside_observed_feature_extent")
     else:
         metadata.update(status="empty_in_bbox", coverage_status="unverified_within_feature_extent")
+    if metadata["nonfinite_geometry_outside_bbox_count"]:
+        metadata.update(
+            coverage_status="partial",
+            coverage_reason="nonfinite_geometry_skipped_outside_bbox",
+        )
     return out, metadata
 
 
@@ -472,7 +518,8 @@ def compute_osm_bands(dem, transform, bbox, cache_dir=None, *,
         print(f"  OSM 规划图层: 土地利用{len(landuse)} 建筑{len(buildings)}；"
               "未加载仅供模型或诊断的可选图层")
 
-    bands = OSMBands(metadata={"layers": layer_metadata})
+    bands = OSMBands(metadata={"layers": layer_metadata},
+                     geometries={"buildings": buildings})
     if include_model_features:
         bands["dist_road"] = compute_distance_band(roads, transform, (H, W), 5000.0)
         bands["dist_water"] = compute_distance_band(water, transform, (H, W), 5000.0)

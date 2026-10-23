@@ -90,6 +90,7 @@ DOWNLOADED_DIR = next((p for p in (
 MODELS_DIR = DATA_DIR / "models" / "v3_dl"
 
 DEM_CANDIDATES = [
+    PACKAGE_DIR / "data" / "taiwan_dem_35m_georef_fixed.tif",
     PACKAGE_DIR / "data" / "taiwan_dem_35m.tif",
     Path(r"D:\地形数据\台湾省_DEM_30m分辨率_SRTM数据.tif"),
     BASE_DIR / "data" / "downloaded" / "taiwan_dem.tif",

@@ -13,6 +13,8 @@ from .visualization import *
 from .io_export import *
 from .stations import *
 from .official_hazards import load_official_hazard_masks
+from .experimental_theta_star import theta_star_cost_path
+from shapely import make_valid
 
 
 FINAL_ROUTE_LABEL = "最终路线"
@@ -55,6 +57,21 @@ def expand_single_cell_route(geo, start_ll, end_ll):
     if tuple(start_ll) == tuple(end_ll):
         raise ValueError("起终点坐标相同，不能生成零长度线路")
     return [(start_ll[1], start_ll[0]), (end_ll[1], end_ll[0])]
+
+
+def attach_input_endpoints(geo, start_ll, end_ll):
+    """Restore both exact input endpoints after routing on snapped raster cells."""
+    if not geo:
+        return geo
+    start_xy = (float(start_ll[1]), float(start_ll[0]))
+    end_xy = (float(end_ll[1]), float(end_ll[0]))
+    if len(geo) == 1:
+        if start_xy == end_xy:
+            raise ValueError("起终点坐标相同，不能生成零长度线路")
+        return [start_xy, end_xy]
+    adjusted = list(geo)
+    adjusted[0], adjusted[-1] = start_xy, end_xy
+    return adjusted
 
 
 def validate_route_hard_constraints(geo, transform, hard_mask):
@@ -116,6 +133,109 @@ def validate_endpoint_cells(start, end, shape, hard_mask, blocking_layers=None):
                 raise ValueError(f"{label}位于不可通行像元（{reason_text}）；请核对接入点坐标或约束")
             raise ValueError(f"{label}位于NoData/建筑/配置禁区内；请核对接入点坐标或约束")
     return start, end
+
+
+def _geometry_intersects_features(geometry, features):
+    """Check exact intersections against OSM geometry rows or bare geometries."""
+    return _geometry_intersection_count(geometry, features) > 0
+
+
+def _geometry_intersection_summary(geometry, features):
+    """Count intersections and repaired nearby OSM geometries."""
+    minx, miny, maxx, maxy = geometry.bounds
+    count = 0
+    repaired = 0
+    for feature in features:
+        obstacle = feature[0] if isinstance(feature, (tuple, list)) else feature
+        left, bottom, right, top = obstacle.bounds
+        if left <= maxx and right >= minx and bottom <= maxy and top >= miny:
+            if not obstacle.is_valid:
+                obstacle = make_valid(obstacle)
+                if obstacle.is_empty or not obstacle.is_valid:
+                    raise ValueError("相交建筑几何修复失败，拒绝通过精确建筑复核")
+                repaired += 1
+            if geometry.intersects(obstacle):
+                count += 1
+    return count, repaired
+
+
+def _geometry_intersection_count(geometry, features):
+    """Count mapped features intersecting a geometry after validity repair."""
+    return _geometry_intersection_summary(geometry, features)[0]
+
+
+def open_safe_building_endpoint_pixels(endpoints, hard_mask, blocking_layers,
+                                       building_geometries, transform,
+                                       building_clearance_m=0.0):
+    """Open only endpoint cells blocked by rasterization when exact geometry is clear."""
+    if not building_geometries or building_clearance_m > 0:
+        return []
+
+    exceptions = []
+    for label, (row, col), point_xy in endpoints:
+        if not (0 <= row < hard_mask.shape[0] and 0 <= col < hard_mask.shape[1]):
+            continue
+        if hard_mask[row, col]:
+            continue
+        reasons = [name for name, mask in blocking_layers.items()
+                   if mask is not None and bool(mask[row, col])]
+        if reasons != ["OSM建筑足迹"]:
+            continue
+
+        point = Point(*point_xy)
+        if _geometry_intersects_features(point, building_geometries):
+            continue
+        center_xy = transform * (col + 0.5, row + 0.5)
+        connector = LineString([point_xy, center_xy])
+        if _geometry_intersects_features(connector, building_geometries):
+            continue
+
+        probe_mask = hard_mask.copy()
+        probe_mask[row, col] = 1
+        if path_hard_violations([point_xy, center_xy], transform, probe_mask):
+            continue
+        exceptions.append({"label": label, "row": row, "col": col,
+                           "point_xy": tuple(point_xy)})
+
+    for exception in exceptions:
+        hard_mask[exception["row"], exception["col"]] = 1
+    return exceptions
+
+
+def validate_route_against_buildings(geo, building_geometries):
+    """Fail closed when an exported route intersects an available building footprint."""
+    if not geo:
+        return None, {"building_geometry_status": "no_path",
+                      "building_geometry_intersections": 0}
+    route = LineString(geo) if len(geo) > 1 else Point(*geo[0])
+    intersections, repaired = _geometry_intersection_summary(route, building_geometries)
+    report = {
+        "building_geometry_status": "fail" if intersections else "pass",
+        "building_geometry_intersections": intersections,
+        "building_geometry_repaired_features": repaired,
+    }
+    return (None if intersections else geo), report
+
+
+def annotate_route_validation_context(report, endpoint_exceptions, building_metadata):
+    """Record endpoint exceptions and the scope of the available building check."""
+    report["endpoint_rasterization_exceptions"] = [
+        {"label": item["label"], "row": int(item["row"]),
+         "col": int(item["col"]), "point_xy": list(item["point_xy"])}
+        for item in endpoint_exceptions
+    ]
+    report["building_geometry_coverage_status"] = building_metadata.get(
+        "coverage_status", "unknown")
+    report["building_geometry_coverage_reason"] = building_metadata.get(
+        "coverage_reason")
+    report["building_geometry_check_scope"] = (
+        "loaded_osm_features_only"
+        if building_metadata.get("status") == "available" else "unavailable")
+    report["building_geometry_source_repair_count"] = int(
+        building_metadata.get("geometry_repaired_count", 0))
+    report["building_geometry_skipped_nonfinite_count"] = int(
+        building_metadata.get("nonfinite_geometry_outside_bbox_count", 0))
+    return report
 
 
 def run_method_or_skip_on_oom(method_name, run_method):
@@ -278,8 +398,15 @@ def main():
                     help="建筑物栅格硬避让距离(米, 必须小于5000); 0仅屏蔽已映射建筑足迹，不代表规范净距")
     ap.add_argument("--grade-penalty-weight", type=float, default=1.0,
                     help="沿线相邻DEM高差软惩罚权重(以30%%地面坡度作为一个参考级)")
+    ap.add_argument("--terrain-slope-weight", type=float, default=0.75,
+                    help="DEM坡度面软代价权重；默认0.75，0可用于消融测试")
+    ap.add_argument("--roughness-weight", type=float, default=0.25,
+                    help="900米地形粗糙度软代价权重；默认0.25，0可用于消融测试")
     ap.add_argument("--astar-heuristic-weight", type=float, default=1.0,
-                    help="A*启发函数权重；默认1.0保证当前离散代价面的最优性，大于1时为加权近似搜索")
+                    help="A*启发函数权重；1.0对当前离散代价面求最优，大于1时为近似搜索且不保证误差界")
+    ap.add_argument("--experimental-theta-star", action="store_true",
+                    help="额外生成 Theta* 实验候选；使用地形栅格代价，不计软坡度/转弯代价，"
+                         "经常规约束复核但不参与最终选路")
     ap.add_argument("--max-ground-grade", type=float, default=None,
                     help="可选地面相邻栅格最大坡度比，如0.30; 属于筛选阈值，不是线路设计限值")
     ap.add_argument("--max-surface-slope-deg", type=float, default=None,
@@ -341,6 +468,8 @@ def main():
         "--landcover-penalty-weight": args.landcover_penalty_weight,
         "--settlement-weight": args.settlement_weight,
         "--grade-penalty-weight": args.grade_penalty_weight,
+        "--terrain-slope-weight": args.terrain_slope_weight,
+        "--roughness-weight": args.roughness_weight,
         "--official-hazard-weight": args.official_hazard_weight,
         "--turn-penalty-weight": args.turn_penalty_weight,
         "--astar-heuristic-weight": args.astar_heuristic_weight,
@@ -355,6 +484,8 @@ def main():
             or args.landcover_penalty_weight < 0
             or args.settlement_weight < 0
             or args.grade_penalty_weight < 0
+            or args.terrain_slope_weight < 0
+            or args.roughness_weight < 0
             or args.official_hazard_weight < 0
             or args.turn_penalty_weight < 0):
         ap.error("避让距离与代价权重不能为负数")
@@ -465,6 +596,12 @@ def main():
             sr, sc = geo_to_rowcol(slat, slon, transform)
             er, ec = geo_to_rowcol(elat, elon, transform)
             station_task = station_task_by_route.get(cname)
+            shortcut_endpoints = (
+                (float(station_task["from_station"]["lon"]),
+                 float(station_task["from_station"]["lat"])),
+                (float(station_task["to_station"]["lon"]),
+                 float(station_task["to_station"]["lat"])),
+            ) if station_task else ((float(slon), float(slat)), (float(elon), float(elat)))
 
             terrain = compute_terrain_factors(dem, pm, transform, crs)
             left = transform.c; top = transform.f
@@ -504,6 +641,8 @@ def main():
                 landcover_penalty_weight=args.landcover_penalty_weight,
                 official_hazard_masks=official_hazard_masks,
                 official_hazard_weight=args.official_hazard_weight,
+                terrain_slope_weight=args.terrain_slope_weight,
+                roughness_weight=args.roughness_weight,
             )
 
             real_geo = None
@@ -540,6 +679,13 @@ def main():
             if args.building_clearance_m > 0 and "building_distance_m" in osm:
                 endpoint_blockers["建筑净距阈值"] = (
                     osm["building_distance_m"] <= args.building_clearance_m)
+            building_geometries = getattr(osm, "geometries", {}).get("buildings", [])
+            endpoint_building_exceptions = open_safe_building_endpoint_pixels(
+                (("起点", (sr, sc), (slon, slat)),
+                 ("终点", (er, ec), (elon, elat))),
+                hard_mask, endpoint_blockers, building_geometries, transform,
+                args.building_clearance_m,
+            )
             validate_endpoint_cells((sr, sc), (er, ec), dem.shape, hard_mask,
                                     endpoint_blockers)
             same_grid_cell = (sr, sc) == (er, ec)
@@ -556,6 +702,7 @@ def main():
             V_main = None
             t_vin = 0.0
             t_ppo = 0.0
+            t_theta = 0.0
             # AI methods are opt-in diagnostics; route selection below excludes them.
             if args.include_ai_diagnostics and HAS_TORCH and not args.no_vin and not same_grid_cell:
                 t_v = time.time()
@@ -570,7 +717,10 @@ def main():
                     V_main = np.nan_to_num(V, nan=1e6, posinf=1e6, neginf=1e6)
                     geo_vin = smooth_path_with_constraints(gradient_track_path(
                         V, cost_finite, hard_mask, (sr, sc), (er, ec), transform),
-                        transform, hard_mask)
+                        transform, hard_mask, cost_grid, dem,
+                        0.0, pixel_spacing=route_pixel_spacing,
+                        max_ground_grade=args.max_ground_grade, crs=crs,
+                        shortcut_endpoints=shortcut_endpoints)
                     geo_vin, grade_reports["VIN-Grad"] = filter_path_by_ground_grade(
                         geo_vin, dem, transform, args.max_ground_grade, crs)
                     if geo_vin:
@@ -609,7 +759,11 @@ def main():
                     ppo_path = ppo_rollout_path(ppo_policy, ctx, cost_finite, hard_mask, (er, ec), (sr, sc),
                                                n_tries=6, guide_v=V_main, guide_w=6.0, v_tol=0.35)
                     geo_ppo = smooth_path_with_constraints(
-                        [rowcol_to_geo(r, c, transform) for r, c in ppo_path], transform, hard_mask)
+                        [rowcol_to_geo(r, c, transform) for r, c in ppo_path],
+                        transform, hard_mask, cost_grid, dem,
+                        0.0, pixel_spacing=route_pixel_spacing,
+                        max_ground_grade=args.max_ground_grade, crs=crs,
+                        shortcut_endpoints=shortcut_endpoints)
                     geo_ppo, grade_reports["PPO"] = filter_path_by_ground_grade(
                         geo_ppo, dem, transform, args.max_ground_grade, crs)
                     if geo_ppo:
@@ -632,8 +786,8 @@ def main():
                           "已禁用或 torch 不可用")
                 print(f"  [skip] PPO {reason}")
 
-            # Weighted A*: epsilon=1 is optimal A*; epsilon>1 trades bounded
-            # search-cost optimality for fewer expansions.
+            # Weight 1 is optimal A*. Larger weights are approximate; because
+            # closed states are not reopened, no general cost bound is claimed.
             astar_method = (
                 "A*(turn-aware)" if args.turn_penalty_weight > 0 else
                 "A*(baseline)" if args.astar_heuristic_weight == 1.0 else
@@ -652,12 +806,36 @@ def main():
                              if a_path else None)
             geo_astar = [rowcol_to_geo(r, c, transform) for r, c in a_path] if a_path else None
             if geo_astar:
-                geo_astar = smooth_path_with_constraints(geo_astar, transform, hard_mask)
+                geo_astar = smooth_path_with_constraints(
+                    geo_astar, transform, hard_mask, cost_grid, dem,
+                    args.grade_penalty_weight, args.turn_penalty_weight,
+                    route_pixel_spacing, max_ground_grade=args.max_ground_grade,
+                    crs=crs, shortcut_endpoints=shortcut_endpoints)
             geo_astar, grade_reports[astar_method] = filter_path_by_ground_grade(
                 geo_astar, dem, transform, args.max_ground_grade, crs)
             methods[astar_method] = geo_astar
             t_astar = time.time() - t_astar
             print(f"  [{astar_method}] 路径 {len(geo_astar) if geo_astar else 0} 点, 耗时 {t_astar:.1f}s")
+
+            if args.experimental_theta_star:
+                t_theta = time.time()
+                theta_path = theta_star_cost_path(
+                    cost_grid, hard_mask, (sr, sc), (er, ec),
+                    pixel_spacing=route_pixel_spacing)
+                geo_theta = ([rowcol_to_geo(r, c, transform) for r, c in theta_path]
+                             if theta_path else None)
+                if geo_theta:
+                    geo_theta = smooth_path_with_constraints(
+                        geo_theta, transform, hard_mask, cost_grid, dem,
+                        0.0, 0.0, route_pixel_spacing,
+                        max_ground_grade=args.max_ground_grade, crs=crs,
+                        shortcut_endpoints=shortcut_endpoints)
+                geo_theta, grade_reports["Theta*(experimental)"] = filter_path_by_ground_grade(
+                    geo_theta, dem, transform, args.max_ground_grade, crs)
+                methods["Theta*(experimental)"] = geo_theta
+                t_theta = time.time() - t_theta
+                print(f"  [Theta*(experimental)] 路径 {len(geo_theta) if geo_theta else 0} 点, "
+                      f"耗时 {t_theta:.1f}s；仅作对照候选")
 
             station_offsets_by_method = {}
             station_measurements = {}
@@ -670,6 +848,16 @@ def main():
                     geo, grade_report = filter_path_by_ground_grade(
                         geo, dem, transform, args.max_ground_grade, crs)
                     geo, hard_report = validate_route_hard_constraints(geo, transform, hard_mask)
+                    if geo and osm_layer_metadata.get("buildings", {}).get("status") == "available":
+                        geo, building_report = validate_route_against_buildings(
+                            geo, building_geometries)
+                        hard_report.update(building_report)
+                        if building_report["building_geometry_status"] == "fail":
+                            hard_report["hard_constraint_status"] = "fail"
+                            hard_report["hard_violations"] += 1
+                    annotate_route_validation_context(
+                        hard_report, endpoint_building_exceptions,
+                        osm_layer_metadata.get("buildings", {}))
                     methods[method] = geo
                     grade_reports[method] = grade_report
                     hard_violation_reports[method] = hard_report
@@ -681,8 +869,22 @@ def main():
             else:
                 for method, geo in list(methods.items()):
                     geo = expand_single_cell_route(geo, (slat, slon), (elat, elon))
+                    geo = attach_input_endpoints(geo, (slat, slon), (elat, elon))
                     geo, grade_reports[method] = filter_path_by_ground_grade(
                         geo, dem, transform, args.max_ground_grade, crs)
+                    geo, hard_report = validate_route_hard_constraints(
+                        geo, transform, hard_mask)
+                    if geo and osm_layer_metadata.get("buildings", {}).get("status") == "available":
+                        geo, building_report = validate_route_against_buildings(
+                            geo, building_geometries)
+                        hard_report.update(building_report)
+                        if building_report["building_geometry_status"] == "fail":
+                            hard_report["hard_constraint_status"] = "fail"
+                            hard_report["hard_violations"] += 1
+                    annotate_route_validation_context(
+                        hard_report, endpoint_building_exceptions,
+                        osm_layer_metadata.get("buildings", {}))
+                    hard_violation_reports[method] = hard_report
                     methods[method] = geo
 
             # 指标
@@ -697,6 +899,11 @@ def main():
                         grade_penalty_weight=args.grade_penalty_weight,
                         turn_penalty_weight=method_turn_weight,
                         pixel_spacing=route_pixel_spacing)
+                    met["weight_independent_exposure"] = route_layer_exposure(
+                        geo, transform, dem.shape, terrain, osm,
+                        official_hazard_masks, osm_layer_metadata,
+                        official_hazard_metadata.get("coverage_status", "unknown"),
+                        official_hazard_metadata.get("layers", {}))
                     if m == astar_method and raw_astar_geo:
                         met["astar_search_path_objective"] = astar_path_objective(
                             a_path, cost_grid, dem, route_pixel_spacing,
@@ -715,6 +922,7 @@ def main():
                     met["time_s"] = round({
                         "VIN-Grad": t_vin,
                         "PPO": t_ppo,
+                        "Theta*(experimental)": t_theta,
                         "A*(baseline)": t_astar,
                         "A*(weighted)": t_astar,
                         "A*(turn-aware)": t_astar,
@@ -848,6 +1056,8 @@ def main():
                 "landcover_penalty_weight": args.landcover_penalty_weight,
                 "building_clearance_m": args.building_clearance_m,
                 "grade_penalty_weight": args.grade_penalty_weight,
+                "terrain_slope_weight": args.terrain_slope_weight,
+                "roughness_weight": args.roughness_weight,
                 "max_ground_grade_ratio": args.max_ground_grade,
                 "max_surface_slope_deg": args.max_surface_slope_deg,
                 "max_terrain_elevation_m": args.max_terrain_elevation_m,
@@ -882,6 +1092,8 @@ def main():
                             "landcover_penalty_weight": args.landcover_penalty_weight,
                             "building_clearance_m": args.building_clearance_m,
                             "grade_penalty_weight": args.grade_penalty_weight,
+                            "terrain_slope_weight": args.terrain_slope_weight,
+                            "roughness_weight": args.roughness_weight,
                             "max_ground_grade_ratio": args.max_ground_grade,
                             "max_surface_slope_deg": args.max_surface_slope_deg,
                             "max_terrain_elevation_m": args.max_terrain_elevation_m,
@@ -938,6 +1150,8 @@ def main():
                                            "landcover_penalty_weight": args.landcover_penalty_weight,
                                            "building_clearance_m": args.building_clearance_m,
                                            "grade_penalty_weight": args.grade_penalty_weight,
+                                           "terrain_slope_weight": args.terrain_slope_weight,
+                                           "roughness_weight": args.roughness_weight,
                                            "max_ground_grade_ratio": args.max_ground_grade,
                                            "max_surface_slope_deg": args.max_surface_slope_deg,
                                            "max_terrain_elevation_m": args.max_terrain_elevation_m,
@@ -1109,7 +1323,8 @@ def main():
         print("=" * 70)
         print(f"  {'走廊':16s} {'方法':16s} {'较差方向P95(m)':>14s} {'采样最大(m)':>12s} "
               f"{'F1@100m':>9s} {'F1@1km':>9s} {'长度差(km)':>11s}")
-        candidate_methods = ["A*(baseline)", "A*(weighted)", "A*(turn-aware)", "VIN-Grad", "PPO"]
+        candidate_methods = ["A*(baseline)", "A*(weighted)", "A*(turn-aware)",
+                             "Theta*(experimental)", "VIN-Grad", "PPO"]
         failed_case_names = {item["case"] for item in failed_cases}
         for rec in all_results:
             if rec["case"] in failed_case_names or rec["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status") == "no_hard_constraint_compliant_route":
@@ -1160,7 +1375,8 @@ def main():
     print("\n" + "=" * 70)
     print("  结果摘要（各走廊均值）")
     print("=" * 70)
-    for m in ["A*(baseline)", "A*(weighted)", "A*(turn-aware)", "VIN-Grad", "PPO"]:
+    for m in ["A*(baseline)", "A*(weighted)", "A*(turn-aware)",
+              "Theta*(experimental)", "VIN-Grad", "PPO"]:
         lens = [r["metrics"][m]["length_km"] for r in all_results if m in r["metrics"]]
         mc = [r["metrics"][m]["mean_cost"] for r in all_results if m in r["metrics"]]
         if lens:

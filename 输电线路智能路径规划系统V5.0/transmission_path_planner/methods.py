@@ -6,6 +6,7 @@ from .geometry import *
 from .data import *
 from .osm import *
 from .cost import *
+from .smoothing import _ground_grade_grid_edge_passes
 
 
 def _clamp_raster_axis(value, size):
@@ -720,6 +721,8 @@ def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
         if (not math.isfinite(row_m) or not math.isfinite(col_m)
                 or row_m <= 0.0 or col_m <= 0.0):
             raise ValueError("pixel_spacing values must be finite and positive")
+    grade_pixel_spacing = (tuple(map(float, pixel_spacing)) if pixel_spacing is not None
+                           else (float(pixel_m), float(pixel_m)) if pixel_m else None)
 
     reverse_result = sr * W + sc > er * W + ec
     if reverse_result:
@@ -736,32 +739,35 @@ def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
     ndist = [1.0, math.sqrt(2), 1.0, math.sqrt(2), 1.0,
              math.sqrt(2), 1.0, math.sqrt(2)]
 
-    def heuristic(r, c):
-        if use_dijkstra:
-            return 0.0
+    def distance_to_goal(r, c):
         dr, dc = abs(r - er), abs(c - ec)
         if pixel_spacing is not None:
             row_m, col_m = pixel_spacing
             diagonal = min(dr, dc)
-            return heuristic_weight * c_min * (
-                diagonal * math.hypot(row_m, col_m)
-                + (dr - diagonal) * row_m + (dc - diagonal) * col_m
-            )
-        return heuristic_weight * c_min * (
-            max(dr, dc) + (math.sqrt(2) - 1) * min(dr, dc)
-        )
+            return (diagonal * math.hypot(row_m, col_m)
+                    + (dr - diagonal) * row_m + (dc - diagonal) * col_m)
+        return max(dr, dc) + (math.sqrt(2) - 1) * min(dr, dc)
+
+    def heuristic(r, c):
+        if use_dijkstra:
+            return 0.0
+        return heuristic_weight * c_min * distance_to_goal(r, c)
 
     def edge_cost(r, c, nr, nc, direction):
         dr, dc = neigh[direction]
         step_len = (math.hypot(dr * pixel_spacing[0], dc * pixel_spacing[1])
                     if pixel_spacing is not None else ndist[direction])
         step_cost = 0.5 * (float(cost_raster[r, c]) + float(cost_raster[nr, nc]))
+        if (max_ground_grade is not None and elevation is not None
+                and grade_pixel_spacing is not None
+                and not _ground_grade_grid_edge_passes(
+                    (r, c), (nr, nc), elevation, grade_pixel_spacing,
+                    max_ground_grade)):
+            return None
         if (elevation is not None and (pixel_spacing is not None or pixel_m)
                 and np.isfinite(elevation[r, c]) and np.isfinite(elevation[nr, nc])):
             horizontal_m = step_len if pixel_spacing is not None else pixel_m * step_len
             grade = abs(float(elevation[nr, nc]) - float(elevation[r, c])) / horizontal_m
-            if max_ground_grade is not None and grade > max_ground_grade:
-                return None
             step_cost += max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0)
         return step_cost * step_len
 
@@ -770,7 +776,7 @@ def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
     parent_dir = np.full((H, W, 8), 255, dtype=np.uint8)
     start_flat = sr * W + sc
     start_h = heuristic(sr, sc)
-    open_set = [(start_h, start_h, 0, start_flat, 8, 0.0)]
+    open_set = [(start_h, distance_to_goal(sr, sc), 0, start_flat, 8, 0.0)]
     sequence = 1
 
     while open_set:
@@ -832,7 +838,7 @@ def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
                 next_h = heuristic(nr, nc)
                 heapq.heappush(
                     open_set,
-                    (next_g + next_h, next_h, sequence,
+                    (next_g + next_h, distance_to_goal(nr, nc), sequence,
                      nr * W + nc, next_dir, next_g),
                 )
                 sequence += 1
@@ -871,26 +877,30 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
         er, ec = _nearest_valid(cost_raster, er, ec)
     if sr is None or er is None:
         return None
+    grade_pixel_spacing = (tuple(map(float, pixel_spacing)) if pixel_spacing is not None
+                           else (float(pixel_m), float(pixel_m)) if pixel_m else None)
     reverse_result = sr * W + sc > er * W + ec
     if reverse_result:
         (sr, sc), (er, ec) = (er, ec), (sr, sc)
     valid = cost_raster[np.isfinite(cost_raster)]
-    c_min = max(float(valid.min()), 1e-6) if valid.size else 1e-6
+    c_min = max(float(valid.min()), 0.0) if valid.size else 0.0
     neigh = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
     ndist = [1.0, math.sqrt(2), 1.0, math.sqrt(2), 1.0, math.sqrt(2), 1.0, math.sqrt(2)]
 
-    def h(r, c):
-        if use_dijkstra:
-            return 0.0
+    def distance_to_goal(r, c):
         dr, dc = abs(r - er), abs(c - ec)
         if pixel_spacing is not None:
             row_m, col_m = pixel_spacing
             diagonal = min(dr, dc)
             row_only, col_only = dr - diagonal, dc - diagonal
-            return heuristic_weight * c_min * (
-                diagonal * math.hypot(row_m, col_m) + row_only * row_m + col_only * col_m)
-        return heuristic_weight * c_min * (
-            max(dr, dc) + (math.sqrt(2) - 1) * min(dr, dc))
+            return (diagonal * math.hypot(row_m, col_m)
+                    + row_only * row_m + col_only * col_m)
+        return max(dr, dc) + (math.sqrt(2) - 1) * min(dr, dc)
+
+    def h(r, c):
+        if use_dijkstra:
+            return 0.0
+        return heuristic_weight * c_min * distance_to_goal(r, c)
 
     # Use raster arrays for search state instead of Python tuple-keyed dicts/sets.
     # Large high-resolution corridors otherwise consume several GiB of Python objects.
@@ -899,7 +909,7 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
     closed = np.zeros((H, W), dtype=bool)
     g[sr, sc] = 0.0
     start_h = h(sr, sc)
-    open_set = [(start_h, start_h, 0, sr * W + sc)]
+    open_set = [(start_h, distance_to_goal(sr, sc), 0, sr * W + sc)]
     tb = 0
     while open_set:
         _, _, _, cur_idx = heapq.heappop(open_set)
@@ -925,6 +935,12 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
             if dr != 0 and dc != 0:
                 if not np.isfinite(cost_raster[cr + dr, cc]) or not np.isfinite(cost_raster[cr, cc + dc]):
                     continue
+            if (max_ground_grade is not None and elevation is not None
+                    and grade_pixel_spacing is not None
+                    and not _ground_grade_grid_edge_passes(
+                        (cr, cc), (nr, nc), elevation, grade_pixel_spacing,
+                        max_ground_grade)):
+                continue
             if pixel_spacing is not None:
                 row_m, col_m = pixel_spacing
                 step_len = math.hypot(dr * row_m, dc * col_m)
@@ -937,15 +953,16 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
                     and np.isfinite(elevation[cr, cc]) and np.isfinite(elevation[nr, nc])):
                 horizontal_m = step_len if pixel_spacing is not None else pixel_m * step_len
                 grade = abs(float(elevation[nr, nc]) - float(elevation[cr, cc])) / horizontal_m
-                if max_ground_grade is not None and grade > max_ground_grade:
-                    continue
                 step_cost += max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0)
             tg = g[cr, cc] + step_cost * step_len
             if tg < g[nr, nc]:
                 g[nr, nc] = tg
                 next_h = h(nr, nc)
-                # Resolve equal f-costs toward the goal before insertion order.
-                heapq.heappush(open_set, (tg + next_h, next_h, tb, nr * W + nc))
+                # Geometric tie-breaking stays secondary to the admissible f-cost.
+                heapq.heappush(
+                    open_set,
+                    (tg + next_h, distance_to_goal(nr, nc), tb, nr * W + nc),
+                )
                 parent[nr, nc] = cr * W + cc
                 tb += 1
     return None

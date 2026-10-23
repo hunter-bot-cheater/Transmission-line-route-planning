@@ -228,6 +228,113 @@ def astar_path_objective(path_rc, cost_surface, elevation=None, pixel_spacing=No
     }
 
 
+def route_layer_exposure(geo, transform, shape, terrain, osm, hazard_masks,
+                         osm_layer_metadata=None, hazard_coverage_status="unknown",
+                         hazard_layer_metadata=None):
+    """Summarize route exposures independently of the weights used to plan it."""
+    if not geo or len(geo) < 2:
+        return {"status": "route_too_short", "route_cell_count": 0}
+    route_mask = rio_rasterize(
+        [(LineString(geo), 1)], out_shape=shape, transform=transform,
+        fill=0, all_touched=True, dtype=np.uint8,
+    ) > 0
+    count = int(np.count_nonzero(route_mask))
+    if not count:
+        return {"status": "route_not_rasterized", "route_cell_count": 0}
+
+    result = {
+        "status": "measured",
+        "route_cell_count": count,
+        "fraction_denominator": "all_touched_route_cells; approximate, not length weighted",
+    }
+
+    def route_band(mapping, key, dtype=np.float64):
+        band = mapping.get(key)
+        if band is None:
+            return None
+        values = np.asarray(band, dtype=dtype)
+        if values.shape != tuple(shape):
+            raise ValueError(f"{key} shape {values.shape} does not match route grid {tuple(shape)}")
+        return values[route_mask]
+
+    for name, key in (("surface_slope_deg", "slope"),
+                      ("roughness_27_m", "roughness_27")):
+        values = route_band(terrain, key)
+        if values is None:
+            result[name] = None
+            continue
+        values = values[np.isfinite(values)]
+        result[name] = ({
+            "mean": float(np.mean(values)),
+            "p90": float(np.percentile(values, 90)),
+            "p95": float(np.percentile(values, 95)),
+            "valid_cell_fraction": float(len(values) / count),
+        } if values.size else None)
+
+    layer_status = osm_layer_metadata or {}
+    result["mapped_osm_layer_status"] = {
+        name: layer_status.get(name, {}).get("status", "unknown")
+        for name in ("buildings", "landuse")
+    }
+    result["mapped_osm_coverage_status"] = {
+        name: layer_status.get(name, {}).get("coverage_status", "unknown")
+        for name in ("buildings", "landuse")
+    }
+    result["mapped_osm_exposure_scope"] = (
+        "mapped-feature inventory only; coverage completeness is unverified "
+        "unless each layer reports complete")
+    result["hazard_coverage_status"] = hazard_coverage_status
+    building_available = layer_status.get("buildings", {}).get("status") == "available"
+    landuse_available = layer_status.get("landuse", {}).get("status") == "available"
+    density = route_band(osm, "building_density", dtype=np.float32)
+    residential = route_band(osm, "residential_landuse_mask", dtype=np.float32)
+    landuse = route_band(osm, "landuse_code", dtype=np.float32)
+    result["mapped_building_density_mean"] = (
+        float(np.mean(density)) if building_available and density is not None else None)
+    result["mapped_residential_landuse_cell_fraction"] = (
+        float(np.mean(residential > 0))
+        if landuse_available and residential is not None else None)
+    result["mapped_forest_wetland_cell_fraction"] = (
+        float(np.mean(np.isin(landuse, (1.0, 7.0))))
+        if landuse_available and landuse is not None else None)
+    if (building_available and landuse_available and density is not None
+            and residential is not None and landuse is not None):
+        settlement = np.maximum(np.maximum(density, residential), landuse == 4.0)
+        result["mapped_settlement_proxy_mean"] = float(np.mean(settlement))
+    else:
+        result["mapped_settlement_proxy_mean"] = None
+    result["mapped_osm_metric_status"] = {
+        "building_density": "mapped_features_only" if building_available and density is not None
+        else "array_missing" if building_available else "layer_unavailable",
+        "landuse": "mapped_features_only" if landuse_available and landuse is not None
+        else "array_missing" if landuse_available else "layer_unavailable",
+        "residential_landuse": "mapped_features_only" if landuse_available and residential is not None
+        else "array_missing" if landuse_available else "layer_unavailable",
+    }
+
+    hazard_layer_metadata = hazard_layer_metadata or {}
+    hazard_fractions = {}
+    hazard_observed_positive_counts = {}
+    hazard_status = {}
+    for name, mask in (hazard_masks or {}).items():
+        values = np.asarray(mask)
+        if values.shape != tuple(shape):
+            raise ValueError(f"{name} shape {values.shape} does not match route grid {tuple(shape)}")
+        positive_count = int(np.count_nonzero(values[route_mask] > 0))
+        coverage = hazard_layer_metadata.get(name, {}).get(
+            "coverage_status", hazard_coverage_status)
+        hazard_status[name] = coverage
+        hazard_observed_positive_counts[name] = positive_count
+        hazard_fractions[name] = (
+            positive_count / count if coverage == "complete" else None)
+    result["hazard_layer_coverage_status"] = hazard_status
+    result["hazard_positive_route_cell_counts_scope"] = (
+        "observed positive cells in loaded masks only; incomplete coverage may omit cells")
+    result["hazard_observed_positive_route_cell_counts"] = hazard_observed_positive_counts
+    result["hazard_cell_fractions"] = hazard_fractions
+    return result
+
+
 def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_ll,
                     grade_penalty_weight=1.0, turn_penalty_weight=0.0,
                     pixel_spacing=None):
@@ -324,10 +431,11 @@ FRECHET_SAMPLE_COUNT = 256
 
 
 def _line_samples(projected, step_m):
-    """Return approximately equally spaced arc-length midpoint samples."""
+    """Return arc-length midpoint samples, sample weights, and component lengths."""
     from shapely.geometry import LineString
 
     samples = []
+    weights = []
     lengths = []
     for coordinates in projected:
         line = LineString(coordinates)
@@ -336,22 +444,36 @@ def _line_samples(projected, step_m):
         count = max(1, int(math.ceil(line.length / step_m)))
         distances = (np.arange(count, dtype=np.float64) + 0.5) * line.length / count
         samples.append(np.asarray([line.interpolate(float(d)).coords[0] for d in distances]))
+        weights.append(np.full(count, line.length / count, dtype=np.float64))
         lengths.append(float(line.length))
     if not samples:
         raise ValueError("偏差计算线路长度必须大于零")
-    return np.concatenate(samples, axis=0), lengths
+    return np.concatenate(samples, axis=0), np.concatenate(weights), lengths
 
 
-def _distance_summary(distances):
+def _weighted_percentile(values, weights, percentile):
+    order = np.argsort(values)
+    sorted_values = values[order]
+    sorted_weights = weights[order]
+    if np.allclose(sorted_weights, sorted_weights[0], rtol=1e-12, atol=0.0):
+        return float(np.percentile(sorted_values, percentile))
+    mid_cdf = (np.cumsum(sorted_weights) - 0.5 * sorted_weights) / sorted_weights.sum()
+    return float(np.interp(percentile / 100.0, mid_cdf, sorted_values,
+                           left=sorted_values[0], right=sorted_values[-1]))
+
+
+def _distance_summary(distances, sample_weights):
+    weights = np.asarray(sample_weights, dtype=np.float64)
     return {
-        "mean_m": float(distances.mean()),
-        "median_m": float(np.percentile(distances, 50)),
-        "p90_m": float(np.percentile(distances, 90)),
-        "p95_m": float(np.percentile(distances, 95)),
-        "p99_m": float(np.percentile(distances, 99)),
+        "mean_m": float(np.average(distances, weights=weights)),
+        "median_m": _weighted_percentile(distances, weights, 50),
+        "p90_m": _weighted_percentile(distances, weights, 90),
+        "p95_m": _weighted_percentile(distances, weights, 95),
+        "p99_m": _weighted_percentile(distances, weights, 99),
         "sampled_max_m": float(distances.max()),
+        "sampled_length_m": float(weights.sum()),
         "coverage_within_m": {
-            str(tolerance): float(np.mean(distances <= tolerance))
+            str(tolerance): float(np.average(distances <= tolerance, weights=weights))
             for tolerance in VISUAL_TOLERANCES_M
         },
     }
@@ -415,10 +537,46 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
             return np.asarray([project(lon, lat) for lon, lat in poly], dtype=np.float64)
 
         planned_projected = project_coordinates(planned_geo)
-        real_projected = [project_coordinates(poly) for poly in real_polys]
-        planned_samples, planned_component_lengths = _line_samples(
+
+        def source_coordinates(poly):
+            # Put date-line coordinates on the same longitude branch before
+            # GEOS unions them; e.g. -179.9 becomes 180.1 when lon0 is 180.
+            return [
+                (lon0 + (float(lon) - lon0 + 180.0) % 360.0 - 180.0, float(lat))
+                for lon, lat in poly
+            ]
+
+        # Dissolve every reference input in source coordinates. This removes
+        # repeated and partially overlapping support before projection can
+        # introduce tiny non-coincident gaps or double-counted length.
+        from shapely.ops import linemerge, unary_union
+        reference_geometry = unary_union([
+            LineString(source_coordinates(poly)) for poly in real_polys
+        ])
+        if reference_geometry.geom_type == "MultiLineString":
+            reference_geometry = linemerge(reference_geometry)
+
+        def line_parts(geometry):
+            if geometry.geom_type == "LineString":
+                if geometry.length == 0:
+                    return []
+                # GEOS inserts nodes at overlap boundaries. Remove only exact
+                # collinear vertices so projection does not make equivalent
+                # unsplit and split reference lines measure differently.
+                return [geometry.simplify(0.0, preserve_topology=True)]
+            if geometry.geom_type in ("MultiLineString", "GeometryCollection"):
+                return [part for child in geometry.geoms for part in line_parts(child)]
+            return []
+
+        reference_lines = line_parts(reference_geometry)
+        if not reference_lines:
+            return None
+        real_projected = [
+            project_coordinates(list(line.coords)) for line in reference_lines
+        ]
+        planned_samples, planned_sample_weights, planned_component_lengths = _line_samples(
             [planned_projected], ROUTE_SAMPLE_STEP_M)
-        real_samples, real_component_lengths = _line_samples(
+        real_samples, real_sample_weights, real_component_lengths = _line_samples(
             real_projected, ROUTE_SAMPLE_STEP_M)
 
         def segment_tree(projected_lines):
@@ -440,12 +598,13 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
                 result[start + indices[0]] = distances
             if not np.isfinite(result).all():
                 raise ValueError("空间索引未返回所有采样点的最近距离")
+            result[result < 1e-9] = 0.0
             return result
 
         planned_distances = nearest_distances(planned_samples, segment_tree(real_projected))
         reference_distances = nearest_distances(real_samples, segment_tree([planned_projected]))
-        planned_to_reference = _distance_summary(planned_distances)
-        reference_to_planned = _distance_summary(reference_distances)
+        planned_to_reference = _distance_summary(planned_distances, planned_sample_weights)
+        reference_to_planned = _distance_summary(reference_distances, real_sample_weights)
         combined = np.concatenate((planned_distances, reference_distances))
         tolerance_f1 = {}
         for tolerance in VISUAL_TOLERANCES_M:
@@ -493,7 +652,8 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
             "planned_to_reference": planned_to_reference,
             "reference_to_planned": reference_to_planned,
             "symmetric": {
-                "mean_m": float(combined.mean()),
+                "mean_m": 0.5 * (planned_to_reference["mean_m"]
+                                + reference_to_planned["mean_m"]),
                 "p95_m": max(planned_to_reference["p95_m"], reference_to_planned["p95_m"]),
                 "sampled_hausdorff_m": float(combined.max()),
                 "coverage_f1_within_m": tolerance_f1,
@@ -511,7 +671,12 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
             "buffer_iou": {},
         }
 
-        if len(real_projected) == 1:
+        reference_is_open_line = (
+            len(real_projected) == 1
+            and not np.allclose(real_projected[0][0], real_projected[0][-1],
+                                rtol=0.0, atol=1e-6)
+        )
+        if reference_is_open_line:
             endpoint_a = np.asarray(planned_projected[0])
             endpoint_b = np.asarray(planned_projected[-1])
             reference_a = np.asarray(real_projected[0][0])
@@ -559,7 +724,7 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
             route_similarity["buffer_iou"] = {}
 
         return {
-            "route_similarity_version": 2,
+            "route_similarity_version": 4,
             "route_similarity": route_similarity,
         }
     except Exception as ex:
@@ -568,7 +733,7 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
 
 
 def eval_error(plan_len_km, dev):
-    """Return v2 geometry and length metrics, without an arbitrary pass threshold."""
+    """Return v4 arc-length-weighted geometry and length metrics."""
     if not dev:
         return None
     similarity = dev.get("route_similarity")
@@ -588,7 +753,7 @@ def eval_error(plan_len_km, dev):
     similarity = dict(similarity)
     similarity["length"] = length
     return {
-        "route_similarity_version": 2,
+        "route_similarity_version": 4,
         "route_similarity": similarity,
     }
 

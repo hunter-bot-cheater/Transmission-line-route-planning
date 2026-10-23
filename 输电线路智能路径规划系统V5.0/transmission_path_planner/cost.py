@@ -171,7 +171,9 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
                      ridge_penalty_weight=0.10,
                      landcover_penalty_weight=0.0,
                      official_hazard_masks=None,
-                     official_hazard_weight=0.0):
+                     official_hazard_weight=0.0,
+                     terrain_slope_weight=0.75,
+                     roughness_weight=0.25):
     """Build an interpretable screening cost with a soft built-up proxy.
 
     The proxy is the maximum of mapped-building occupancy fraction, mapped
@@ -186,8 +188,8 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
     """
     slope = np.nan_to_num(terrain["slope"], nan=0.0, posinf=90.0, neginf=0.0)
     roughness = np.nan_to_num(terrain["roughness_27"], nan=0.0, posinf=0.0, neginf=0.0)
-    terrain_cost = 0.75 * np.clip(slope / 45.0, 0.0, 1.0) ** 1.5
-    terrain_cost += 0.25 * np.clip(roughness / 100.0, 0.0, 1.0)
+    terrain_cost = max(float(terrain_slope_weight), 0.0) * np.clip(slope / 45.0, 0.0, 1.0) ** 1.5
+    terrain_cost += max(float(roughness_weight), 0.0) * np.clip(roughness / 100.0, 0.0, 1.0)
     # Positive TPI marks terrain above its local 300 m neighborhood; a weak
     # penalty prefers lower saddles over exposed crests without using route data.
     tpi_300 = np.broadcast_to(np.asarray(
