@@ -100,3 +100,37 @@ def test_candidate_stride_can_change_reachability():
 
     assert dense is not None
     assert sparse is None
+
+
+def test_zero_turn_search_matches_independent_two_path_cost_oracle():
+    cost = np.ones((3, 5), dtype=np.float64)
+    tower_allowed = np.zeros(cost.shape, dtype=bool)
+    tower_allowed[0, 2] = True
+    tower_allowed[2, 2] = True
+    tower_allowed[1, 0] = True
+    tower_allowed[1, 4] = True
+    tower_cost = np.zeros(cost.shape, dtype=np.float64)
+    tower_cost[0, 2] = 10.0
+    tower_cost[2, 2] = 3.0
+    tower_cost[1, 0] = np.nan
+    tower_cost[1, 4] = np.nan
+
+    start, goal = (1, 0), (1, 4)
+    route = tower_graph_route(
+        cost, np.ones(cost.shape, dtype=bool), tower_allowed, start, goal,
+        2.1, 2.3, candidate_stride=1, tower_cost_raster=tower_cost)
+    reverse = tower_graph_route(
+        cost, np.ones(cost.shape, dtype=bool), tower_allowed, goal, start,
+        2.1, 2.3, candidate_stride=1, tower_cost_raster=tower_cost)
+
+    # Only the two indicated two-span paths are feasible in this candidate
+    # graph. The south site is cheaper; terminal site costs are excluded.
+    expected_cost = 2.0 * np.sqrt(5.0) + 3.0
+    route_cost = sum(
+        np.hypot(b[0] - a[0], b[1] - a[1])
+        for a, b in zip(route, route[1:])
+    ) + sum(tower_cost[cell] for cell in route[1:-1])
+
+    assert route == [start, (2, 2), goal]
+    assert route == reverse[::-1]
+    assert np.isclose(route_cost, expected_cost)

@@ -59,19 +59,23 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
     if not math.isfinite(turn_weight) or turn_weight < 0.0:
         raise ValueError("turn_penalty_weight must be finite and non-negative")
 
+    height, width = cost.shape
+    start = _checked_cell(start_rc, "start_rc")
+    goal = _checked_cell(goal_rc, "goal_rc")
     if tower_cost_raster is None:
         tower_cost = np.zeros(cost.shape, dtype=np.float64)
     else:
         tower_cost = np.asarray(tower_cost_raster, dtype=np.float64)
         if tower_cost.shape != cost.shape or tower_cost.ndim != 2:
             raise ValueError("tower_cost_raster must match the 2D cost raster")
-        site_values = tower_cost[tower_allowed & traversable]
+        site_mask = tower_allowed & traversable
+        for row, col in (start, goal):
+            if 0 <= row < height and 0 <= col < width:
+                site_mask[row, col] = False
+        site_values = tower_cost[site_mask]
         if np.any(~np.isfinite(site_values)) or np.any(site_values < 0.0):
             raise ValueError("allowed tower sites must have finite non-negative costs")
 
-    height, width = cost.shape
-    start = _checked_cell(start_rc, "start_rc")
-    goal = _checked_cell(goal_rc, "goal_rc")
     for terminal in (start, goal):
         row, col = terminal
         if not (0 <= row < height and 0 <= col < width and traversable[row, col]):
@@ -100,7 +104,7 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
     row_radius = max_span / row_m
     col_radius = max_span / col_m
     adjacency = [[] for _ in nodes]
-    edge_cost = {}
+    edge_cost = {} if turn_weight > 0.0 else None
 
     for first_id, (row, col) in enumerate(nodes):
         first_row = bisect_left(candidate_rows, row - row_radius)
@@ -124,10 +128,44 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                 span_cost = _segment_cost((row, col), second, cost, spacing)
                 if not math.isfinite(span_cost):
                     continue
-                adjacency[first_id].append((second_id, span_cost, distance))
-                adjacency[second_id].append((first_id, span_cost, distance))
-                edge_cost[first_id, second_id] = span_cost
-                edge_cost[second_id, first_id] = span_cost
+                adjacency[first_id].append((second_id, span_cost))
+                adjacency[second_id].append((first_id, span_cost))
+                if edge_cost is not None:
+                    edge_cost[first_id, second_id] = span_cost
+                    edge_cost[second_id, first_id] = span_cost
+
+    if turn_weight == 0.0:
+        best_cost = {start_id: 0.0}
+        parent = {}
+        sequence = count()
+        open_set = [(0.0, next(sequence), start_id)]
+        while open_set:
+            current_cost, _, current_id = heapq.heappop(open_set)
+            if current_cost != best_cost[current_id]:
+                continue
+            if current_id == goal_id:
+                route_ids = []
+                while current_id != start_id:
+                    route_ids.append(current_id)
+                    current_id = parent[current_id]
+                route_ids.append(start_id)
+                route_ids.reverse()
+                route = [nodes[index] for index in route_ids]
+                return route[::-1] if reversed_result else route
+
+            for next_id, span_cost in adjacency[current_id]:
+                added_cost = span_cost
+                if next_id != goal_id and next_id != start_id:
+                    next_row, next_col = nodes[next_id]
+                    added_cost += float(tower_cost[next_row, next_col])
+                candidate_cost = current_cost + added_cost
+                if candidate_cost >= best_cost.get(next_id, math.inf):
+                    continue
+                best_cost[next_id] = candidate_cost
+                parent[next_id] = current_id
+                heapq.heappush(open_set,
+                               (candidate_cost, next(sequence), next_id))
+        return None
 
     start_state = (-1, start_id)
     best = {start_state: 0.0}
@@ -149,7 +187,7 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
             route = [nodes[index] for index in route_ids]
             return route[::-1] if reversed_result else route
 
-        for next_id, span_cost, _ in adjacency[current_id]:
+        for next_id, span_cost in adjacency[current_id]:
             # A tower span cannot be used as an immediate out-and-back detour
             # to manipulate the direction penalty.
             if next_id == previous_id:
