@@ -48,7 +48,12 @@ def line_xy(line):
 
 def prepare_routes(results_dir: Path):
     metrics = json.loads((results_dir / "real_comparison_metrics.json").read_text(encoding="utf-8"))
-    metrics_by_case = {row["case"]: row["A*(baseline)"] for row in metrics}
+    metrics_by_case = {}
+    for row in metrics:
+        method = row.get("A*(baseline)") or row.get("A*(weighted)")
+        if method is None:
+            raise ValueError(f"No A* route metrics for route case {row.get('case')!r}")
+        metrics_by_case[row["case"]] = method
     routes = {}
     for folder in results_dir.iterdir():
         final_path = folder / "final_route.geojson"
@@ -128,7 +133,12 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
         ax.axis("off")
     legend = [Line2D([0], [0], color="#343a40", linestyle="--", label="参考线")]
     axes.flat[0].legend(handles=legend, loc="lower left", fontsize=8, framealpha=0.85)
-    fig.suptitle(f"严格无线路先验评测｜{len(cases)} 条线路｜20 米来源 DEM", fontsize=15)
+    methods = sorted({metrics.get("method", "A*") for _, _, metrics in routes.values()})
+    method_label = "/".join(methods)
+    fig.suptitle(
+        f"严格无线路先验评测｜{len(cases)} 条线路｜20 米来源 DEM｜{method_label}",
+        fontsize=15,
+    )
     fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axes, label="规划线到参考线距离（km）", shrink=0.75)
     fig.savefig(out_path, dpi=180)
     plt.close(fig)

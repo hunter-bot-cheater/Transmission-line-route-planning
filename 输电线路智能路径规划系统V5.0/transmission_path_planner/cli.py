@@ -242,8 +242,8 @@ def main():
                     help="建筑物栅格硬避让距离(米, 必须小于5000); 0仅屏蔽已映射建筑足迹，不代表规范净距")
     ap.add_argument("--grade-penalty-weight", type=float, default=1.0,
                     help="沿线相邻DEM高差软惩罚权重(以30%%地面坡度作为一个参考级)")
-    ap.add_argument("--astar-heuristic-weight", type=float, default=1.0,
-                    help="A*启发函数权重；1.0为最优基础A*，大于1可能减少搜索扩展但不保证实际加速")
+    ap.add_argument("--astar-heuristic-weight", type=float, default=1.5,
+                    help="A*启发函数权重；默认1.5作走廊筛查，1.0为当前代价面的最优基础A*")
     ap.add_argument("--max-ground-grade", type=float, default=None,
                     help="可选地面相邻栅格最大坡度比，如0.30; 属于筛选阈值，不是线路设计限值")
     ap.add_argument("--max-surface-slope-deg", type=float, default=None,
