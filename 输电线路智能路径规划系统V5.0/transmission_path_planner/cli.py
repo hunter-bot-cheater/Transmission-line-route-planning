@@ -405,7 +405,7 @@ def main():
     ap.add_argument("--astar-heuristic-weight", type=float, default=1.0,
                     help="A*启发函数权重；1.0对当前离散代价面求最优，大于1时为近似搜索且不保证误差界")
     ap.add_argument("--experimental-theta-star", action="store_true",
-                    help="额外生成 Theta* 实验候选；使用地形栅格代价，不计软坡度/转弯代价，"
+                    help="额外生成 Theta* 实验候选；复用 A* 栅格代价面，不计软坡度/转弯代价，"
                          "经常规约束复核但不参与最终选路")
     ap.add_argument("--max-ground-grade", type=float, default=None,
                     help="可选地面相邻栅格最大坡度比，如0.30; 属于筛选阈值，不是线路设计限值")
