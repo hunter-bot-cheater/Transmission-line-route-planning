@@ -909,11 +909,14 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
     closed = np.zeros((H, W), dtype=bool)
     g[sr, sc] = 0.0
     start_h = h(sr, sc)
-    open_set = [(start_h, distance_to_goal(sr, sc), 0, sr * W + sc)]
+    open_set = [(start_h, distance_to_goal(sr, sc), 0, sr * W + sc, 0.0)]
     tb = 0
     while open_set:
-        _, _, _, cur_idx = heapq.heappop(open_set)
+        _, _, _, cur_idx, queued_g = heapq.heappop(open_set)
         cr, cc = divmod(cur_idx, W)
+        # Reopened nodes can leave older heap entries behind.
+        if queued_g != g[cr, cc]:
+            continue
         if closed[cr, cc]:
             continue
         if (cr, cc) == (er, ec):
@@ -928,7 +931,10 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
         closed[cr, cc] = True
         for ni, (dr, dc) in enumerate(neigh):
             nr, nc = cr + dr, cc + dc
-            if not (0 <= nr < H and 0 <= nc < W) or closed[nr, nc]:
+            if not (0 <= nr < H and 0 <= nc < W):
+                continue
+            # Weight 1 keeps a consistent heuristic; larger weights may need reopen.
+            if closed[nr, nc] and heuristic_weight == 1.0:
                 continue
             if not np.isfinite(cost_raster[nr, nc]):
                 continue
@@ -957,11 +963,13 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
             tg = g[cr, cc] + step_cost * step_len
             if tg < g[nr, nc]:
                 g[nr, nc] = tg
+                closed[nr, nc] = False
                 next_h = h(nr, nc)
                 # Geometric tie-breaking stays secondary to the admissible f-cost.
                 heapq.heappush(
                     open_set,
-                    (tg + next_h, distance_to_goal(nr, nc), tb, nr * W + nc),
+                    (tg + next_h, distance_to_goal(nr, nc), tb,
+                     nr * W + nc, tg),
                 )
                 parent[nr, nc] = cr * W + cc
                 tb += 1

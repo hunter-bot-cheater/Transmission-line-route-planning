@@ -1,0 +1,1433 @@
+{
+  "experiment": "weighted_astar_synthetic_no_reference",
+  "grid_shape": [
+    256,
+    384
+  ],
+  "pixel_spacing_m": 35.0,
+  "repeats": 3,
+  "warmups_per_case_and_weight": 1,
+  "execution_order_seed": 20261024,
+  "execution_orders": {
+    "ridge:0:0": [
+      1.2,
+      1.0,
+      1.1,
+      1.05
+    ],
+    "ridge:0:1": [
+      1.1,
+      1.0,
+      1.05,
+      1.2
+    ],
+    "ridge:0:2": [
+      1.05,
+      1.1,
+      1.2,
+      1.0
+    ],
+    "ridge:1:0": [
+      1.2,
+      1.1,
+      1.0,
+      1.05
+    ],
+    "ridge:1:1": [
+      1.05,
+      1.2,
+      1.1,
+      1.0
+    ],
+    "ridge:1:2": [
+      1.1,
+      1.05,
+      1.0,
+      1.2
+    ],
+    "ridge:2:0": [
+      1.0,
+      1.2,
+      1.1,
+      1.05
+    ],
+    "ridge:2:1": [
+      1.2,
+      1.05,
+      1.0,
+      1.1
+    ],
+    "ridge:2:2": [
+      1.2,
+      1.1,
+      1.0,
+      1.05
+    ],
+    "settlement:0:0": [
+      1.0,
+      1.05,
+      1.2,
+      1.1
+    ],
+    "settlement:0:1": [
+      1.2,
+      1.05,
+      1.1,
+      1.0
+    ],
+    "settlement:0:2": [
+      1.05,
+      1.2,
+      1.0,
+      1.1
+    ],
+    "settlement:1:0": [
+      1.1,
+      1.0,
+      1.2,
+      1.05
+    ],
+    "settlement:1:1": [
+      1.1,
+      1.05,
+      1.0,
+      1.2
+    ],
+    "settlement:1:2": [
+      1.05,
+      1.2,
+      1.0,
+      1.1
+    ],
+    "settlement:2:0": [
+      1.0,
+      1.1,
+      1.2,
+      1.05
+    ],
+    "settlement:2:1": [
+      1.2,
+      1.05,
+      1.1,
+      1.0
+    ],
+    "settlement:2:2": [
+      1.1,
+      1.0,
+      1.2,
+      1.05
+    ],
+    "maze:0:0": [
+      1.2,
+      1.1,
+      1.05,
+      1.0
+    ],
+    "maze:0:1": [
+      1.05,
+      1.0,
+      1.2,
+      1.1
+    ],
+    "maze:0:2": [
+      1.1,
+      1.2,
+      1.0,
+      1.05
+    ],
+    "maze:1:0": [
+      1.2,
+      1.05,
+      1.0,
+      1.1
+    ],
+    "maze:1:1": [
+      1.05,
+      1.2,
+      1.1,
+      1.0
+    ],
+    "maze:1:2": [
+      1.1,
+      1.0,
+      1.2,
+      1.05
+    ],
+    "maze:2:0": [
+      1.1,
+      1.0,
+      1.2,
+      1.05
+    ],
+    "maze:2:1": [
+      1.0,
+      1.1,
+      1.2,
+      1.05
+    ],
+    "maze:2:2": [
+      1.05,
+      1.1,
+      1.2,
+      1.0
+    ]
+  },
+  "weights": [
+    1.0,
+    1.05,
+    1.1,
+    1.2
+  ],
+  "criteria": {
+    "interpretation": "Provisional engineering screening gates, not a theorem or statistical guarantee.",
+    "failures": 0,
+    "hard_violations": 0,
+    "cost_regret_p95_pct_max": 1.0,
+    "cost_regret_max_pct_max": 3.0,
+    "median_speedup_min": 1.25
+  },
+  "summary": {
+    "1.0": {
+      "cases": 9,
+      "compared_cases": 9,
+      "search_runs": 27,
+      "failures": 0,
+      "baseline_failures": 0,
+      "candidate_failures": 0,
+      "hard_violations": 0,
+      "cost_regret_p95_pct": 0.0,
+      "cost_regret_max_pct": 0.0,
+      "median_speedup": 1.0,
+      "screen_status": "control"
+    },
+    "1.05": {
+      "cases": 9,
+      "compared_cases": 9,
+      "search_runs": 27,
+      "failures": 0,
+      "baseline_failures": 0,
+      "candidate_failures": 0,
+      "hard_violations": 0,
+      "cost_regret_p95_pct": 0.0,
+      "cost_regret_max_pct": 0.0,
+      "median_speedup": 0.6136759838708489,
+      "screen_status": "fail"
+    },
+    "1.1": {
+      "cases": 9,
+      "compared_cases": 9,
+      "search_runs": 27,
+      "failures": 0,
+      "baseline_failures": 0,
+      "candidate_failures": 0,
+      "hard_violations": 0,
+      "cost_regret_p95_pct": 0.0,
+      "cost_regret_max_pct": 0.0,
+      "median_speedup": 0.6236564232270642,
+      "screen_status": "fail"
+    },
+    "1.2": {
+      "cases": 9,
+      "compared_cases": 9,
+      "search_runs": 27,
+      "failures": 0,
+      "baseline_failures": 0,
+      "candidate_failures": 0,
+      "hard_violations": 0,
+      "cost_regret_p95_pct": 0.0,
+      "cost_regret_max_pct": 0.0,
+      "median_speedup": 0.625389541616932,
+      "screen_status": "fail"
+    }
+  },
+  "runs": [
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.2,
+      "time_s": 1.5671881999987818,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.0,
+      "time_s": 0.9760145000000193,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.1,
+      "time_s": 1.589649700003065,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.05,
+      "time_s": 1.6085741999995662,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.1,
+      "time_s": 1.5667716999996628,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.0,
+      "time_s": 1.0143361000009463,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.05,
+      "time_s": 1.6322113999995054,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.2,
+      "time_s": 1.5448780000006082,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.05,
+      "time_s": 1.605986099999427,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.1,
+      "time_s": 1.572923499999888,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.2,
+      "time_s": 1.5452753999998095,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.0,
+      "time_s": 0.985555100000056,
+      "path_cost_meter": 41362.12131255917,
+      "path_points": 379,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.2,
+      "time_s": 1.6204302000005555,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.1,
+      "time_s": 1.7065203999991354,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.0,
+      "time_s": 1.013400100000581,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.05,
+      "time_s": 1.6632585000006657,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.05,
+      "time_s": 1.7084366000017326,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.2,
+      "time_s": 1.626182299998618,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.1,
+      "time_s": 1.6772773999982746,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.0,
+      "time_s": 1.0034434999979567,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.1,
+      "time_s": 1.7048372000026575,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.05,
+      "time_s": 1.7829311999994388,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.0,
+      "time_s": 1.058000599998195,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.2,
+      "time_s": 1.6709479999990435,
+      "path_cost_meter": 41435.90987781212,
+      "path_points": 393,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.0,
+      "time_s": 0.8209288999969431,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.2,
+      "time_s": 1.2720477000002575,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.1,
+      "time_s": 1.2954131000005873,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.05,
+      "time_s": 1.304350099999283,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.2,
+      "time_s": 1.2882965999997396,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.05,
+      "time_s": 1.299966399998084,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.0,
+      "time_s": 0.8118496000024606,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.1,
+      "time_s": 1.3221823000021686,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.2,
+      "time_s": 1.288189799997781,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.1,
+      "time_s": 1.3006700000005367,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.0,
+      "time_s": 0.8111711999990803,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "ridge",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.05,
+      "time_s": 1.3689627999992808,
+      "path_cost_meter": 32989.825594185146,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.0,
+      "time_s": 1.1079851999966195,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.05,
+      "time_s": 1.7950928999998723,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.2,
+      "time_s": 1.8524566000014602,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.1,
+      "time_s": 1.710069199998543,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.2,
+      "time_s": 1.8487902999986545,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.05,
+      "time_s": 1.7209451999988232,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.1,
+      "time_s": 1.6537185999986832,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.0,
+      "time_s": 1.0540897999999288,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.05,
+      "time_s": 1.733500099999219,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.2,
+      "time_s": 1.8249322999981814,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.0,
+      "time_s": 1.0779469999979483,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.1,
+      "time_s": 1.7133295999992697,
+      "path_cost_meter": 25523.451195052505,
+      "path_points": 427,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.1,
+      "time_s": 1.1194271000022127,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.0,
+      "time_s": 0.7641567000027862,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.2,
+      "time_s": 1.1873051000002306,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.05,
+      "time_s": 1.1751650999976846,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.1,
+      "time_s": 1.1295508000002883,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.05,
+      "time_s": 1.181047199999739,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.0,
+      "time_s": 0.8012914999999339,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.2,
+      "time_s": 1.1695847000009962,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.05,
+      "time_s": 1.1745755999982066,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.2,
+      "time_s": 1.1973152000027767,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.0,
+      "time_s": 0.7650857999979053,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.1,
+      "time_s": 1.0935081999996328,
+      "path_cost_meter": 23479.366482598296,
+      "path_points": 396,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.0,
+      "time_s": 0.7906691999996838,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.1,
+      "time_s": 1.0907422000018414,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.2,
+      "time_s": 1.1780211000004783,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.05,
+      "time_s": 1.1810153999977047,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.2,
+      "time_s": 1.1719966000018758,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.05,
+      "time_s": 1.1913306999995257,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.1,
+      "time_s": 1.169697500001348,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.0,
+      "time_s": 0.8356765000025916,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.1,
+      "time_s": 1.124680000000808,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.0,
+      "time_s": 0.7794849999991129,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.2,
+      "time_s": 1.1780517999977747,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "settlement",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.05,
+      "time_s": 1.1999393999976746,
+      "path_cost_meter": 20127.07988693994,
+      "path_points": 352,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.2,
+      "time_s": 1.7021898000020883,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.1,
+      "time_s": 1.7555209999991348,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.05,
+      "time_s": 1.8023963000014191,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 0,
+      "weight": 1.0,
+      "time_s": 1.0854322999985015,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.05,
+      "time_s": 1.688218200000847,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.0,
+      "time_s": 1.0358352000002924,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.2,
+      "time_s": 1.6993202999983623,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 1,
+      "weight": 1.1,
+      "time_s": 1.6931433000027027,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.1,
+      "time_s": 1.7604762000009941,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.2,
+      "time_s": 1.6855145000008633,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.0,
+      "time_s": 1.0303561000000627,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 0,
+      "repeat": 2,
+      "weight": 1.05,
+      "time_s": 1.6836452999996254,
+      "path_cost_meter": 39703.550142819964,
+      "path_points": 421,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.2,
+      "time_s": 1.715077699998801,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.05,
+      "time_s": 1.7108903000007558,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.0,
+      "time_s": 1.044208899998921,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 0,
+      "weight": 1.1,
+      "time_s": 1.7284060999991198,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.05,
+      "time_s": 1.7423561999967205,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.2,
+      "time_s": 1.6833984999975655,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.1,
+      "time_s": 1.7154928000018117,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 1,
+      "weight": 1.0,
+      "time_s": 1.0359611000021687,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.1,
+      "time_s": 1.7597937999998976,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.0,
+      "time_s": 1.0356979999996838,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.2,
+      "time_s": 1.7199676999989606,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 1,
+      "repeat": 2,
+      "weight": 1.05,
+      "time_s": 1.7213624000032723,
+      "path_cost_meter": 41560.60137032319,
+      "path_points": 464,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.1,
+      "time_s": 1.7001210999987961,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.0,
+      "time_s": 1.021740399999544,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.2,
+      "time_s": 1.7042155000017374,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 0,
+      "weight": 1.05,
+      "time_s": 1.7062489999989339,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.0,
+      "time_s": 1.032812000001286,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.1,
+      "time_s": 1.7151647999999113,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.2,
+      "time_s": 1.7430428999978176,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 1,
+      "weight": 1.05,
+      "time_s": 1.7104560999978276,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.05,
+      "time_s": 1.6929987000003166,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.1,
+      "time_s": 1.7044711000016832,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.2,
+      "time_s": 1.715996400002041,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    },
+    {
+      "scenario": "maze",
+      "pair": 2,
+      "repeat": 2,
+      "weight": 1.0,
+      "time_s": 1.022021600001608,
+      "path_cost_meter": 40431.0848053589,
+      "path_points": 425,
+      "hard_violations": 0,
+      "fail_reason": null
+    }
+  ]
+}

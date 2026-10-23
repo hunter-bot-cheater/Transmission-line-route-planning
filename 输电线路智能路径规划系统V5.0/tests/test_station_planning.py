@@ -393,6 +393,65 @@ class StationPlanningTests(unittest.TestCase):
 
         self.assertLessEqual(route_cost(weighted), 1.5 * route_cost(exact) + 1e-9)
 
+    def test_weighted_astar_reopening_keeps_cost_within_weight_bound(self):
+        rng = np.random.default_rng(417)
+        weight = 3.0
+
+        def route_cost(path, cost):
+            return sum(0.5 * (cost[pr, pc] + cost[r, c])
+                       * np.hypot(r - pr, c - pc)
+                       for (pr, pc), (r, c) in zip(path, path[1:]))
+
+        for trial in range(12):
+            cost = rng.choice([1.0, 1.5, 3.0, 8.0], size=(14, 20))
+            gap_row = 2 + trial
+            cost[1:13, 10] = np.inf
+            cost[gap_row, 10] = rng.choice([1.0, 1.5, 3.0, 8.0])
+            start, end = (7, 1), (7, 18)
+            exact = astar_search(cost, start, end, use_dijkstra=True)
+            weighted = astar_search(cost, start, end, heuristic_weight=weight)
+
+            self.assertIsNotNone(exact)
+            self.assertIsNotNone(weighted)
+            self.assertLessEqual(
+                route_cost(weighted, cost),
+                weight * route_cost(exact, cost) + 1e-9,
+            )
+
+    def test_weighted_astar_actually_reopens_a_better_closed_node(self):
+        rng = np.random.default_rng(0)
+        cost = rng.choice([1.0, 1.5, 3.0, 8.0, 20.0], size=(14, 20))
+        cost[1:13, 10] = np.inf
+        cost[2, 10] = rng.choice([1.0, 1.5, 3.0, 8.0, 20.0])
+        best_g = {7 * cost.shape[1] + 1: 0.0}
+        expanded_g = {}
+        events = {"reopens": 0, "stale_pops": 0}
+        real_push, real_pop = heapq.heappush, heapq.heappop
+
+        def tracked_push(heap, item):
+            node, queued_g = item[3], item[4]
+            if node in expanded_g and queued_g < expanded_g[node]:
+                events["reopens"] += 1
+            best_g[node] = min(best_g.get(node, math.inf), queued_g)
+            real_push(heap, item)
+
+        def tracked_pop(heap):
+            item = real_pop(heap)
+            node, queued_g = item[3], item[4]
+            if queued_g != best_g[node]:
+                events["stale_pops"] += 1
+            else:
+                expanded_g[node] = queued_g
+            return item
+
+        with patch("heapq.heappush", side_effect=tracked_push), \
+                patch("heapq.heappop", side_effect=tracked_pop):
+            path = astar_search(cost, (7, 1), (7, 18), heuristic_weight=3.0)
+
+        self.assertIsNotNone(path)
+        self.assertGreater(events["reopens"], 0)
+        self.assertGreater(events["stale_pops"], 0)
+
     def test_astar_route_is_invariant_to_endpoint_order(self):
         cost = np.array([[1, 2, 2, 4, 1, 1],
                          [1, 3, 2, 2, 1, 1],
