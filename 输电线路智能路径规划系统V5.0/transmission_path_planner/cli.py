@@ -236,6 +236,8 @@ def main():
                     help="OSM建筑密度/住宅与商业用地代理的软避让权重(方案筛选参数, 默认2.0)")
     ap.add_argument("--ridge-penalty-weight", type=float, default=0.10,
                     help="基于300米TPI的高脊软惩罚权重；仅用地形，不读取线路几何")
+    ap.add_argument("--landcover-penalty-weight", type=float, default=0.10,
+                    help="OSM林地/湿地软代价权重；仅作不完整环境图层筛查，可设0关闭")
     ap.add_argument("--building-clearance-m", type=float, default=0.0,
                     help="建筑物栅格硬避让距离(米, 必须小于5000); 0仅屏蔽已映射建筑足迹，不代表规范净距")
     ap.add_argument("--grade-penalty-weight", type=float, default=1.0,
@@ -300,6 +302,7 @@ def main():
     float_parameters = {
         "--building-clearance-m": args.building_clearance_m,
         "--ridge-penalty-weight": args.ridge_penalty_weight,
+        "--landcover-penalty-weight": args.landcover_penalty_weight,
         "--settlement-weight": args.settlement_weight,
         "--grade-penalty-weight": args.grade_penalty_weight,
         "--astar-heuristic-weight": args.astar_heuristic_weight,
@@ -311,6 +314,7 @@ def main():
         if value is not None and not math.isfinite(value):
             ap.error(f"{option} 必须是有限数值")
     if (args.building_clearance_m < 0 or args.ridge_penalty_weight < 0
+            or args.landcover_penalty_weight < 0
             or args.settlement_weight < 0
             or args.grade_penalty_weight < 0):
         ap.error("避让距离与代价权重不能为负数")
@@ -446,6 +450,7 @@ def main():
             cost = build_route_cost(
                 terrain, osm, args.settlement_weight, model_cost,
                 ridge_penalty_weight=args.ridge_penalty_weight,
+                landcover_penalty_weight=args.landcover_penalty_weight,
             )
 
             real_geo = None
@@ -617,6 +622,7 @@ def main():
                     if m in ("A*(baseline)", "A*(weighted)"):
                         met["astar_heuristic_weight"] = args.astar_heuristic_weight
                         met["ridge_penalty_weight"] = args.ridge_penalty_weight
+                        met["landcover_penalty_weight"] = args.landcover_penalty_weight
                     met["time_s"] = round({
                         "VIN-Grad": t_vin,
                         "PPO": t_ppo,
@@ -723,6 +729,7 @@ def main():
             case_metrics[FINAL_ROUTE_LABEL].update({
                 "settlement_weight": args.settlement_weight,
                 "ridge_penalty_weight": args.ridge_penalty_weight,
+                "landcover_penalty_weight": args.landcover_penalty_weight,
                 "building_clearance_m": args.building_clearance_m,
                 "grade_penalty_weight": args.grade_penalty_weight,
                 "max_ground_grade_ratio": args.max_ground_grade,
@@ -756,6 +763,7 @@ def main():
                             **station_measurements,
                             "settlement_weight": args.settlement_weight,
                             "ridge_penalty_weight": args.ridge_penalty_weight,
+                            "landcover_penalty_weight": args.landcover_penalty_weight,
                             "building_clearance_m": args.building_clearance_m,
                             "grade_penalty_weight": args.grade_penalty_weight,
                             "max_ground_grade_ratio": args.max_ground_grade,
@@ -803,6 +811,7 @@ def main():
                                            "voltage_rules_applied": False,
                                            "settlement_weight": args.settlement_weight,
                                            "ridge_penalty_weight": args.ridge_penalty_weight,
+                                           "landcover_penalty_weight": args.landcover_penalty_weight,
                                            "building_clearance_m": args.building_clearance_m,
                                            "grade_penalty_weight": args.grade_penalty_weight,
                                            "max_ground_grade_ratio": args.max_ground_grade,

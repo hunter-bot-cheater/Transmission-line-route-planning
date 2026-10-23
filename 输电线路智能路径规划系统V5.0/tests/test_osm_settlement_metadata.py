@@ -188,6 +188,21 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         })
         self.assertEqual(float(overlapping[0, 0]), float(landuse_only[0, 0]))
 
+    def test_mapped_forest_and_wetland_codes_feed_the_soft_cost(self):
+        geoms = [
+            (box(0.1, 1.1, 0.9, 1.9), {"natural": "wood"}),
+            (box(1.1, 1.1, 1.9, 1.9), {"natural": "wetland"}),
+        ]
+        landuse_code = osm.compute_landuse_code(
+            geoms, Affine(1, 0, 0, 0, -1, 2), (2, 2))
+        terrain = {"slope": np.zeros((2, 2)), "roughness_27": np.zeros((2, 2))}
+
+        self.assertEqual(int(landuse_code[0, 0]), 1)
+        self.assertEqual(int(landuse_code[0, 1]), 7)
+        cost = build_route_cost(terrain, {"landuse_code": landuse_code})
+        self.assertAlmostEqual(float(cost[0, 0]), 0.10)
+        self.assertAlmostEqual(float(cost[0, 1]), 0.10)
+
     def test_legacy_wrapped_tag_strings_are_parsed_and_failures_are_counted(self):
         cache = self._save_cache("legacy_landuse.pkl", [
             _way([(0.1, 1.1), (0.9, 1.1), (0.9, 1.9), (0.1, 1.9)],
