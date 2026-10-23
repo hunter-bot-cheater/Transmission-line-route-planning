@@ -177,13 +177,16 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         start, goal = (1, 1), (16, 16)
         path = astar_search(cost, start, goal)
         reference = astar_search(cost, start, goal, use_dijkstra=True)
+        reverse = astar_search(cost, goal, start)
 
         def path_cost(route):
-            return sum(cost[r, c] * (np.sqrt(2) if r != pr and c != pc else 1.0)
+            return sum(0.5 * (cost[pr, pc] + cost[r, c])
+                       * (np.sqrt(2) if r != pr and c != pc else 1.0)
                        for (pr, pc), (r, c) in zip(route, route[1:]))
 
         self.assertTrue(path)
         self.assertAlmostEqual(path_cost(path), path_cost(reference), places=9)
+        self.assertAlmostEqual(path_cost(path), path_cost(reverse), places=9)
 
     def test_fixed_endpoints_must_be_inside_complete_hard_mask(self):
         hard_mask = np.ones((5, 5), dtype=np.uint8)

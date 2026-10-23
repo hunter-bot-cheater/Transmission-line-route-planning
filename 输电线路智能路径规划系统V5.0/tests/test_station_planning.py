@@ -236,7 +236,8 @@ class StationPlanningTests(unittest.TestCase):
         dijkstra = astar_search(cost, start, end, use_dijkstra=True, pixel_spacing=spacing)
 
         def physical_cost(path):
-            return sum(cost[r, c] * np.hypot((r - pr) * spacing[0], (c - pc) * spacing[1])
+            return sum(0.5 * (cost[pr, pc] + cost[r, c])
+                       * np.hypot((r - pr) * spacing[0], (c - pc) * spacing[1])
                        for (pr, pc), (r, c) in zip(path, path[1:]))
 
         self.assertAlmostEqual(physical_cost(astar), physical_cost(dijkstra))
@@ -250,7 +251,7 @@ class StationPlanningTests(unittest.TestCase):
         weighted = astar_search(cost, start, end, heuristic_weight=1.5)
 
         def route_cost(path):
-            return sum(cost[r, c] * np.hypot(r - pr, c - pc)
+            return sum(0.5 * (cost[pr, pc] + cost[r, c]) * np.hypot(r - pr, c - pc)
                        for (pr, pc), (r, c) in zip(path, path[1:]))
 
         self.assertLessEqual(route_cost(weighted), 1.5 * route_cost(exact) + 1e-9)

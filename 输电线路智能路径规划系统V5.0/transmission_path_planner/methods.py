@@ -760,7 +760,9 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
                 step_len = math.hypot(dr * row_m, dc * col_m)
             else:
                 step_len = ndist[ni]
-            step_cost = float(cost_raster[nr, nc])
+            # Trapezoidal integration makes each edge cost independent of traversal
+            # direction and includes the cost at both cell centers.
+            step_cost = 0.5 * (float(cost_raster[cr, cc]) + float(cost_raster[nr, nc]))
             if (elevation is not None and (pixel_spacing is not None or pixel_m)
                     and np.isfinite(elevation[cr, cc]) and np.isfinite(elevation[nr, nc])):
                 horizontal_m = step_len if pixel_spacing is not None else pixel_m * step_len
