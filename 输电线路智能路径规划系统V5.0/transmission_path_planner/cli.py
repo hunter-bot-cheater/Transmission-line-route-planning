@@ -234,6 +234,8 @@ def main():
                     help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight")
     ap.add_argument("--settlement-weight", type=float, default=2.0,
                     help="OSM建筑密度/住宅与商业用地代理的软避让权重(方案筛选参数, 默认2.0)")
+    ap.add_argument("--ridge-penalty-weight", type=float, default=0.10,
+                    help="基于300米TPI的高脊软惩罚权重；仅用地形，不读取线路几何")
     ap.add_argument("--building-clearance-m", type=float, default=0.0,
                     help="建筑物栅格硬避让距离(米, 必须小于5000); 0仅屏蔽已映射建筑足迹，不代表规范净距")
     ap.add_argument("--grade-penalty-weight", type=float, default=1.0,
@@ -297,6 +299,7 @@ def main():
         ap.error("--max-side 必须是正整数")
     float_parameters = {
         "--building-clearance-m": args.building_clearance_m,
+        "--ridge-penalty-weight": args.ridge_penalty_weight,
         "--settlement-weight": args.settlement_weight,
         "--grade-penalty-weight": args.grade_penalty_weight,
         "--astar-heuristic-weight": args.astar_heuristic_weight,
@@ -307,7 +310,8 @@ def main():
     for option, value in float_parameters.items():
         if value is not None and not math.isfinite(value):
             ap.error(f"{option} 必须是有限数值")
-    if (args.building_clearance_m < 0 or args.settlement_weight < 0
+    if (args.building_clearance_m < 0 or args.ridge_penalty_weight < 0
+            or args.settlement_weight < 0
             or args.grade_penalty_weight < 0):
         ap.error("避让距离与代价权重不能为负数")
     if args.astar_heuristic_weight < 1:
@@ -439,7 +443,10 @@ def main():
             stack = build_feature_stack(dem, terrain, osm) if needs_feature_stack else None
 
             model_cost = costunet.predict(stack) if costunet is not None else None
-            cost = build_route_cost(terrain, osm, args.settlement_weight, model_cost)
+            cost = build_route_cost(
+                terrain, osm, args.settlement_weight, model_cost,
+                ridge_penalty_weight=args.ridge_penalty_weight,
+            )
 
             real_geo = None
             if custom_constraints:
@@ -609,6 +616,7 @@ def main():
                     met = compute_metrics(geo, dem, transform, cost_grid, hard_mask, start_ll, end_ll)
                     if m in ("A*(baseline)", "A*(weighted)"):
                         met["astar_heuristic_weight"] = args.astar_heuristic_weight
+                        met["ridge_penalty_weight"] = args.ridge_penalty_weight
                     met["time_s"] = round({
                         "VIN-Grad": t_vin,
                         "PPO": t_ppo,
@@ -714,6 +722,7 @@ def main():
             case_metrics[FINAL_ROUTE_LABEL].update(station_offsets_by_method.get(best_method, {}))
             case_metrics[FINAL_ROUTE_LABEL].update({
                 "settlement_weight": args.settlement_weight,
+                "ridge_penalty_weight": args.ridge_penalty_weight,
                 "building_clearance_m": args.building_clearance_m,
                 "grade_penalty_weight": args.grade_penalty_weight,
                 "max_ground_grade_ratio": args.max_ground_grade,
@@ -746,6 +755,7 @@ def main():
                             "voltage_kv": station_task["voltage_kv"] or None,
                             **station_measurements,
                             "settlement_weight": args.settlement_weight,
+                            "ridge_penalty_weight": args.ridge_penalty_weight,
                             "building_clearance_m": args.building_clearance_m,
                             "grade_penalty_weight": args.grade_penalty_weight,
                             "max_ground_grade_ratio": args.max_ground_grade,
@@ -792,6 +802,7 @@ def main():
                                            **station_measurements,
                                            "voltage_rules_applied": False,
                                            "settlement_weight": args.settlement_weight,
+                                           "ridge_penalty_weight": args.ridge_penalty_weight,
                                            "building_clearance_m": args.building_clearance_m,
                                            "grade_penalty_weight": args.grade_penalty_weight,
                                            "max_ground_grade_ratio": args.max_ground_grade,
