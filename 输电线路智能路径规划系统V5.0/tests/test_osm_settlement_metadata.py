@@ -199,7 +199,8 @@ class OSMSettlementMetadataTests(unittest.TestCase):
 
         self.assertEqual(int(landuse_code[0, 0]), 1)
         self.assertEqual(int(landuse_code[0, 1]), 7)
-        cost = build_route_cost(terrain, {"landuse_code": landuse_code})
+        cost = build_route_cost(
+            terrain, {"landuse_code": landuse_code}, landcover_penalty_weight=0.10)
         self.assertAlmostEqual(float(cost[0, 0]), 0.10)
         self.assertAlmostEqual(float(cost[0, 1]), 0.10)
 

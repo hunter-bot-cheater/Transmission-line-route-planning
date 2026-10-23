@@ -42,9 +42,11 @@ class TerrainCostTests(unittest.TestCase):
 
         cost = build_route_cost(
             terrain, osm, settlement_weight=0.0, landcover_penalty_weight=0.10)
+        default = build_route_cost(terrain, osm, settlement_weight=0.0)
         missing = build_route_cost(terrain, {}, settlement_weight=0.0)
 
         np.testing.assert_allclose(cost, [[0.10, 0.10, 0.0, 0.0]])
+        np.testing.assert_allclose(default, np.zeros((1, 4), dtype=np.float32))
         np.testing.assert_allclose(missing, np.zeros((1, 4), dtype=np.float32))
 
     def test_astar_prefers_a_lower_corridor_around_a_high_ridge(self):

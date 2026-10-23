@@ -170,16 +170,17 @@ def heuristic_cost(dem, terrain):
 
 def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
                      ridge_penalty_weight=0.10,
-                     landcover_penalty_weight=0.10):
+                     landcover_penalty_weight=0.0):
     """Build an interpretable screening cost with a soft built-up proxy.
 
     The proxy is the maximum of normalized mapped-building density, mapped
     residential coverage, and land-use code 4 (residential/retail/commercial/
     urban). Taking the maximum combines overlapping OSM signals without
     double-counting them. Missing bands contribute no proxy; their availability
-    must be read from OSM layer metadata. Mapped forest and wetland codes add a
-    separate low-weight soft proxy; missing land use remains neutral. Neither
-    proxy is a hard exclusion or a substitute for legal environmental data.
+    must be read from OSM layer metadata. A nonzero land-cover weight adds a
+    separate soft cost to mapped forest and wetland codes; missing land use
+    remains neutral. Neither proxy is a hard exclusion or a substitute for
+    legal environmental data.
     """
     slope = np.nan_to_num(terrain["slope"], nan=0.0, posinf=90.0, neginf=0.0)
     roughness = np.nan_to_num(terrain["roughness_27"], nan=0.0, posinf=0.0, neginf=0.0)
