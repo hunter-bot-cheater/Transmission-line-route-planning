@@ -94,6 +94,26 @@ def validate_route_hard_constraints(geo, transform, hard_mask):
     return (geo if violations == 0 else None), report
 
 
+def route_search_window_clearance_m(geo, transform, shape, pixel_spacing):
+    """Return the closest route-vertex distance to the raster window edge."""
+    if not geo:
+        return None
+    height, width = shape
+    row_m, col_m = map(float, pixel_spacing)
+    inverse = ~transform
+    clearance = math.inf
+    for lon, lat in geo:
+        col, row = inverse * (lon, lat)
+        clearance = min(
+            clearance,
+            row * row_m,
+            (height - row) * row_m,
+            col * col_m,
+            (width - col) * col_m,
+        )
+    return round(float(clearance), 2)
+
+
 def screening_data_quality(osm_layer_metadata):
     """Describe missing settlement proxy layers without treating them as empty land."""
     required_layers = ("buildings", "landuse")
@@ -429,6 +449,8 @@ def main():
                     help="把CostUNet作为50%%软先验混入规则代价; 默认关闭，避免未知训练来源影响基线")
     ap.add_argument("--max-side", type=int, default=WORK_MAX_SIDE,
                     help=f"规划网格最长边；默认{WORK_MAX_SIDE}，尽量保留 DEM 原始分辨率，内存不足时可调低")
+    ap.add_argument("--window-margin-deg", type=float, default=0.30,
+                    help="起终点经纬度包围框外扩度数；扩大可检查候选路线是否受搜索窗口边界限制")
     ap.add_argument("--cases", type=int, default=4)
     ap.add_argument("--include-ai-diagnostics", action="store_true",
                     help="可选运行 VIN/PPO 作为诊断对照；AI 候选不会被选为最终路线")
@@ -474,6 +496,8 @@ def main():
         ap.error("--real-shp 不能与 --real-dir 同时使用")
     if args.max_side < 1:
         ap.error("--max-side 必须是正整数")
+    if args.window_margin_deg <= 0:
+        ap.error("--window-margin-deg 必须大于0")
     float_parameters = {
         "--building-clearance-m": args.building_clearance_m,
         "--ridge-penalty-weight": args.ridge_penalty_weight,
@@ -485,6 +509,7 @@ def main():
         "--official-hazard-weight": args.official_hazard_weight,
         "--turn-penalty-weight": args.turn_penalty_weight,
         "--astar-heuristic-weight": args.astar_heuristic_weight,
+        "--window-margin-deg": args.window_margin_deg,
         "--max-ground-grade": args.max_ground_grade,
         "--max-surface-slope-deg": args.max_surface_slope_deg,
         "--max-terrain-elevation-m": args.max_terrain_elevation_m,
@@ -595,7 +620,7 @@ def main():
     for ci, (cname, (slat, slon), (elat, elon)) in enumerate(cases):
         print(f"\n--- 用例 {ci + 1}/{len(cases)}: {cname} ---")
         try:
-            margin = 0.15
+            margin = args.window_margin_deg
             minlon, maxlon = min(slon, elon) - margin, max(slon, elon) + margin
             minlat, maxlat = min(slat, elat) - margin, max(slat, elat) + margin
             dem, transform, crs, pm = load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, args.max_side)
@@ -956,6 +981,9 @@ def main():
                         official_hazard_masks, osm_layer_metadata,
                         official_hazard_metadata.get("coverage_status", "unknown"),
                         official_hazard_metadata.get("layers", {}))
+                    met["search_window_margin_deg"] = args.window_margin_deg
+                    met["search_window_edge_clearance_m"] = route_search_window_clearance_m(
+                        geo, transform, dem.shape, route_pixel_spacing)
                     if m == astar_method and raw_astar_geo:
                         met["astar_search_path_objective"] = astar_path_objective(
                             a_path, cost_grid, dem, route_pixel_spacing,

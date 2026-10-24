@@ -347,6 +347,91 @@ class StationPlanningTests(unittest.TestCase):
         self.assertAlmostEqual(route_cost(dijkstra), 0.0)
         self.assertAlmostEqual(route_cost(astar), route_cost(dijkstra))
 
+    def test_astar_uses_physical_length_to_break_equal_cost_routes(self):
+        spacing = (3.0, 1.0)
+        path = astar_search(
+            np.zeros((7, 9)), (0, 0), (6, 8), pixel_spacing=spacing)
+        length = sum(
+            math.hypot((r1 - r0) * spacing[0], (c1 - c0) * spacing[1])
+            for (r0, c0), (r1, c1) in zip(path, path[1:]))
+        expected = 6 * math.hypot(*spacing) + 2 * spacing[1]
+
+        self.assertAlmostEqual(length, expected)
+
+    def test_astar_keeps_lower_cost_longer_route_over_shorter_costlier_route(self):
+        cost = np.full((3, 7), np.inf, dtype=np.float64)
+        cost[0, :] = 0.0
+        cost[1, :] = 4.0
+        cost[1, [0, -1]] = 0.0
+        start, goal = (1, 0), (1, 6)
+        path = astar_search(cost, start, goal)
+
+        def objective(route):
+            total_cost = 0.0
+            total_length = 0.0
+            for (r0, c0), (r1, c1) in zip(route, route[1:]):
+                step_length = math.hypot(r1 - r0, c1 - c0)
+                total_length += step_length
+                total_cost += 0.5 * (cost[r0, c0] + cost[r1, c1]) * step_length
+            return total_cost, total_length
+
+        planned_cost, planned_length = objective(path)
+        short_direct_cost, short_direct_length = objective(
+            [(1, col) for col in range(7)])
+
+        self.assertAlmostEqual(planned_cost, 0.0)
+        self.assertGreater(planned_length, short_direct_length)
+        self.assertGreater(short_direct_cost, planned_cost)
+
+    def test_astar_lexicographic_objective_matches_small_dijkstra_oracle(self):
+        cost = np.array([
+            [0.0, 0.0, 2.0, 2.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, np.inf, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [2.0, 2.0, 0.0, 0.0, 1.0, 0.0],
+        ], dtype=np.float64)
+        spacing = (1.5, 1.0)
+        start, goal = (0, 0), (3, 5)
+        directions = ((-1, 0), (-1, 1), (0, 1), (1, 1),
+                      (1, 0), (1, -1), (0, -1), (-1, -1))
+        best = {start: (0.0, 0.0)}
+        queue = [(0.0, 0.0, start)]
+        while queue:
+            total_cost, total_length, (row, col) = heapq.heappop(queue)
+            if (total_cost, total_length) != best[(row, col)]:
+                continue
+            if (row, col) == goal:
+                break
+            for dr, dc in directions:
+                nr, nc = row + dr, col + dc
+                if not (0 <= nr < cost.shape[0] and 0 <= nc < cost.shape[1]):
+                    continue
+                if not np.isfinite(cost[nr, nc]):
+                    continue
+                if dr and dc and (not np.isfinite(cost[row + dr, col])
+                                  or not np.isfinite(cost[row, col + dc])):
+                    continue
+                step_length = math.hypot(dr * spacing[0], dc * spacing[1])
+                candidate = (
+                    total_cost + 0.5 * (cost[row, col] + cost[nr, nc]) * step_length,
+                    total_length + step_length,
+                )
+                if candidate < best.get((nr, nc), (math.inf, math.inf)):
+                    best[(nr, nc)] = candidate
+                    heapq.heappush(queue, (*candidate, (nr, nc)))
+
+        path = astar_search(cost, start, goal, pixel_spacing=spacing)
+        objective = (0.0, 0.0)
+        for (r0, c0), (r1, c1) in zip(path, path[1:]):
+            step_length = math.hypot((r1 - r0) * spacing[0],
+                                     (c1 - c0) * spacing[1])
+            objective = (
+                objective[0] + 0.5 * (cost[r0, c0] + cost[r1, c1]) * step_length,
+                objective[1] + step_length,
+            )
+
+        self.assertEqual(objective, best[goal])
+
     def test_zero_cost_astar_uses_goal_distance_only_as_tie_break(self):
         cost = np.zeros((32, 64), dtype=np.float32)
         pop_count = 0

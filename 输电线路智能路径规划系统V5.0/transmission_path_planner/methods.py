@@ -848,13 +848,14 @@ def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
 def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=None,
                  pixel_m=None, grade_penalty_weight=1.0, max_ground_grade=None,
                  pixel_spacing=None, heuristic_weight=1.0, turn_penalty_weight=0.0):
-    """Search a 8-neighbor raster; turn penalty is a dimensionless tradeoff.
+    """Search an 8-neighbor raster; weight-1 A* minimizes cost, then length.
 
     For positive ``turn_penalty_weight``, each interior turn adds
     ``weight * mean(adjacent edge costs) * (1 - cos(turn_angle))``. Edge costs
     use the same cost-by-meter integral as the base objective, making the added
     term have matching units. Endpoints have no turn cost. The weight is not an
-    electrical design standard. Zero preserves the original cell-only A*.
+    electrical design standard. The secondary length objective applies to the
+    cell-only search; the turn-penalty state search keeps its existing objective.
     """
     import heapq
     if not math.isfinite(float(heuristic_weight)) or heuristic_weight < 1.0:
@@ -905,17 +906,20 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
     # Use raster arrays for search state instead of Python tuple-keyed dicts/sets.
     # Large high-resolution corridors otherwise consume several GiB of Python objects.
     g = np.full((H, W), np.inf, dtype=np.float64)
+    g_length = np.full((H, W), np.inf, dtype=np.float64)
     parent = np.full((H, W), -1, dtype=np.int64)
     closed = np.zeros((H, W), dtype=bool)
     g[sr, sc] = 0.0
+    g_length[sr, sc] = 0.0
     start_h = h(sr, sc)
-    open_set = [(start_h, distance_to_goal(sr, sc), 0, sr * W + sc, 0.0)]
+    start_length_h = distance_to_goal(sr, sc)
+    open_set = [(start_h, start_length_h, 0, sr * W + sc, 0.0, 0.0)]
     tb = 0
     while open_set:
-        _, _, _, cur_idx, queued_g = heapq.heappop(open_set)
+        _, _, _, cur_idx, queued_g, queued_length = heapq.heappop(open_set)
         cr, cc = divmod(cur_idx, W)
         # Reopened nodes can leave older heap entries behind.
-        if queued_g != g[cr, cc]:
+        if queued_g != g[cr, cc] or queued_length != g_length[cr, cc]:
             continue
         if closed[cr, cc]:
             continue
@@ -961,15 +965,17 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
                 grade = abs(float(elevation[nr, nc]) - float(elevation[cr, cc])) / horizontal_m
                 step_cost += max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0)
             tg = g[cr, cc] + step_cost * step_len
-            if tg < g[nr, nc]:
+            tl = g_length[cr, cc] + step_len
+            if tg < g[nr, nc] or (tg == g[nr, nc] and tl < g_length[nr, nc]):
                 g[nr, nc] = tg
+                g_length[nr, nc] = tl
                 closed[nr, nc] = False
                 next_h = h(nr, nc)
-                # Geometric tie-breaking stays secondary to the admissible f-cost.
+                # Exact A* minimizes (cost, then physical length) lexicographically.
                 heapq.heappush(
                     open_set,
-                    (tg + next_h, distance_to_goal(nr, nc), tb,
-                     nr * W + nc, tg),
+                    (tg + next_h, tl + distance_to_goal(nr, nc), tb,
+                     nr * W + nc, tg, tl),
                 )
                 parent[nr, nc] = cr * W + cc
                 tb += 1

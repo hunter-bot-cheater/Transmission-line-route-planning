@@ -21,6 +21,7 @@ from transmission_path_planner.cli import (
     main,
     resolve_real_path,
     method_visual_similarity_summary,
+    route_search_window_clearance_m,
     run_method_or_skip_on_oom,
     train_vin_or_skip_on_oom,
     validate_endpoint_cells,
@@ -40,6 +41,17 @@ from transmission_path_planner import metrics
 
 
 class ReferenceIndependentPlanningTests(unittest.TestCase):
+    def test_search_window_clearance_uses_nearest_rectangular_edge(self):
+        transform = Affine(1, 0, 0, 0, -1, 10)
+        path = [rowcol_to_geo(1, 1, transform), rowcol_to_geo(8, 4, transform)]
+
+        self.assertEqual(
+            route_search_window_clearance_m(path, transform, (10, 20), (10, 20)),
+            15.0,
+        )
+        self.assertIsNone(
+            route_search_window_clearance_m([], transform, (10, 20), (10, 20)))
+
     def test_restores_both_exact_input_endpoints(self):
         snapped_route = [(120.0, 22.0), (120.1, 22.1), (120.2, 22.2)]
         restored = attach_input_endpoints(
