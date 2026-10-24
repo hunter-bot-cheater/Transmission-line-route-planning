@@ -496,7 +496,7 @@ def main():
     ap.add_argument("--start", type=str, default=None, help="起点 lat,lon")
     ap.add_argument("--end", type=str, default=None, help="终点 lat,lon")
     ap.add_argument("--stations-csv", type=str, default=None,
-                    help="站点表: station_id,name,lat,lon,voltage_kv; 坐标应为线路接入点")
+                    help="站点表需含 station_id,lat,lon,coordinate_crs；坐标为 EPSG:4326 线路接入点")
     ap.add_argument("--route-tasks-csv", type=str, default=None,
                     help="站间任务表: route_id,from_station_id,to_station_id")
     ap.add_argument("--constraint-geojson", type=str, default=None,
