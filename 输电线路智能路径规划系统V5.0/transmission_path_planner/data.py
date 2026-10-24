@@ -211,16 +211,23 @@ def population_density_cost(density_people_per_km2):
     return cost
 
 
-def population_cost_for_routing(density_people_per_km2, nodata_policy="maximum"):
+def population_cost_for_routing(
+        density_people_per_km2, nodata_policy="maximum", valid_mask=None):
     """Fill unknown population cells for search while retaining their mask."""
     proxy = population_density_cost(density_people_per_km2)
     unknown = ~np.isfinite(proxy)
+    valid_for_imputation = ~unknown
+    if valid_mask is not None:
+        valid_mask = np.asarray(valid_mask, dtype=bool)
+        if valid_mask.shape != proxy.shape:
+            raise ValueError("population imputation mask must match the density grid")
+        valid_for_imputation &= valid_mask
     if nodata_policy == "maximum":
         fill_cost = 1.0
     elif nodata_policy == "median":
-        if not np.any(~unknown):
-            raise ValueError("median NoData policy requires at least one valid population cell")
-        fill_cost = float(np.median(proxy[~unknown]))
+        if not np.any(valid_for_imputation):
+            raise ValueError("median NoData policy requires a valid population cell in the planning mask")
+        fill_cost = float(np.median(proxy[valid_for_imputation]))
     elif nodata_policy == "zero":
         fill_cost = 0.0
     else:

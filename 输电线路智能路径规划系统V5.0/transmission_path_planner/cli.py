@@ -516,7 +516,7 @@ def main():
                     help="WorldPop 人口密度软成本权重；默认0关闭，需同时指定 --population-raster")
     ap.add_argument("--population-nodata-policy", choices=("maximum", "median", "zero"),
                     default="maximum",
-                    help="人口栅格 NoData 搜索代价填充值；默认 maximum 保守惩罚，median 仅作缺失敏感性分析")
+                    help="人口栅格 NoData 搜索代价填充值；默认 maximum 保守惩罚，median/zero 仅作缺失敏感性分析")
     ap.add_argument("--ridge-penalty-weight", type=float, default=0.10,
                     help="基于300米TPI的高脊软惩罚权重；仅用地形，不读取线路几何")
     ap.add_argument("--landcover-penalty-weight", type=float, default=0.0,
@@ -792,12 +792,14 @@ def main():
                     POPULATION_DENSITY_NORMALIZATION_PEOPLE_PER_KM2),
             }
             if args.population_weight > 0:
+                dem_valid_mask = np.isfinite(dem)
                 population_density, population_metadata = load_population_density_window(
                     args.population_raster, dem.shape, transform, crs,
-                    required_mask=np.isfinite(dem),
+                    required_mask=dem_valid_mask,
                 )
                 population_proxy, population_unknown_mask = population_cost_for_routing(
-                    population_density, nodata_policy=args.population_nodata_policy)
+                    population_density, nodata_policy=args.population_nodata_policy,
+                    valid_mask=dem_valid_mask)
                 population_valid_mask = ~population_unknown_mask
                 population_metadata["weight"] = args.population_weight
                 population_metadata["source_value_semantics"] = (
@@ -807,14 +809,19 @@ def main():
                     "log1p(normalization_scale), clipped to [0, 1]")
                 population_metadata["nodata_cost_policy"] = {
                     "maximum": "fixed maximum normalized proxy penalty (1.0); not a population estimate",
-                    "median": "median normalized proxy among valid cells in this planning window; imputation only",
-                    "zero": "zero routing penalty; neutral sensitivity scenario, not an empty-population estimate",
+                    "median": "median normalized proxy among valid population cells on valid DEM pixels in this planning window; imputation only",
+                    "zero": "zero-cost fill sensitivity scenario; not an empty-population estimate",
+                }[args.population_nodata_policy]
+                nodata_policy_label = {
+                    "maximum": "最大归一化惩罚",
+                    "median": "DEM有效区域中位数填补（敏感性分析）",
+                    "zero": "零代价填补（敏感性分析）",
                 }[args.population_nodata_policy]
                 print(
                     "  人口软成本已对齐："
                     f"coverage={population_metadata['coverage_ratio']:.3f}, "
                     f"scale={population_metadata['normalization_scale_people_per_km2']:.0f} people/km², "
-                    f"NoData按最大归一化惩罚处理"
+                    f"NoData策略={nodata_policy_label}"
                 )
             if args.turn_penalty_weight > 0:
                 state_gib = H * W * (8 * 8 + 8) / (1024 ** 3)
