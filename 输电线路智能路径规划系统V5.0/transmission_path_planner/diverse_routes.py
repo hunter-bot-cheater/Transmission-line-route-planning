@@ -40,6 +40,155 @@ def _production_objective(path, cost, elevation, spacing, grade_penalty_weight,
     return float(result["total_cost"])
 
 
+def sampled_pareto_astar_routes(
+    cost_raster,
+    hard_mask,
+    start_rc,
+    end_rc,
+    *,
+    pixel_spacing,
+    environmental_weight_samples=(0.0, 0.25, 0.5, 0.75, 1.0),
+    elevation=None,
+    pixel_m=None,
+    grade_penalty_weight=1.0,
+    max_ground_grade=None,
+    turn_penalty_weight=0.0,
+):
+    """Sample scalarized A* routes and return their non-dominated subset.
+
+    Weight 0 searches shortest feasible distance; weight 1 uses the supplied
+    production cost surface. Intermediate weights blend median-normalized
+    cost resistance with unit distance resistance. The reported frontier is
+    evaluated at 1e-6 reporting precision within the finite sampled route set,
+    not over the full path space. Objective components use the production
+    objective implementation.
+    """
+    cost = np.asarray(cost_raster, dtype=np.float64)
+    raw_mask = np.asarray(hard_mask)
+    if cost.ndim != 2 or raw_mask.shape != cost.shape:
+        raise ValueError("cost_raster and hard_mask must be same-shape 2D arrays")
+    if raw_mask.dtype != np.bool_:
+        if (not np.issubdtype(raw_mask.dtype, np.number)
+                or not np.all(np.isfinite(raw_mask))
+                or not np.all(np.isin(raw_mask, (0, 1)))):
+            raise ValueError("hard_mask must contain only boolean or 0/1 values")
+    usable = raw_mask.astype(bool, copy=False) & np.isfinite(cost)
+    if np.any(cost[usable] < 0):
+        raise ValueError("cost_raster must be non-negative on traversable cells")
+    spacing = tuple(map(float, pixel_spacing))
+    if len(spacing) != 2 or any(not math.isfinite(x) or x <= 0 for x in spacing):
+        raise ValueError("pixel_spacing must contain two finite positive values")
+    if elevation is not None:
+        elevation = np.asarray(elevation, dtype=np.float64)
+        if elevation.shape != cost.shape:
+            raise ValueError("elevation must have the same shape as cost_raster")
+    if max_ground_grade is not None and elevation is None:
+        raise ValueError("elevation is required when max_ground_grade is set")
+    start = _grid_point(start_rc, "start_rc")
+    end = _grid_point(end_rc, "end_rc")
+    if any(not (0 <= r < cost.shape[0] and 0 <= c < cost.shape[1]) or not usable[r, c]
+           for r, c in (start, end)):
+        return []
+    weights = tuple(sorted(set(map(float, environmental_weight_samples))))
+    if (not weights or any(not math.isfinite(weight) or not 0.0 <= weight <= 1.0
+                           for weight in weights)):
+        raise ValueError("environmental weights must be finite values in [0, 1]")
+    if (not math.isfinite(float(grade_penalty_weight)) or grade_penalty_weight < 0
+            or not math.isfinite(float(turn_penalty_weight)) or turn_penalty_weight < 0):
+        raise ValueError("grade and turn penalty weights must be finite and non-negative")
+    if max_ground_grade is not None and (
+            not math.isfinite(float(max_ground_grade)) or max_ground_grade <= 0):
+        raise ValueError("max_ground_grade must be finite and positive")
+
+    base_cost = np.where(usable, cost, np.inf)
+    positive_costs = cost[usable & (cost > 0)]
+    median_cost = float(np.median(positive_costs)) if positive_costs.size else 1.0
+    normalized = cost / median_cost
+    candidates = {}
+    for weight in weights:
+        if weight == 1.0:
+            search_cost = base_cost
+            search_grade_weight = float(grade_penalty_weight)
+            search_turn_weight = float(turn_penalty_weight)
+        elif weight == 0.0:
+            search_cost = np.where(usable, 1.0, np.inf)
+            search_grade_weight = 0.0
+            search_turn_weight = 0.0
+        else:
+            blended = (1.0 - weight) + weight * normalized
+            search_cost = np.where(usable, blended, np.inf)
+            search_grade_weight = weight * float(grade_penalty_weight)
+            search_turn_weight = weight * float(turn_penalty_weight)
+        path = astar_search(
+            search_cost, start, end, elevation=elevation, pixel_m=pixel_m,
+            grade_penalty_weight=search_grade_weight,
+            max_ground_grade=max_ground_grade, pixel_spacing=spacing,
+            heuristic_weight=1.0, turn_penalty_weight=search_turn_weight,
+        )
+        if not path or _hard_violations(path, usable):
+            continue
+        key = tuple(tuple(map(int, point)) for point in path)
+        candidates.setdefault(key, []).append(weight)
+
+    from .metrics import astar_path_objective
+
+    records = []
+    for path, weights_for_path in candidates.items():
+        objective = astar_path_objective(
+            path, base_cost, elevation, spacing,
+            grade_penalty_weight, turn_penalty_weight)
+        if objective["status"] != "measured":
+            continue
+        length_m = sum(math.hypot((b[0] - a[0]) * spacing[0],
+                                  (b[1] - a[1]) * spacing[1])
+                       for a, b in zip(path, path[1:]))
+        records.append({
+            "path": list(path),
+            "sampled_environmental_weights": weights_for_path,
+            "objective_vector": {
+                "base_cost_meter": objective["base_cost"],
+                "grade_cost_meter": objective["grade_cost"],
+                "turn_cost_meter": objective["turn_cost"],
+                "length_m": length_m,
+                "production_total_cost_meter": objective["total_cost"],
+            },
+            "hard_constraint_legal": True,
+            "hard_violation_count": 0,
+            "pareto_scope": "finite_scalarization_samples_only",
+            "pareto_optimal": False,
+        })
+
+    objective_keys = (
+        "base_cost_meter", "grade_cost_meter", "turn_cost_meter", "length_m")
+    # astar_path_objective currently reports components rounded to 1e-6. Treat
+    # differences below that reporting precision as ties to avoid unstable
+    # dominance decisions.
+    dominance_epsilon = 1e-6
+    frontier = []
+    for candidate in records:
+        candidate_vector = tuple(candidate["objective_vector"][key] for key in (
+            objective_keys))
+        dominated = False
+        for other in records:
+            if other is candidate:
+                continue
+            other_vector = tuple(other["objective_vector"][key] for key in objective_keys)
+            no_worse = all(value <= target + dominance_epsilon
+                           for value, target in zip(other_vector, candidate_vector))
+            strictly_better = any(value < target - dominance_epsilon
+                                  for value, target in zip(other_vector, candidate_vector))
+            if no_worse and strictly_better:
+                dominated = True
+                break
+        candidate["pareto_optimal"] = not dominated
+        if not dominated:
+            frontier.append(candidate)
+    return sorted(frontier, key=lambda item: (
+        item["objective_vector"]["production_total_cost_meter"],
+        item["objective_vector"]["length_m"],
+    ))
+
+
 def _hard_violations(path, hard_mask):
     violations = 0
     height, width = hard_mask.shape
@@ -165,6 +314,8 @@ def diverse_astar_routes(
         elevation = np.asarray(elevation, dtype=np.float64)
         if elevation.shape != cost.shape:
             raise ValueError("elevation must have the same shape as cost_raster")
+    if max_ground_grade is not None and elevation is None:
+        raise ValueError("elevation is required when max_ground_grade is set")
     spacing = tuple(map(float, pixel_spacing))
     if len(spacing) != 2 or any(not math.isfinite(x) or x <= 0 for x in spacing):
         raise ValueError("pixel_spacing must contain two finite positive values")
