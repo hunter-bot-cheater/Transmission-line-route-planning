@@ -1,0 +1,34 @@
+{
+  "scope": "per_case_planning_and_required_route_artifacts",
+  "expected_cases": 1,
+  "completed_cases": 0,
+  "recorded_cases": 0,
+  "failed_cases": [
+    {
+      "case": "TW173",
+      "error": "Unable to allocate 102. MiB for an array with shape (4096, 3271) and data type float64"
+    }
+  ],
+  "no_route_cases": [],
+  "complete": false,
+  "real_evaluation_by_case": [],
+  "dem": "D:\\大创\\results\\route_eval_20m_wgs84_20261022\\inputs\\dem_20m_wgs84_bilinear.tif",
+  "max_side": 4096,
+  "argv": [
+    "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\transmission_path_planner\\__main__.py",
+    "--dem",
+    "D:\\大创\\results\\route_eval_20m_wgs84_20261022\\inputs\\dem_20m_wgs84_bilinear.tif",
+    "--osm-cache-dir",
+    "D:\\大创\\V5_final\\data\\downloaded",
+    "--real-cases-csv",
+    "outputs\\tw173_singlecase_task_20261025.csv",
+    "--real-dir",
+    "D:\\大创\\data\\real_cases_tw",
+    "--out-dir",
+    "outputs\\dem20m_sensitivity_tw173_20261025",
+    "--no-vin",
+    "--no-ppp",
+    "--max-side",
+    "4096"
+  ]
+}

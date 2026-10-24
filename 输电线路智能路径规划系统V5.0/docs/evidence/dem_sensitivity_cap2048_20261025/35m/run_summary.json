@@ -1,0 +1,86 @@
+{
+  "scope": "per_case_planning_and_required_route_artifacts",
+  "expected_cases": 8,
+  "completed_cases": 8,
+  "recorded_cases": 8,
+  "failed_cases": [],
+  "no_route_cases": [],
+  "complete": true,
+  "real_evaluation_by_case": [
+    {
+      "case": "TW173",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "天輪~龍潭線",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW59",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "深美～冬山線",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW102",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW252",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW345",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "明潭-鳳林線",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    }
+  ],
+  "dem": "data\\taiwan_dem_35m_georef_fixed.tif",
+  "max_side": 2048,
+  "argv": [
+    "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\transmission_path_planner\\__main__.py",
+    "--dem",
+    "data\\taiwan_dem_35m_georef_fixed.tif",
+    "--osm-cache-dir",
+    "D:\\大创\\V5_final\\data\\downloaded",
+    "--real-cases-csv",
+    "outputs\\dem_pair_20m_fullwindow_cases_20261025.csv",
+    "--real-dir",
+    "D:\\大创\\data\\real_cases_tw",
+    "--out-dir",
+    "outputs\\dem35m_sensitivity_fullwindow_cap2048_20261025",
+    "--no-vin",
+    "--no-ppp",
+    "--max-side",
+    "2048"
+  ]
+}

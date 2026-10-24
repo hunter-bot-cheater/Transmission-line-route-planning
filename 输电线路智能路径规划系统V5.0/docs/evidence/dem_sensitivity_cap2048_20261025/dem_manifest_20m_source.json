@@ -1,0 +1,61 @@
+{
+  "source_path": "D:\\大创\\results\\route_eval_20m_wgs84_20261022\\inputs\\source_20m_custom_wgs84_tm121.tif",
+  "source_sha256": "f05912e2233b40497c1b9d7f469893f668823f72005a949e9634ce69303d0e3f",
+  "third_party_published_tif_sha256": "f05912e2233b40497c1b9d7f469893f668823f72005a949e9634ce69303d0e3f",
+  "docker_image_digest": "sha256:1159a342d57c9408c55f659482c2dc84971acf36409736adfb3ab5314754ae65",
+  "docker_layer_digest": "sha256:9045d77806bd719f41632c4138549b7ad6e8a768629507e2f670ce280c32c161",
+  "source_crs_wkt": "PROJCS[\"GCS_WGS_1984\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.25722356049,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",121],PARAMETER[\"scale_factor\",0.9999],PARAMETER[\"false_easting\",250000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+  "source_crs_authority": null,
+  "source_epsg": null,
+  "source_bounds": [
+    150970.0,
+    2422130.0,
+    351670.0,
+    2799170.0
+  ],
+  "source_resolution_m": [
+    20.0,
+    20.0
+  ],
+  "source_shape": [
+    18852,
+    10035
+  ],
+  "source_nodata": -32767.0,
+  "source_tags": {},
+  "target_crs": "EPSG:4326",
+  "target_resolution_degrees": [
+    0.00019595278284355454,
+    0.0001805711726950988
+  ],
+  "reference_latitude_deg": 23.597662294462243,
+  "target_cell_geodesic_m_at_reference_lat": [
+    20.000040680071628,
+    19.99869927545863
+  ],
+  "target_transform": [
+    0.00019595278284355454,
+    0.0,
+    120.01656605428614,
+    0.0,
+    -0.0001805711726950988,
+    25.301473410165478
+  ],
+  "target_width": 10172,
+  "target_height": 18872,
+  "target_bounds": [
+    120.01656605428614,
+    21.893734239063573,
+    122.00979776137078,
+    25.301473410165478
+  ],
+  "warp": "Rasterio WarpedVRT; source CRS read as encoded, no CRS override; bilinear; tiled DEFLATE GeoTIFF",
+  "vertical_datum": "unverified in TIFF metadata; repository README claims TWVD2001 only",
+  "source_provenance": "third-party Docker image layer; file bytes match the repository-published SHA256, not an official signature/checksum",
+  "rasterio_version": "1.5.0",
+  "gdal_version": "3.12.1",
+  "proj_version": "9.5.1",
+  "written_blocks": 740,
+  "output_sha256": "e6171c023fe6b4f14ef7ccf7265b06d382a9903bde1d5399263b8fe8c2d36fc5",
+  "output_size_bytes": 246224590
+}
