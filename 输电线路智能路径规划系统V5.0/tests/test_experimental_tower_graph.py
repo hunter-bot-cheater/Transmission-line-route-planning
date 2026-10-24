@@ -2,7 +2,10 @@ import math
 
 import numpy as np
 
-from transmission_path_planner.experimental_tower_graph import tower_graph_route
+from transmission_path_planner.experimental_tower_graph import (
+    span_clearance_status,
+    tower_graph_route,
+)
 
 
 def _small_graph_dijkstra_cost(nodes, start, goal, min_span, max_span,
@@ -294,3 +297,153 @@ def test_lazy_a_star_handles_zero_cost_and_inclusive_span_boundaries():
     assert tower_graph_route(
         cost, traversable, tower_allowed, (0, 1), (0, 1),
         1.9, 2.1, candidate_stride=1) == [(0, 1)]
+
+
+def test_profile_clearance_rejects_ridge_and_routes_around_it():
+    cost = np.ones((7, 11), dtype=np.float64)
+    dem = np.zeros(cost.shape, dtype=np.float64)
+    dem[3, 5] = 20.0
+    dem[3, 0] = 2.0
+    dem[3, 10] = 10.0
+    allowed = np.zeros(cost.shape, dtype=bool)
+    allowed[0, 5] = True
+    allowed[6, 5] = True
+    traversable = np.ones(cost.shape, dtype=bool)
+    start, goal = (3, 0), (3, 10)
+
+    direct = span_clearance_status(
+        start, goal, dem, (1.0, 1.0), 20.0, 5.0, 3.0)
+    reverse_direct = span_clearance_status(
+        goal, start, dem, (1.0, 1.0), 20.0, 5.0, 3.0)
+    route = tower_graph_route(
+        cost, traversable, allowed, start, goal, 4.0, 10.5,
+        pixel_spacing=(1.0, 1.0), candidate_stride=1,
+        dem_raster=dem, attachment_height_m=20.0,
+        max_midspan_sag_m=5.0, minimum_clearance_m=3.0)
+    reverse_route = tower_graph_route(
+        cost, traversable, allowed, goal, start, 4.0, 10.5,
+        pixel_spacing=(1.0, 1.0), candidate_stride=1,
+        dem_raster=dem, attachment_height_m=20.0,
+        max_midspan_sag_m=5.0, minimum_clearance_m=3.0)
+
+    assert direct["status"] == "fail"
+    assert reverse_direct["status"] == direct["status"]
+    assert np.isclose(reverse_direct["sampled_minimum_clearance_m"],
+                      direct["sampled_minimum_clearance_m"])
+    assert route is not None
+    assert route == reverse_route[::-1]
+    assert route[1] in {(0, 5), (6, 5)}
+    assert all(span_clearance_status(
+        first, second, dem, (1.0, 1.0), 20.0, 5.0, 3.0)["status"] == "sampled_clearance_ok"
+        for first, second in zip(route, route[1:]))
+
+
+def test_profile_nodata_is_unknown_and_rejects_span():
+    cost = np.ones((1, 11), dtype=np.float64)
+    dem = np.zeros(cost.shape, dtype=np.float64)
+    dem[0, 5] = np.nan
+    allowed = np.zeros(cost.shape, dtype=bool)
+    traversable = np.ones(cost.shape, dtype=bool)
+    start, goal = (0, 0), (0, 10)
+
+    status = span_clearance_status(
+        start, goal, dem, (1.0, 1.0), 20.0, 5.0, 3.0)
+    route = tower_graph_route(
+        cost, traversable, allowed, start, goal, 1.0, 11.0,
+        candidate_stride=1, dem_raster=dem, attachment_height_m=20.0,
+        max_midspan_sag_m=5.0, minimum_clearance_m=3.0)
+
+    assert status["status"] == "unknown"
+    assert status["reason"] == "dem_nodata"
+    assert route is None
+
+
+def test_profile_mask_and_finite_nodata_are_unknown():
+    dem = np.ma.array(np.zeros((1, 5)), mask=False)
+    dem.mask[0, 2] = True
+    masked = span_clearance_status(
+        (0, 0), (0, 4), dem, (1.0, 1.0), 20.0, 5.0, 3.0)
+
+    sentinel_dem = np.zeros((1, 5), dtype=np.float64)
+    sentinel_dem[0, 2] = -9999.0
+    sentinel = span_clearance_status(
+        (0, 0), (0, 4), sentinel_dem, (1.0, 1.0), 20.0, 5.0, 3.0,
+        dem_nodata_value=-9999.0)
+    masked_by_validity = span_clearance_status(
+        (0, 0), (0, 4), sentinel_dem, (1.0, 1.0), 20.0, 5.0, 3.0,
+        dem_valid_mask=np.array([[True, True, False, True, True]]))
+    masked_validity = np.ma.array(np.ones((1, 5), dtype=bool), mask=False)
+    masked_validity.mask[0, 2] = True
+    validity_masked = span_clearance_status(
+        (0, 0), (0, 4), np.zeros((1, 5)), (1.0, 1.0), 20.0, 5.0, 3.0,
+        dem_valid_mask=masked_validity)
+
+    assert masked["status"] == "unknown"
+    assert sentinel["status"] == "unknown"
+    assert masked_by_validity["status"] == "unknown"
+    assert validity_masked["status"] == "unknown"
+
+
+def test_profile_numerical_overflow_is_unknown():
+    dem = np.full((1, 3), 1e308, dtype=np.float64)
+    status = span_clearance_status(
+        (0, 0), (0, 2), dem, (1.0, 1.0), 1e308, 5.0, 3.0)
+
+    assert status["status"] == "unknown"
+    assert status["reason"] == "numerical_overflow"
+
+
+def test_profile_checks_interior_minimum_when_vertex_denominator_would_overflow():
+    dem = np.array([[0.0, 5e307], [5e307, 0.0]])
+
+    status = span_clearance_status(
+        (0, 0), (1, 1), dem, (1.0, 1.0), 0.0, 0.0, 0.0)
+
+    assert status["status"] == "fail"
+    assert np.isclose(status["sampled_minimum_clearance_m"], -2.5e307)
+
+
+def test_profile_clearance_is_direction_invariant_at_threshold():
+    dem = np.array([
+        [-30.0, 26.0, -17.0, 69.0],
+        [-50.0, 11.0, -75.0, -58.0],
+        [-66.0, 49.0, -60.0, 34.0],
+        [-31.0, 13.0, 75.0, 73.0],
+    ])
+    start, end = (0, 3), (3, 2)
+
+    forward = span_clearance_status(
+        start, end, dem, (7.0, 5.0), 0.0, 10.0, 0.0)
+    reverse = span_clearance_status(
+        end, start, dem, (7.0, 5.0), 0.0, 10.0, 0.0)
+
+    assert forward["status"] == reverse["status"]
+    assert (forward["sampled_minimum_clearance_m"]
+            == reverse["sampled_minimum_clearance_m"])
+    assert np.isclose(
+        forward["limiting_distance_m"] + reverse["limiting_distance_m"],
+        np.hypot(3.0 * 7.0, 5.0))
+
+
+def test_profile_solves_interior_clearance_minimum_between_raster_cells():
+    dem = np.array([[0.0, 20.0], [20.0, 0.0]])
+    status = span_clearance_status(
+        (0, 0), (1, 1), dem, (1.0, 1.0), 20.0, 5.0, 6.0)
+
+    assert status["status"] == "fail"
+    assert np.isclose(status["sampled_minimum_clearance_m"], 5.0)
+    assert np.isclose(status["limiting_distance_m"], np.sqrt(2.0) / 2.0)
+
+
+def test_profile_parameters_must_be_supplied_together():
+    cost = np.ones((1, 3), dtype=np.float64)
+    allowed = np.ones(cost.shape, dtype=bool)
+
+    try:
+        tower_graph_route(
+            cost, allowed, allowed, (0, 0), (0, 2), 1.0, 3.0,
+            dem_raster=cost, attachment_height_m=20.0)
+    except ValueError as error:
+        assert "supplied together" in str(error)
+    else:
+        raise AssertionError("partial profile inputs must be rejected")
