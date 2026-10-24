@@ -1,0 +1,50 @@
+{
+  "experiment_type": "synthetic_sensitivity_only_not_real_route_or_engineering_validation",
+  "surface": {
+    "shape": [
+      51,
+      61
+    ],
+    "pixel_spacing_m": [
+      100.0,
+      100.0
+    ],
+    "formula": "250 + 0.15*abs(row-25)*100 + 420*exp(-((col-30)/4)^2)*(1-0.82*exp(-((row-12)/3.5)^2))",
+    "start_rc": [
+      25,
+      3
+    ],
+    "goal_rc": [
+      25,
+      57
+    ],
+    "tower_site_slope_limit_deg": 20.0
+  },
+  "sweep": {
+    "minimum_span_m": 200.0,
+    "maximum_span_m": [
+      500.0,
+      700.0,
+      900.0
+    ],
+    "candidate_stride_cells": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "attachment_height_m": [
+      80.0,
+      160.0
+    ],
+    "maximum_midspan_sag_m": [
+      20.0,
+      80.0,
+      140.0
+    ],
+    "minimum_clearance_m": 15.0,
+    "parameter_status": "illustrative_values_not_selected_from_an_engineering_standard"
+  },
+  "result_rows": 73,
+  "csv": "tower_graph_sensitivity.csv"
+}
