@@ -314,10 +314,14 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         )
 
     def test_final_route_never_falls_back_to_ai_candidates(self):
-        methods = {"PPO": [(1, 1)], "VIN-Grad": [(1, 1)], "A*(baseline)": None}
+        methods = {
+            "PPO": [(1, 1)], "VIN-Grad": [(1, 1)],
+            "Sampled Pareto 01": [(1, 1)], "A*(baseline)": None,
+        }
         metrics = {
             "PPO": {"hard_violations": 0},
             "VIN-Grad": {"hard_violations": 0},
+            "Sampled Pareto 01": {"hard_violations": 0},
         }
 
         self.assertEqual(
@@ -349,6 +353,15 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
     def test_final_route_does_not_select_experimental_tower_graph(self):
         methods = {"Tower graph (experimental)": [(1, 1), (1, 2)]}
         metrics = {"Tower graph (experimental)": {"hard_violations": 0}}
+
+        self.assertEqual(
+            _select_final_route(methods, metrics),
+            (None, None, "no_hard_constraint_compliant_route"),
+        )
+
+    def test_final_route_does_not_select_sampled_pareto_candidates(self):
+        methods = {"Sampled Pareto 01": [(1, 1)], "A*(baseline)": None}
+        metrics = {"Sampled Pareto 01": {"hard_violations": 0}}
 
         self.assertEqual(
             _select_final_route(methods, metrics),

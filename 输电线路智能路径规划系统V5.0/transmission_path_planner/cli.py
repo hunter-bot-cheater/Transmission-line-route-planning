@@ -1,6 +1,8 @@
 # transmission_path_planner/cli.py
 """命令行入口与多走廊批量编排。"""
 
+import hashlib
+
 from .config import *
 from .geometry import *
 from .data import *
@@ -22,6 +24,7 @@ from .experimental_astar_16 import (
     astar_exact_integral_path,
     integrate_path_cost,
 )
+from .diverse_routes import sampled_pareto_astar_routes
 from shapely import make_valid
 
 
@@ -532,6 +535,8 @@ def main():
                     help="额外运行同目标的 8/16 邻域精确积分 A* 对照；复用含地形与约束图层的代价面，"
                          "关闭相邻地面坡度附加惩罚和转弯惩罚，"
                          "配置的地面坡度上限仍作硬约束；均不参与最终选路")
+    ap.add_argument("--experimental-sampled-pareto", action="store_true",
+                    help="对同一地形/约束代价面采样生成 A* 多目标候选；只输出实验候选，不参与最终选路")
     ap.add_argument("--experimental-tower-graph", action="store_true",
                     help="额外生成带候选塔位和档距约束的实验路线；仅作筛选对照，不参与最终选路")
     ap.add_argument("--tower-min-span-m", type=float, default=None,
@@ -1045,6 +1050,46 @@ def main():
             print(f"  [{astar_method}] 路径 {len(geo_astar) if geo_astar else 0} 点, "
                   f"路径生成总耗时 {t_astar:.1f}s")
 
+            sampled_pareto_by_method = {}
+            if args.experimental_sampled_pareto:
+                started = time.time()
+                sampled_candidates = sampled_pareto_astar_routes(
+                    cost_grid, hard_mask > 0, (sr, sc), (er, ec),
+                    pixel_spacing=route_pixel_spacing, elevation=dem, pixel_m=pm,
+                    grade_penalty_weight=args.grade_penalty_weight,
+                    max_ground_grade=args.max_ground_grade,
+                    turn_penalty_weight=args.turn_penalty_weight,
+                )
+                sample_elapsed = time.time() - started
+                for index, candidate in enumerate(sampled_candidates, start=1):
+                    method = f"Sampled Pareto {index:02d}"
+                    geo = [rowcol_to_geo(row, col, transform)
+                           for row, col in candidate["path"]]
+                    if geo:
+                        geo = smooth_path_with_constraints(
+                            geo, transform, hard_mask, cost_grid, dem,
+                            args.grade_penalty_weight, args.turn_penalty_weight,
+                            route_pixel_spacing,
+                            max_ground_grade=args.max_ground_grade, crs=crs,
+                            shortcut_endpoints=shortcut_endpoints,
+                        )
+                    geo, grade_reports[method] = filter_path_by_ground_grade(
+                        geo, dem, transform, args.max_ground_grade, crs)
+                    methods[method] = geo
+                    sampled_pareto_by_method[method] = {
+                        "sampled_environmental_weights": candidate[
+                            "sampled_environmental_weights"],
+                        "objective_vector_on_search_grid": candidate["objective_vector"],
+                        "pareto_scope": candidate["pareto_scope"],
+                        "search_hard_constraint_legal": candidate[
+                            "hard_constraint_legal"],
+                        "search_hard_violation_count": candidate[
+                            "hard_violation_count"],
+                        "candidate_search_batch_time_s": sample_elapsed,
+                    }
+                    print(f"  [{method}] 网格候选 {len(candidate['path'])} 点；"
+                          "之后仍需端点、硬约束和建筑复核")
+
             experimental_neighbor_results = {}
             if args.experimental_astar_16:
                 for method, neighbors in ((ASTAR_8_EXACT_METHOD, NEIGHBORS_8),
@@ -1224,6 +1269,7 @@ def main():
                                            else args.grade_penalty_weight)
                     method_turn_weight = (args.turn_penalty_weight
                                           if m in ("A*(turn-aware)", TOWER_GRAPH_METHOD)
+                                          or m in sampled_pareto_by_method
                                           else 0.0)
                     metric_cost_grid = (tower_span_cost_grid
                                         if m == TOWER_GRAPH_METHOD else cost_grid)
@@ -1249,6 +1295,9 @@ def main():
                         met["astar_search_path_objective"] = astar_path_objective(
                             a_path, cost_grid, dem, route_pixel_spacing,
                             args.grade_penalty_weight, args.turn_penalty_weight)
+                    if m in sampled_pareto_by_method:
+                        met["candidate_role"] = "experimental_nonselectable_pareto_sample"
+                        met["sampled_pareto"] = sampled_pareto_by_method[m]
                     if m in ("A*(baseline)", "A*(weighted)"):
                         met["astar_heuristic_weight"] = args.astar_heuristic_weight
                         met["ridge_penalty_weight"] = args.ridge_penalty_weight
@@ -1346,10 +1395,50 @@ def main():
                 met.update(station_offsets_by_method.get(m, {}))
                 case_metrics[m] = met
 
-            # 按固定优先规则筛选硬约束可行路线，再单独读取真实线作事后评分。
+            # 按固定优先规则筛选硬约束可行路线；实验 Pareto 候选不在选择优先表中。
+            # 真实线仍只在规划选路完成后读取，用于事后评分。
             best_method, _, selection_rule = _select_final_route(methods, case_metrics)
             final_geo = methods.get(best_method) if best_method else None
             final_is_ai = False if best_method else None
+            for method, candidate in sampled_pareto_by_method.items():
+                geo = methods.get(method)
+                canonical_geo = (json.dumps(
+                    [[float(lon), float(lat)] for lon, lat in geo],
+                    ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+                    if geo else None)
+                candidate["post_validation_path_sha256"] = (
+                    hashlib.sha256(canonical_geo.encode("utf-8")).hexdigest()
+                    if canonical_geo else None)
+                candidate["candidate_frozen_before_reference_read"] = True
+            sampled_pareto_freeze_sha256 = None
+            if args.experimental_sampled_pareto:
+                final_dir = OUT / route_output_name(cname)
+                final_dir.mkdir(parents=True, exist_ok=True)
+                freeze_manifest = {
+                    "scope": "finite_scalarization_samples_only",
+                    "objective_vector_scope": "pre_smoothing_search_grid_paths",
+                    "reference_geometry_used_for_planning": False,
+                    "frozen_before_reference_read": True,
+                    "candidates": [
+                        {
+                            "candidate_id": method,
+                            "path_sha256": candidate[
+                                "post_validation_path_sha256"],
+                            "sampled_environmental_weights": candidate[
+                                "sampled_environmental_weights"],
+                            "objective_vector_on_search_grid": candidate[
+                                "objective_vector_on_search_grid"],
+                            "post_validation_status": hard_violation_reports.get(
+                                method, {}).get("hard_constraint_status", "no_path"),
+                        }
+                        for method, candidate in sampled_pareto_by_method.items()
+                    ],
+                }
+                freeze_bytes = json.dumps(
+                    freeze_manifest, ensure_ascii=False, indent=2,
+                    allow_nan=False).encode("utf-8")
+                (final_dir / "sampled_pareto_freeze.json").write_bytes(freeze_bytes)
+                sampled_pareto_freeze_sha256 = hashlib.sha256(freeze_bytes).hexdigest()
             osm_data_quality, missing_osm_layers = screening_data_quality(osm_layer_metadata)
             hazard_coverage_complete = (
                 official_hazard_metadata.get("coverage_status") == "complete")
@@ -1578,6 +1667,40 @@ def main():
                         json.dump({"type": "FeatureCollection", "features": _fg}, _ff, ensure_ascii=False)
                     if final_geo:
                         write_elevation_profile_csv(final_geo, dem, transform, final_dir / "elevation_profile.csv")
+                if args.experimental_sampled_pareto:
+                    pareto_manifest = {
+                        "scope": "finite_scalarization_samples_only",
+                        "objective_vector_scope": "pre_smoothing_search_grid_paths",
+                        "reference_geometry_used_for_planning": False,
+                        "freeze_manifest": "sampled_pareto_freeze.json",
+                        "freeze_manifest_sha256": sampled_pareto_freeze_sha256,
+                        "candidates": [],
+                    }
+                    for method, candidate in sampled_pareto_by_method.items():
+                        metrics = case_metrics.get(method, {})
+                        suffix = method.rsplit(" ", 1)[-1]
+                        pareto_manifest["candidates"].append({
+                            "candidate_id": method,
+                            "geojson": f"planned_route_sampled_pareto_{suffix}.geojson"
+                            if methods.get(method) else None,
+                            **candidate,
+                            "post_validation_status": metrics.get(
+                                "hard_constraint_status", "no_path"),
+                            "hard_violations": metrics.get("hard_violations"),
+                            "post_smoothing_path_cost_integral": metrics.get(
+                                "path_cost_integral"),
+                            "post_validation_path_sha256": candidate.get(
+                                "post_validation_path_sha256"),
+                            "candidate_frozen_before_reference_read": candidate.get(
+                                "candidate_frozen_before_reference_read"),
+                            "route_similarity_version": metrics.get(
+                                "route_similarity_version"),
+                            "route_similarity": metrics.get("route_similarity"),
+                            "length_km": metrics.get("length_km"),
+                        })
+                    with open(final_dir / "sampled_pareto_candidates.json", "w",
+                              encoding="utf-8") as _pf:
+                        json.dump(pareto_manifest, _pf, ensure_ascii=False, indent=2)
             except Exception as exc:
                 raise RuntimeError(f"最终路线必需文件写出失败: {exc}") from exc
             all_results.append({"case": cname, "metrics": case_metrics})
@@ -1616,9 +1739,24 @@ def main():
                             cdir / f"path_comparison_{safe}.png",
                             title=f"规划路线与参考线路对比 - {cname}", real_ll=real_geo,
                             hazard_masks=official_hazard_masks)
+            if args.experimental_sampled_pareto:
+                sampled_methods = {
+                    name: methods[name] for name in sampled_pareto_by_method
+                    if methods.get(name)
+                }
+                if sampled_methods:
+                    plot_comparison(
+                        dem, transform, sampled_methods, start_ll, end_ll,
+                        cdir / f"sampled_pareto_comparison_{safe}.png",
+                        title=f"启发式多目标候选（非工程定线）- {cname}",
+                        real_ll=real_geo, hazard_masks=official_hazard_masks,
+                    )
             # 逐用例导出矢量与坐标(便于复用/二次绘图)
             for m, geo in methods.items():
-                tag = m.split("(")[0].strip().lower().replace("*", "astar").replace("-", "")
+                if m.startswith("Sampled Pareto "):
+                    tag = f"sampled_pareto_{m.rsplit(' ', 1)[-1]}"
+                else:
+                    tag = m.split("(")[0].strip().lower().replace("*", "astar").replace("-", "")
                 export_route(geo, crs, cdir / f"planned_route_{tag}.shp",
                              cdir / f"planned_route_{tag}.geojson")
             # 导出真实/参考线路(便于下游复用与二次对比)
