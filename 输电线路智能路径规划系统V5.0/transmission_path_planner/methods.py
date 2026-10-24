@@ -693,7 +693,8 @@ def gradient_track_path(V, cost, hard_mask, start, end, transform,
 def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
                                    elevation, pixel_m, grade_penalty_weight,
                                    max_ground_grade, pixel_spacing,
-                                   heuristic_weight, turn_penalty_weight):
+                                   heuristic_weight, turn_penalty_weight,
+                                   minimum_cost):
     """Direction-state A*: turn cost is dimensionless weight times cost*meters.
 
     At each interior cell, the added cost is
@@ -716,11 +717,6 @@ def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
         er, ec = _nearest_valid(cost_raster, er, ec)
     if sr is None or er is None:
         return None
-    if pixel_spacing is not None:
-        row_m, col_m = map(float, pixel_spacing)
-        if (not math.isfinite(row_m) or not math.isfinite(col_m)
-                or row_m <= 0.0 or col_m <= 0.0):
-            raise ValueError("pixel_spacing values must be finite and positive")
     grade_pixel_spacing = (tuple(map(float, pixel_spacing)) if pixel_spacing is not None
                            else (float(pixel_m), float(pixel_m)) if pixel_m else None)
 
@@ -730,10 +726,7 @@ def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
     if (sr, sc) == (er, ec):
         return [(sr, sc)]
 
-    valid = cost_raster[np.isfinite(cost_raster)]
-    if valid.size and np.any(valid < 0.0):
-        raise ValueError("cost_raster must be non-negative when turn penalties are enabled")
-    c_min = max(float(valid.min()), 0.0) if valid.size else 0.0
+    c_min = minimum_cost
     neigh = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0),
              (1, -1), (0, -1), (-1, -1)]
     ndist = [1.0, math.sqrt(2), 1.0, math.sqrt(2), 1.0,
@@ -862,11 +855,39 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
         raise ValueError("heuristic_weight must be finite and at least 1")
     if not math.isfinite(float(turn_penalty_weight)) or turn_penalty_weight < 0.0:
         raise ValueError("turn_penalty_weight must be finite and non-negative")
+    if pixel_spacing is not None:
+        try:
+            pixel_spacing = tuple(map(float, pixel_spacing))
+        except (TypeError, ValueError):
+            raise ValueError("pixel_spacing must contain two finite positive values") from None
+        if (len(pixel_spacing) != 2
+                or any(not math.isfinite(value) or value <= 0.0
+                       for value in pixel_spacing)):
+            raise ValueError("pixel_spacing must contain two finite positive values")
+    elif pixel_m is not None:
+        try:
+            pixel_m = float(pixel_m)
+        except (TypeError, ValueError):
+            raise ValueError("pixel_m must be finite and positive") from None
+        if not math.isfinite(pixel_m) or pixel_m <= 0.0:
+            raise ValueError("pixel_m must be finite and positive")
+    minimum_cost = math.inf
+    flat_cost = np.asarray(cost_raster).reshape(-1)
+    for offset in range(0, flat_cost.size, 1 << 20):
+        finite_cost = flat_cost[offset:offset + (1 << 20)]
+        finite_cost = finite_cost[np.isfinite(finite_cost)]
+        if finite_cost.size:
+            block_minimum = float(finite_cost.min())
+            if block_minimum < 0.0:
+                raise ValueError("cost_raster must be non-negative")
+            minimum_cost = min(minimum_cost, block_minimum)
+    if not math.isfinite(minimum_cost):
+        minimum_cost = 0.0
     if turn_penalty_weight > 0.0:
         return _astar_search_with_turn_penalty(
             cost_raster, start_rc, end_rc, use_dijkstra, elevation, pixel_m,
             grade_penalty_weight, max_ground_grade, pixel_spacing,
-            heuristic_weight, float(turn_penalty_weight),
+            heuristic_weight, float(turn_penalty_weight), minimum_cost,
         )
     H, W = cost_raster.shape
     sr, sc = start_rc; er, ec = end_rc
@@ -883,8 +904,7 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
     reverse_result = sr * W + sc > er * W + ec
     if reverse_result:
         (sr, sc), (er, ec) = (er, ec), (sr, sc)
-    valid = cost_raster[np.isfinite(cost_raster)]
-    c_min = max(float(valid.min()), 0.0) if valid.size else 0.0
+    c_min = minimum_cost
     neigh = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
     ndist = [1.0, math.sqrt(2), 1.0, math.sqrt(2), 1.0, math.sqrt(2), 1.0, math.sqrt(2)]
 

@@ -705,6 +705,30 @@ class StationPlanningTests(unittest.TestCase):
                     ValueError, "turn_penalty_weight"):
                 astar_search(cost, (0, 0), (2, 2), turn_penalty_weight=weight)
 
+    def test_astar_rejects_negative_costs_for_both_search_modes(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        cost[1, 1] = -0.1
+        for turn_weight in (0.0, 0.5):
+            with self.subTest(turn_weight=turn_weight), self.assertRaisesRegex(
+                    ValueError, "cost_raster must be non-negative"):
+                astar_search(cost, (0, 0), (2, 2),
+                             turn_penalty_weight=turn_weight)
+
+    def test_astar_rejects_invalid_pixel_spacing(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        for spacing in ((0.0, 1.0), (-1.0, 1.0), (float("nan"), 1.0),
+                        (1.0, float("inf")), (1.0,)):
+            with self.subTest(spacing=spacing), self.assertRaisesRegex(
+                    ValueError, "pixel_spacing"):
+                astar_search(cost, (0, 0), (2, 2), pixel_spacing=spacing)
+
+    def test_astar_rejects_invalid_legacy_pixel_size(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        for pixel_m in (0.0, -1.0, float("nan"), float("inf")):
+            with self.subTest(pixel_m=pixel_m), self.assertRaisesRegex(
+                    ValueError, "pixel_m"):
+                astar_search(cost, (0, 0), (2, 2), pixel_m=pixel_m)
+
     def test_zero_turn_penalty_keeps_legacy_path(self):
         cost = np.array([[1, 2, 2, 4, 1, 1],
                          [1, 3, 2, 2, 1, 1],

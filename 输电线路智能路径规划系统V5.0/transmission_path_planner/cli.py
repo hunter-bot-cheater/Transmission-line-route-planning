@@ -273,7 +273,7 @@ def run_method_or_skip_on_oom(method_name, run_method):
     except torch.OutOfMemoryError as exc:
         message = str(exc)
     print(f"  [{method_name}] 显存不足，跳过该方法并继续其余规划: {message}")
-    if torch.cuda.is_available():
+    if cuda_is_usable(torch):
         torch.cuda.empty_cache()
     return None, message
 
@@ -823,8 +823,8 @@ def main():
                           "已禁用或 torch 不可用")
                 print(f"  [skip] PPO {reason}")
 
-            # Weight 1 is optimal A*. Larger weights are approximate; because
-            # closed states are not reopened, no general cost bound is claimed.
+            # Weight 1 is optimal A*. Larger weights are approximate; reopened
+            # states do not provide a general optimality bound.
             astar_method = (
                 "A*(turn-aware)" if args.turn_penalty_weight > 0 else
                 "A*(baseline)" if args.astar_heuristic_weight == 1.0 else
@@ -1314,13 +1314,13 @@ def main():
                 except Exception:
                     pass
 
-            # 逐走廊绘制详细路径对比图 + 导出矢量（每个用例一张对比图, 满足"多条路径对比"）
+            # 逐走廊绘制规划路线与参考线对比图并导出矢量。
             safe = route_output_name(cname)
             cdir = OUT / safe
             cdir.mkdir(parents=True, exist_ok=True)
             plot_comparison(dem, transform, methods, start_ll, end_ll,
                             cdir / f"path_comparison_{safe}.png",
-                            title=f"多算法路径对比 - {cname}", real_ll=real_geo,
+                            title=f"规划路线与参考线路对比 - {cname}", real_ll=real_geo,
                             hazard_masks=official_hazard_masks)
             # 逐用例导出矢量与坐标(便于复用/二次绘图)
             for m, geo in methods.items():
@@ -1343,7 +1343,7 @@ def main():
                 main_done = True
                 try:
                     plot_comparison(dem, transform, methods, start_ll, end_ll,
-                                    OUT / "path_comparison.png", title=f"多算法路径对比 - {cname}",
+                                    OUT / "path_comparison.png", title=f"规划路线与参考线路对比 - {cname}",
                                     real_ll=real_geo, hazard_masks=official_hazard_masks)
                 except Exception as _pe:
                     print(f"[WARN] 主对比图绘制失败(跳过, 不影响本走廊其余产出): {_pe}")

@@ -48,7 +48,7 @@ def build_feature_stack(dem, terrain, osm, dist_existing=None):
 
 
 if HAS_TORCH:
-    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    DEVICE = torch.device("cuda" if HAS_CUDA else "cpu")
     if DEVICE.type == "cuda":
         print(f"  [GPU] 使用 CUDA 设备: {torch.cuda.get_device_name(0)}")
     class DoubleConv(nn.Module):

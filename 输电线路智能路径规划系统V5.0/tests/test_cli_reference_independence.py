@@ -444,7 +444,8 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         clear_cache = Mock()
         fake_torch = SimpleNamespace(
             OutOfMemoryError=FakeOutOfMemoryError,
-            cuda=SimpleNamespace(is_available=lambda: True, empty_cache=clear_cache),
+            cuda=SimpleNamespace(is_available=lambda: True, device_count=lambda: 1,
+                                 empty_cache=clear_cache),
         )
         with patch("transmission_path_planner.cli.torch", fake_torch), \
              patch("transmission_path_planner.cli.train_vin",
@@ -457,7 +458,8 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         clear_cache = Mock()
         fake_torch = SimpleNamespace(
             OutOfMemoryError=type("FakeOutOfMemoryError", (RuntimeError,), {}),
-            cuda=SimpleNamespace(is_available=lambda: True, empty_cache=clear_cache),
+            cuda=SimpleNamespace(is_available=lambda: True, device_count=lambda: 1,
+                                 empty_cache=clear_cache),
         )
         with patch("transmission_path_planner.cli.torch", fake_torch), \
              patch("transmission_path_planner.cli.train_vin",

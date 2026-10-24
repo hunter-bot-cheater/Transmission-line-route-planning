@@ -74,6 +74,22 @@ except Exception:
     torch = None
 
 
+def cuda_is_usable(torch_module=None):
+    module = torch if torch_module is None else torch_module
+    if module is None:
+        return False
+    try:
+        if not module.cuda.is_available():
+            return False
+        device_count = getattr(module.cuda, "device_count", None)
+        return callable(device_count) and device_count() > 0
+    except Exception:
+        return False
+
+
+HAS_CUDA = cuda_is_usable()
+
+
 # ============================================================================
 # 1. 配置
 # ============================================================================
@@ -129,7 +145,8 @@ _random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 if HAS_TORCH:
     torch.manual_seed(RANDOM_SEED)
-    torch.cuda.manual_seed_all(RANDOM_SEED)
+    if HAS_CUDA:
+        torch.cuda.manual_seed_all(RANDOM_SEED)
     # CUDA 卷积/原子操作为非确定性, 不受 manual_seed 控制 -> 同种子下 run-to-run 仍方差
     # (深美~冬山線曾单跑 3.91% PASS、全量跑 20% FAIL 即源于此)。开启确定性卷积,
     # 配合每条走廊训练前独立重置种子, 使 VIN/PPO 训练逐走廊可复现、顺序无关。

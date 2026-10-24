@@ -1,5 +1,5 @@
 # transmission_path_planner/visualization.py
-"""结果可视化（多算法对比、价值图、指标柱状图）。"""
+"""结果可视化（规划路线对比、价值图、指标柱状图）。"""
 
 from .config import *
 from .geometry import *
@@ -36,7 +36,7 @@ def _block_max_for_display(mask, factor):
     return padded.reshape(out_h, factor, out_w, factor).max(axis=(1, 3))
 
 
-def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, title="多算法路径对比",
+def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, title="规划路线对比",
                     real_ll=None, hazard_masks=None):
     H, W = dem.shape
     left = transform.c; bottom = transform.f + transform.e * H
