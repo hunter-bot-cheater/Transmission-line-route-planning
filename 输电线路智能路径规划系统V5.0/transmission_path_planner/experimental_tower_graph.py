@@ -19,10 +19,22 @@ import numpy as np
 
 from .experimental_theta_star import (
     _checked_cell,
-    _segment_cost,
-    _segment_is_clear,
+    _segment_cost_positions,
+    _segment_is_clear_positions,
     _validated_inputs,
 )
+
+
+def _checked_position(value, name):
+    if len(value) != 2:
+        raise ValueError(f"{name} must be a (row, column) pair")
+    try:
+        position = tuple(map(float, value))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"{name} must contain finite coordinates") from exc
+    if not all(math.isfinite(coordinate) for coordinate in position):
+        raise ValueError(f"{name} must contain finite coordinates")
+    return position
 
 
 def _dem_data_and_validity(dem_raster, dem_valid_mask=None,
@@ -56,14 +68,17 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                       tower_cost_raster=None, turn_penalty_weight=0.0,
                       dem_raster=None, attachment_height_m=None,
                       max_midspan_sag_m=None, minimum_clearance_m=None,
-                      dem_valid_mask=None, dem_nodata_value=None):
+                      dem_valid_mask=None, dem_nodata_value=None,
+                      start_position_rc=None, goal_position_rc=None):
     """Find a route on a sparse graph of candidate tower cells.
 
     ``cost_raster`` is a non-negative per-metre span resistance. Optional
     ``tower_cost_raster`` contains per-site penalties in compatible objective
     units. Start and goal are fixed terminals and do not need to pass the tower
     siting mask. ``turn_penalty_weight`` is a dimensionless multiplier. Invalid
-    terminal cells are rejected; no snapping is performed. If all four profile
+    terminal cells are rejected; no snapping is performed. Optional continuous
+    terminal positions use cell-center row/column coordinates and must remain in
+    their declared terminal cells. If all four profile
     inputs are supplied, each span also needs a complete DEM profile and must
     pass the parabolic-sag clearance screen. Missing profile values reject that
     span; no profile inputs means the result remains a 2D screening route.
@@ -123,6 +138,13 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
     height, width = cost.shape
     start = _checked_cell(start_rc, "start_rc")
     goal = _checked_cell(goal_rc, "goal_rc")
+    start_node = (_checked_position(start_position_rc, "start_position_rc")
+                  if start_position_rc is not None else start)
+    goal_node = (_checked_position(goal_position_rc, "goal_position_rc")
+                 if goal_position_rc is not None else goal)
+    for cell, position in ((start, start_node), (goal, goal_node)):
+        if (math.floor(position[0] + 0.5), math.floor(position[1] + 0.5)) != cell:
+            raise ValueError("terminal position must lie within its declared terminal cell")
     if tower_cost_raster is None:
         tower_cost = np.zeros(cost.shape, dtype=np.float64)
     else:
@@ -141,21 +163,22 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
         row, col = terminal
         if not (0 <= row < height and 0 <= col < width and traversable[row, col]):
             return None
-    if start == goal:
-        return [start]
+    if start_node == goal_node:
+        return [start_node]
 
-    reversed_result = start[0] * width + start[1] > goal[0] * width + goal[1]
+    reversed_result = start_node[0] * width + start_node[1] > goal_node[0] * width + goal_node[1]
     if reversed_result:
         start, goal = goal, start
+        start_node, goal_node = goal_node, start_node
 
-    cells = {start, goal}
+    cells = {start_node, goal_node}
     for row in range(0, height, stride):
         for col in range(0, width, stride):
             if tower_allowed[row, col] and traversable[row, col]:
                 cells.add((row, col))
     nodes = sorted(cells)
     node_id = {cell: index for index, cell in enumerate(nodes)}
-    start_id, goal_id = node_id[start], node_id[goal]
+    start_id, goal_id = node_id[start_node], node_id[goal_node]
 
     rows_to_cols = {}
     for index, (row, col) in enumerate(nodes):
@@ -195,7 +218,10 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                                       (second[1] - first[1]) * col_m)
                 if distance < min_span or distance > max_span:
                     continue
-                if not _segment_is_clear(first, second, traversable):
+                first_position = (first[0] + 0.5, first[1] + 0.5)
+                second_position = (second[0] + 0.5, second[1] + 0.5)
+                if not _segment_is_clear_positions(first_position, second_position,
+                                                   traversable):
                     continue
                 if profile_enabled:
                     profile = span_clearance_status(
@@ -203,7 +229,8 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                         sag_limit, clearance_limit, dem_valid_mask=dem_valid)
                     if profile["status"] != "sampled_clearance_ok":
                         continue
-                span_cost = _segment_cost(first, second, cost, spacing)
+                span_cost = _segment_cost_positions(
+                    first_position, second_position, cost, spacing)
                 if not math.isfinite(span_cost):
                     continue
                 adjacency[edge[0]].append((edge[1], span_cost))
@@ -336,8 +363,8 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
             or any(not math.isfinite(value) or value <= 0.0 for value in spacing)):
         raise ValueError("pixel_spacing must contain positive finite row/column metres")
     try:
-        start = _checked_cell(start_rc, "start_rc")
-        end = _checked_cell(end_rc, "end_rc")
+        start = _checked_position(start_rc, "start_rc")
+        end = _checked_position(end_rc, "end_rc")
         attachment_height = float(attachment_height_m)
         sag = float(max_midspan_sag_m)
         required_clearance = float(minimum_clearance_m)
@@ -353,7 +380,7 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
         start, end = end, start
 
     height, width = dem.shape
-    if any(not (0 <= row < height and 0 <= col < width)
+    if any(not (0 <= row <= height - 1 and 0 <= col <= width - 1)
            for row, col in (start, end)):
         return {"status": "unknown", "reason": "endpoint_outside_dem"}
 

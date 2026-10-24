@@ -1114,12 +1114,18 @@ def main():
                         "max_midspan_sag_m": args.tower_max_midspan_sag_m,
                         "minimum_clearance_m": args.tower_min_clearance_m,
                     }
+                start_col_corner, start_row_corner = ~transform * (slon, slat)
+                goal_col_corner, goal_row_corner = ~transform * (elon, elat)
                 tower_path = tower_graph_route(
                     tower_span_cost_grid, tower_span_mask.astype(bool), hard_mask.astype(bool),
                     (sr, sc), (er, ec), args.tower_min_span_m,
                     args.tower_max_span_m, pixel_spacing=route_pixel_spacing,
                     candidate_stride=args.tower_candidate_stride,
                     turn_penalty_weight=args.turn_penalty_weight,
+                    start_position_rc=(start_row_corner - 0.5,
+                                       start_col_corner - 0.5),
+                    goal_position_rc=(goal_row_corner - 0.5,
+                                      goal_col_corner - 0.5),
                     **tower_profile_args,
                 )
                 tower_geo = ([rowcol_to_geo(row, col, transform)

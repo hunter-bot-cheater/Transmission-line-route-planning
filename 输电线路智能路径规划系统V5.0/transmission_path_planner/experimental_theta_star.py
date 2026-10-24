@@ -67,9 +67,16 @@ def _cell_center(row_col):
 
 def _segment_is_clear(start_rc, end_rc, traversable):
     """Use the production supercover cell enumeration for a center-to-center chord."""
+    start = (float(start_rc[0]) + 0.5, float(start_rc[1]) + 0.5)
+    end = (float(end_rc[0]) + 0.5, float(end_rc[1]) + 0.5)
+    return _segment_is_clear_positions(start, end, traversable)
+
+
+def _segment_is_clear_positions(start_rc, end_rc, traversable):
+    """Check a chord between continuous raster-corner row/column positions."""
     height, width = traversable.shape
-    c0, r0 = _cell_center(start_rc)
-    c1, r1 = _cell_center(end_rc)
+    r0, c0 = map(float, start_rc)
+    r1, c1 = map(float, end_rc)
     cells = _grid_cells_touched(c0, r0, c1, r1)
     return all(0 <= row < height and 0 <= col < width and traversable[row, col]
                for row, col in cells)
@@ -83,8 +90,16 @@ def _segment_cost(start_rc, end_rc, cost, pixel_spacing):
     cost times its physical length. Boundary-only contacts have zero measure
     for cost; they are still handled conservatively by _segment_is_clear().
     """
-    c0, r0 = _cell_center(start_rc)
-    c1, r1 = _cell_center(end_rc)
+    first = (float(start_rc[0]) + 0.5, float(start_rc[1]) + 0.5)
+    second = (float(end_rc[0]) + 0.5, float(end_rc[1]) + 0.5)
+    return _segment_cost_positions(first, second, cost, pixel_spacing)
+
+
+def _segment_cost_positions(start_rc, end_rc, cost, pixel_spacing,
+                            segment_length_m=None):
+    """Integrate piecewise-constant raster cost between continuous points."""
+    r0, c0 = map(float, start_rc)
+    r1, c1 = map(float, end_rc)
     dc, dr = c1 - c0, r1 - r0
     row_m, col_m = pixel_spacing
 
@@ -100,7 +115,10 @@ def _segment_cost(start_rc, end_rc, cost, pixel_spacing):
                 cuts.append(fraction)
     cuts = sorted(set(cuts))
 
-    full_length = math.hypot(dr * row_m, dc * col_m)
+    full_length = (math.hypot(dr * row_m, dc * col_m)
+                   if segment_length_m is None else float(segment_length_m))
+    if not math.isfinite(full_length) or full_length < 0.0:
+        return math.inf
     total = 0.0
     height, width = cost.shape
     for first, second in zip(cuts, cuts[1:]):

@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+import pytest
 
 from transmission_path_planner.experimental_tower_graph import (
     span_clearance_status,
@@ -105,6 +106,36 @@ def test_tower_graph_enforces_span_limits_and_is_direction_invariant():
              for a, b in zip(route, route[1:])]
     assert all(175.0 <= span <= 350.0 for span in spans)
     assert route == reverse[::-1]
+
+
+def test_tower_graph_searches_from_exact_fractional_station_endpoints():
+    cost = np.ones((5, 7), dtype=np.float64)
+    traversable = np.ones(cost.shape, dtype=bool)
+    tower_allowed = np.zeros(cost.shape, dtype=bool)
+    tower_allowed[2, 1:4] = True
+
+    route = tower_graph_route(
+        cost, traversable, tower_allowed, (2, 0), (2, 4), 0.8, 1.6,
+        candidate_stride=1, start_position_rc=(2.0, 0.45),
+        goal_position_rc=(2.0, 4.0))
+
+    assert route is not None
+    assert route[0] == (2.0, 0.45)
+    assert route[-1] == (2.0, 4.0)
+    spans = [np.hypot(b[0] - a[0], b[1] - a[1])
+             for a, b in zip(route, route[1:])]
+    assert all(0.8 <= span <= 1.6 for span in spans)
+    assert route[1] == (2, 2)
+
+
+def test_tower_graph_rejects_terminal_position_outside_declared_cell():
+    cost = np.ones((3, 5), dtype=np.float64)
+    allowed = np.ones(cost.shape, dtype=bool)
+
+    with pytest.raises(ValueError, match="declared terminal cell"):
+        tower_graph_route(
+            cost, allowed, allowed, (1, 0), (1, 4), 0.5, 2.0,
+            start_position_rc=(1.0, 0.51))
 
 
 def test_tower_site_cost_and_exclusion_apply_to_nodes_not_span_cells():
@@ -408,6 +439,23 @@ def test_profile_nodata_is_unknown_and_rejects_span():
     assert status["status"] == "unknown"
     assert status["reason"] == "dem_nodata"
     assert route is None
+
+
+def test_profile_samples_fractional_station_endpoint_and_fails_closed_on_nodata():
+    dem = np.zeros((3, 5), dtype=np.float64)
+    valid = np.ones(dem.shape, dtype=bool)
+    start, end = (1.0, 0.25), (1.0, 3.0)
+
+    clear = span_clearance_status(
+        start, end, dem, (1.0, 1.0), 20.0, 2.0, 3.0)
+    valid[1, 0] = False
+    unknown = span_clearance_status(
+        start, end, dem, (1.0, 1.0), 20.0, 2.0, 3.0,
+        dem_valid_mask=valid)
+
+    assert clear["status"] == "sampled_clearance_ok"
+    assert unknown["status"] == "unknown"
+    assert unknown["reason"] == "dem_nodata"
 
 
 def test_profile_mask_and_finite_nodata_are_unknown():
