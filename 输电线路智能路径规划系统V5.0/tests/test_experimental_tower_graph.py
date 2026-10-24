@@ -9,14 +9,14 @@ from transmission_path_planner.experimental_tower_graph import (
 
 
 def _small_graph_dijkstra_cost(nodes, start, goal, min_span, max_span,
-                               site_cost, turn_weight):
+                               site_cost, turn_weight, spacing=(1.0, 1.0)):
     """Independent full-graph Dijkstra oracle for an all-open unit-cost grid."""
     adjacency = {node: [] for node in nodes}
     span_cost = {}
     for index, first in enumerate(nodes):
         for second in nodes[index + 1:]:
-            distance = math.hypot(second[0] - first[0],
-                                  second[1] - first[1])
+            distance = math.hypot((second[0] - first[0]) * spacing[0],
+                                  (second[1] - first[1]) * spacing[1])
             if min_span <= distance <= max_span:
                 adjacency[first].append(second)
                 adjacency[second].append(first)
@@ -46,10 +46,10 @@ def _small_graph_dijkstra_cost(nodes, start, goal, min_span, max_span,
             if following not in (start, goal):
                 added += site_cost[following]
             if previous is not None:
-                first_vector = (current[0] - previous[0],
-                                current[1] - previous[1])
-                second_vector = (following[0] - current[0],
-                                 following[1] - current[1])
+                first_vector = ((current[0] - previous[0]) * spacing[0],
+                                (current[1] - previous[1]) * spacing[1])
+                second_vector = ((following[0] - current[0]) * spacing[0],
+                                 (following[1] - current[1]) * spacing[1])
                 cosine = (sum(a * b for a, b in zip(first_vector, second_vector))
                           / (math.hypot(*first_vector)
                              * math.hypot(*second_vector)))
@@ -66,14 +66,17 @@ def _small_graph_dijkstra_cost(nodes, start, goal, min_span, max_span,
     return math.inf
 
 
-def _small_route_objective(route, site_cost, turn_weight):
-    spans = [math.hypot(b[0] - a[0], b[1] - a[1])
+def _small_route_objective(route, site_cost, turn_weight, spacing=(1.0, 1.0)):
+    spans = [math.hypot((b[0] - a[0]) * spacing[0],
+                        (b[1] - a[1]) * spacing[1])
              for a, b in zip(route, route[1:])]
     total = sum(spans) + sum(site_cost[cell] for cell in route[1:-1])
     for index in range(1, len(route) - 1):
         previous, current, following = route[index - 1:index + 2]
-        first_vector = (current[0] - previous[0], current[1] - previous[1])
-        second_vector = (following[0] - current[0], following[1] - current[1])
+        first_vector = ((current[0] - previous[0]) * spacing[0],
+                        (current[1] - previous[1]) * spacing[1])
+        second_vector = ((following[0] - current[0]) * spacing[0],
+                         (following[1] - current[1]) * spacing[1])
         cosine = (sum(a * b for a, b in zip(first_vector, second_vector))
                   / (math.hypot(*first_vector) * math.hypot(*second_vector)))
         total += (turn_weight * 0.5 * (spans[index - 1] + spans[index])
@@ -245,6 +248,55 @@ def test_lazy_a_star_matches_full_dijkstra_oracle_and_reverse_endpoints():
         assert route == reverse[::-1]
         assert np.isclose(_small_route_objective(
             route, tower_cost, turn_weight), oracle)
+
+
+def test_anisotropic_turn_cost_matches_independent_dijkstra_oracle():
+    cost = np.ones((7, 9), dtype=np.float64)
+    traversable = np.ones(cost.shape, dtype=bool)
+    tower_allowed = np.zeros(cost.shape, dtype=bool)
+    tower_allowed[2, 4] = True
+    tower_allowed[5, 4] = True
+    tower_cost = np.zeros(cost.shape, dtype=np.float64)
+    tower_cost[2, 4] = 20.0
+    spacing = (2.0, 1.0)
+    start, goal = (3, 0), (3, 8)
+    nodes = [start, goal, (2, 4), (5, 4)]
+
+    route = tower_graph_route(
+        cost, traversable, tower_allowed, start, goal, 2.5, 5.8,
+        pixel_spacing=spacing, candidate_stride=1,
+        tower_cost_raster=tower_cost, turn_penalty_weight=10.0)
+    reverse = tower_graph_route(
+        cost, traversable, tower_allowed, goal, start, 2.5, 5.8,
+        pixel_spacing=spacing, candidate_stride=1,
+        tower_cost_raster=tower_cost, turn_penalty_weight=10.0)
+    oracle = _small_graph_dijkstra_cost(
+        nodes, start, goal, 2.5, 5.8,
+        {(2, 4): 20.0, (5, 4): 0.0}, 10.0, spacing)
+
+    assert route == reverse[::-1]
+    assert np.isclose(_small_route_objective(
+        route, tower_cost, 10.0, spacing), oracle)
+
+
+def test_tower_graph_finds_valid_route_around_a_finite_hard_wall():
+    cost = np.ones((7, 9), dtype=np.float64)
+    traversable = np.ones(cost.shape, dtype=bool)
+    traversable[1:6, 4] = False
+    tower_allowed = np.zeros(cost.shape, dtype=bool)
+    tower_allowed[0, 3] = True
+    tower_allowed[0, 6] = True
+    start, goal = (3, 0), (3, 8)
+
+    route = tower_graph_route(
+        cost, traversable, tower_allowed, start, goal, 2.5, 5.5,
+        candidate_stride=1)
+
+    assert route is not None
+    assert route[0] == start and route[-1] == goal
+    assert (0, 3) in route and (0, 6) in route
+    assert all(np.hypot(b[0] - a[0], b[1] - a[1]) <= 5.5
+               for a, b in zip(route, route[1:]))
 
 
 def test_lazy_a_star_prefers_lower_cost_route_with_anisotropic_pixels():

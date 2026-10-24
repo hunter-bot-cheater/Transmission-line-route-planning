@@ -18,8 +18,10 @@ class RunProvenanceTests(unittest.TestCase):
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             dem = root / "dem.tif"
+            population_raster = root / "population.tif"
             cases_csv = root / "cases.csv"
             dem.write_bytes(b"synthetic dem")
+            population_raster.write_bytes(b"synthetic population")
             cases_csv.write_text(
                 "name,start_lat,start_lon,end_lat,end_lon\nR1,24,121,24.1,121.1\n",
                 encoding="utf-8")
@@ -46,6 +48,7 @@ class RunProvenanceTests(unittest.TestCase):
                 route_tasks_csv=None,
                 real_cases_csv=str(cases_csv),
                 constraint_geojson=None,
+                population_raster=str(population_raster),
                 osm_cache_dir=str(cache_dir),
                 official_hazards_dir=str(hazard_dir),
                 include_ai_diagnostics=False,
@@ -66,6 +69,11 @@ class RunProvenanceTests(unittest.TestCase):
             dem_record = next(record for record in snapshot["planning_inputs"]
                               if record["role"] == "dem")
             self.assertEqual(dem_record["sha256"], hashlib.sha256(b"synthetic dem").hexdigest())
+            population_record = next(record for record in snapshot["planning_inputs"]
+                                     if record["role"] == "population_raster")
+            self.assertEqual(
+                population_record["sha256"],
+                hashlib.sha256(b"synthetic population").hexdigest())
             self.assertEqual(snapshot["reference_geometry_policy"]["hashed_by_provenance"], False)
             self.assertEqual(snapshot["cases"][0]["case"], "R1")
 

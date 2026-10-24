@@ -11,6 +11,216 @@ def find_dem():
     return None
 
 
+POPULATION_DENSITY_NORMALIZATION_PEOPLE_PER_KM2 = 10000.0
+
+
+def _matching_population_stac_metadata(population_path):
+    source_name = Path(population_path).name
+    for metadata_path in Path(population_path).parent.glob("stac_item*.json"):
+        try:
+            item = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        href = item.get("assets", {}).get("data", {}).get("href", "")
+        asset_name = href.split("?", 1)[0].rsplit("/", 1)[-1]
+        if asset_name == source_name:
+            return item, metadata_path
+    return {}, None
+
+
+def load_population_density_window(population_path, shape, transform, crs,
+                                   required_mask=None):
+    """Warp people-per-cell counts to the DEM grid as people/km².
+
+    Population pixels are converted using WGS84 ellipsoidal pixel areas before
+    area-weighted alignment. Missing population data remains NaN and is
+    reported in metadata and remains NaN, including wherever ``required_mask`` is true.
+    """
+    if not HAS_RASTERIO:
+        raise RuntimeError("人口栅格需要 rasterio；请安装 rasterio 后重试")
+
+    from pyproj import Geod
+    from rasterio.enums import Resampling
+    from rasterio.warp import reproject
+    from rasterio.windows import Window, from_bounds
+
+    required = (np.ones(shape, dtype=bool) if required_mask is None
+                else np.asarray(required_mask, dtype=bool))
+    if required.shape != tuple(shape):
+        raise ValueError("required_mask shape must match population destination grid")
+
+    with rasterio.open(population_path) as src:
+        if src.count != 1:
+            raise ValueError("人口栅格必须是单波段")
+        if src.crs is None or src.crs != rasterio.crs.CRS.from_epsg(4326):
+            raise ValueError("人口栅格必须使用 EPSG:4326")
+        if (src.transform.b != 0 or src.transform.d != 0
+                or src.transform.a <= 0 or src.transform.e >= 0):
+            raise ValueError("人口栅格必须是北向上的 EPSG:4326 网格")
+        source_tags = src.tags()
+        stac_item, stac_path = _matching_population_stac_metadata(population_path)
+        stac_properties = stac_item.get("properties", {})
+        source_description = (
+            source_tags.get("TIFFTAG_IMAGEDESCRIPTION")
+            or source_tags.get("TIFFTAG_DOCUMENTNAME")
+            or stac_properties.get("title")
+        )
+        source_label = " ".join(filter(None, (
+            source_description, source_tags.get("TIFFTAG_DOCUMENTNAME"),
+            Path(population_path).name,
+        )))
+        provider = "WorldPop" if "worldpop" in source_label.casefold() else None
+        copyright_tag = source_tags.get("TIFFTAG_COPYRIGHT")
+        license_id = (
+            "CC-BY-4.0" if copyright_tag and "cc-by-4.0" in copyright_tag.casefold()
+            else copyright_tag or stac_item.get("license")
+        )
+        license_url = (
+            "https://creativecommons.org/licenses/by/4.0/"
+            if license_id == "CC-BY-4.0" else None
+        )
+        doi = stac_properties.get("Digital Object Identifier (DOI)")
+        if doi is None:
+            doi = next((link.get("href") for link in stac_item.get("links", [])
+                        if link.get("rel") == "doi"), None)
+
+        dst_height, dst_width = map(int, shape)
+        left = transform.c
+        top = transform.f
+        right = left + transform.a * dst_width
+        bottom = top + transform.e * dst_height
+        try:
+            window = from_bounds(
+                min(left, right), min(bottom, top), max(left, right), max(bottom, top),
+                src.transform,
+            ).round_offsets().round_lengths()
+            window = window.intersection(Window(0, 0, src.width, src.height))
+        except Exception as exc:
+            raise ValueError("人口栅格与 DEM 规划范围没有重叠") from exc
+        if window.width <= 0 or window.height <= 0:
+            raise ValueError("人口栅格与 DEM 规划范围没有重叠")
+
+        counts = src.read(1, window=window).astype(np.float64)
+        valid = src.read_masks(1, window=window) > 0
+        if src.nodata is not None:
+            valid &= counts != src.nodata
+        valid &= np.isfinite(counts)
+        if np.any(counts[valid] < 0):
+            raise ValueError("人口栅格包含负的人口数")
+
+        source_transform = src.window_transform(window)
+        geod = Geod(ellps="WGS84")
+        row_areas_m2 = np.empty(counts.shape[0], dtype=np.float64)
+        x0 = source_transform.c
+        x1 = x0 + source_transform.a
+        for row in range(counts.shape[0]):
+            y0 = source_transform.f + row * source_transform.e
+            y1 = y0 + source_transform.e
+            area = geod.polygon_area_perimeter(
+                [x0, x1, x1, x0], [y0, y0, y1, y1]
+            )[0]
+            row_areas_m2[row] = abs(area)
+        if np.any(row_areas_m2 <= 0) or not np.isfinite(row_areas_m2).all():
+            raise ValueError("无法计算人口栅格源像元面积")
+
+        density = counts / row_areas_m2[:, None] * 1_000_000.0
+        density[~valid] = np.nan
+        aligned = np.full(shape, np.nan, dtype=np.float32)
+        source_coverage = valid.astype(np.float32)
+        aligned_coverage = np.zeros(shape, dtype=np.float32)
+        reproject(
+            source=source_coverage,
+            destination=aligned_coverage,
+            src_transform=source_transform,
+            src_crs=src.crs,
+            dst_transform=transform,
+            dst_crs=crs,
+            dst_nodata=0.0,
+            resampling=Resampling.average,
+            init_dest_nodata=True,
+        )
+        reproject(
+            source=density.astype(np.float32),
+            destination=aligned,
+            src_transform=source_transform,
+            src_crs=src.crs,
+            src_nodata=np.nan,
+            dst_transform=transform,
+            dst_crs=crs,
+            dst_nodata=np.nan,
+            resampling=Resampling.average,
+            init_dest_nodata=True,
+        )
+        aligned[aligned_coverage < 1.0 - 1e-6] = np.nan
+        missing = required & (~np.isfinite(aligned) | (aligned_coverage < 1.0 - 1e-6))
+        required_cells = int(required.sum())
+        valid_required_cells = required_cells - int(missing.sum())
+        metadata = {
+            "status": ("complete" if not missing.any() else
+                       "partial" if valid_required_cells else "no_coverage"),
+            "source_path": str(Path(population_path).resolve()),
+            "source_crs": src.crs.to_string(),
+            "source_pixel_size_degrees": [abs(src.transform.a), abs(src.transform.e)],
+            "source_nodata": src.nodata,
+            "source_value_unit": "people_per_cell",
+            "aligned_value_unit": "people_per_km2",
+            "source_metadata": {
+                "provider": provider,
+                "asset_provider": stac_properties.get("provider"),
+                "dataset_title": source_description,
+                "document_name": source_tags.get("TIFFTAG_DOCUMENTNAME"),
+                "copyright_tag": copyright_tag,
+                "license_id": license_id,
+                "license_url": license_url,
+                "release": stac_properties.get("Release"),
+                "version": stac_properties.get("Version"),
+                "year": stac_properties.get("year"),
+                "attribution": (
+                    f"{provider}; dataset title: {source_description or Path(population_path).name}"
+                    if provider else None
+                ),
+                "doi": doi,
+                "metadata_file": str(stac_path.resolve()) if stac_path else None,
+                "metadata_basis": ("embedded GeoTIFF tags and matching adjacent STAC item"
+                                   if stac_path else
+                                   "embedded GeoTIFF tags and source filename"),
+            },
+            "resampling": "area_weighted_average_on_density",
+            "required_dem_cell_count": required_cells,
+            "valid_required_cell_count": valid_required_cells,
+            "missing_required_cell_count": int(missing.sum()),
+            "coverage_ratio": (valid_required_cells / required_cells
+                               if required_cells else 1.0),
+            "nodata_policy": "preserve_as_nan_for_explicit_unknown_policy",
+            "normalization_scale_people_per_km2": (
+                POPULATION_DENSITY_NORMALIZATION_PEOPLE_PER_KM2),
+        }
+        return aligned, metadata
+
+
+def population_density_cost(density_people_per_km2):
+    """Convert people/km² to a fixed-scale [0, 1] soft-cost proxy."""
+    density = np.asarray(density_people_per_km2, dtype=np.float32)
+    valid = np.isfinite(density)
+    if np.any(density[valid] < 0):
+        raise ValueError("人口密度不能为负数")
+    scale = POPULATION_DENSITY_NORMALIZATION_PEOPLE_PER_KM2
+    cost = np.full(density.shape, np.nan, dtype=np.float32)
+    cost[valid] = np.clip(
+        np.log1p(density[valid]) / math.log1p(scale), 0.0, 1.0)
+    return cost
+
+
+def population_cost_for_routing(density_people_per_km2):
+    """Penalize unknown cells conservatively, retaining their uncertainty mask.
+
+    The fixed value is a search penalty, not an estimate of population density.
+    """
+    proxy = population_density_cost(density_people_per_km2)
+    unknown = ~np.isfinite(proxy)
+    return np.where(unknown, 1.0, proxy).astype(np.float32), unknown
+
+
 def load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, max_side=WORK_MAX_SIDE):
     """读取 DEM 在给定 bbox 内的窗口，并重采样到最长边 <= max_side。
     返回 (dem, transform, crs, pixel_m)。"""

@@ -15,6 +15,7 @@ from .stations import *
 from .official_hazards import load_official_hazard_masks
 from .provenance import capture_run_provenance, write_run_provenance
 from .experimental_theta_star import theta_star_cost_path
+from .experimental_tower_graph import tower_graph_route
 from .experimental_astar_16 import (
     NEIGHBORS_8,
     NEIGHBORS_16,
@@ -27,6 +28,7 @@ from shapely import make_valid
 FINAL_ROUTE_LABEL = "最终路线"
 ASTAR_16_METHOD = "A*(16-neighbor experimental)"
 ASTAR_8_EXACT_METHOD = "A*(8-neighbor exact experimental)"
+TOWER_GRAPH_METHOD = "Tower graph (experimental)"
 
 
 def _select_final_route(methods, case_metrics):
@@ -145,6 +147,27 @@ def route_hazard_exposure(geo, hazard_masks, transform, shape):
         "route_cell_count": route_cells,
         "cell_fraction_is_approximate": True,
         "layers": layers,
+    }
+
+
+def route_population_coverage(geo, valid_population_mask, transform, shape):
+    """Report whether a route crosses cells with unknown population values."""
+    if valid_population_mask is None:
+        return {"status": "disabled", "route_cell_count": 0,
+                "unknown_route_cell_count": 0, "coverage_ratio": None}
+    if not geo or len(geo) < 2:
+        return {"status": "route_too_short", "route_cell_count": 0,
+                "unknown_route_cell_count": 0, "coverage_ratio": None}
+    route_mask = rasterize_on([(LineString(geo), {})], transform, shape) > 0
+    route_cells = int(np.count_nonzero(route_mask))
+    unknown_cells = int(np.count_nonzero(
+        route_mask & ~np.asarray(valid_population_mask, dtype=bool)))
+    return {
+        "status": "complete" if unknown_cells == 0 else "incomplete_unknown_population_cells",
+        "route_cell_count": route_cells,
+        "unknown_route_cell_count": unknown_cells,
+        "coverage_ratio": (1.0 - unknown_cells / route_cells if route_cells else None),
+        "cell_fraction_is_approximate": True,
     }
 
 
@@ -419,6 +442,10 @@ def main():
                     help="A* 转弯平滑代价系数；0 关闭。启用后使用8方向状态、内存占用显著增加")
     ap.add_argument("--settlement-weight", type=float, default=2.0,
                     help="OSM建筑密度/住宅与商业用地代理的软避让权重(方案筛选参数, 默认2.0)")
+    ap.add_argument("--population-raster", type=str, default=None,
+                    help="可选单波段 EPSG:4326 人口数栅格；值须为每像元人口估算数")
+    ap.add_argument("--population-weight", type=float, default=0.0,
+                    help="WorldPop 人口密度软成本权重；默认0关闭，需同时指定 --population-raster")
     ap.add_argument("--ridge-penalty-weight", type=float, default=0.10,
                     help="基于300米TPI的高脊软惩罚权重；仅用地形，不读取线路几何")
     ap.add_argument("--landcover-penalty-weight", type=float, default=0.0,
@@ -440,6 +467,20 @@ def main():
                     help="额外运行同目标的 8/16 邻域精确积分 A* 对照；复用含地形与约束图层的代价面，"
                          "关闭相邻地面坡度附加惩罚和转弯惩罚，"
                          "配置的地面坡度上限仍作硬约束；均不参与最终选路")
+    ap.add_argument("--experimental-tower-graph", action="store_true",
+                    help="额外生成带候选塔位和档距约束的实验路线；仅作筛选对照，不参与最终选路")
+    ap.add_argument("--tower-min-span-m", type=float, default=None,
+                    help="实验塔位图最小水平档距；必须按具体线路工程参数提供")
+    ap.add_argument("--tower-max-span-m", type=float, default=None,
+                    help="实验塔位图最大水平档距；必须按具体线路工程参数提供")
+    ap.add_argument("--tower-candidate-stride", type=int, default=2,
+                    help="塔位候选像元步长；会影响可达性，默认2，仅为栅格采样参数")
+    ap.add_argument("--tower-attachment-height-m", type=float, default=None,
+                    help="可选净空筛查参数：固定挂点高度；需与弧垂和最小净空同时提供")
+    ap.add_argument("--tower-max-midspan-sag-m", type=float, default=None,
+                    help="可选净空筛查参数：固定最大跨中弧垂；不代表导线荷载计算")
+    ap.add_argument("--tower-min-clearance-m", type=float, default=None,
+                    help="可选净空筛查参数：固定最小地面净空；通过筛查不代表工程认证")
     ap.add_argument("--max-ground-grade", type=float, default=None,
                     help="可选地面相邻栅格最大坡度比，如0.30; 属于筛选阈值，不是线路设计限值")
     ap.add_argument("--max-surface-slope-deg", type=float, default=None,
@@ -504,6 +545,7 @@ def main():
         "--ridge-penalty-weight": args.ridge_penalty_weight,
         "--landcover-penalty-weight": args.landcover_penalty_weight,
         "--settlement-weight": args.settlement_weight,
+        "--population-weight": args.population_weight,
         "--grade-penalty-weight": args.grade_penalty_weight,
         "--terrain-slope-weight": args.terrain_slope_weight,
         "--roughness-weight": args.roughness_weight,
@@ -514,6 +556,11 @@ def main():
         "--max-ground-grade": args.max_ground_grade,
         "--max-surface-slope-deg": args.max_surface_slope_deg,
         "--max-terrain-elevation-m": args.max_terrain_elevation_m,
+        "--tower-min-span-m": args.tower_min_span_m,
+        "--tower-max-span-m": args.tower_max_span_m,
+        "--tower-attachment-height-m": args.tower_attachment_height_m,
+        "--tower-max-midspan-sag-m": args.tower_max_midspan_sag_m,
+        "--tower-min-clearance-m": args.tower_min_clearance_m,
     }
     for option, value in float_parameters.items():
         if value is not None and not math.isfinite(value):
@@ -521,6 +568,7 @@ def main():
     if (args.building_clearance_m < 0 or args.ridge_penalty_weight < 0
             or args.landcover_penalty_weight < 0
             or args.settlement_weight < 0
+            or args.population_weight < 0
             or args.grade_penalty_weight < 0
             or args.terrain_slope_weight < 0
             or args.roughness_weight < 0
@@ -529,10 +577,33 @@ def main():
         ap.error("避让距离与代价权重不能为负数")
     if args.astar_heuristic_weight < 1:
         ap.error("--astar-heuristic-weight 必须大于或等于 1.0")
+    if args.population_weight > 0 and not args.population_raster:
+        ap.error("启用 --population-weight 时必须同时指定 --population-raster")
+    if args.population_raster and not Path(args.population_raster).is_file():
+        ap.error(f"--population-raster 文件不存在: {args.population_raster}")
+    if args.population_weight > 0 and not HAS_RASTERIO:
+        ap.error("启用人口软成本需要 rasterio")
     if args.building_clearance_m >= 5000:
         ap.error("--building-clearance-m 必须小于5000米（当前距离栅格上限）")
     if args.max_ground_grade is not None and args.max_ground_grade <= 0:
         ap.error("--max-ground-grade 必须大于0")
+    tower_profile = (args.tower_attachment_height_m,
+                     args.tower_max_midspan_sag_m,
+                     args.tower_min_clearance_m)
+    if args.experimental_tower_graph:
+        if args.tower_min_span_m is None or args.tower_max_span_m is None:
+            ap.error("--experimental-tower-graph 必须显式提供 --tower-min-span-m 和 --tower-max-span-m")
+        if (args.tower_min_span_m < 0
+                or args.tower_max_span_m <= args.tower_min_span_m):
+            ap.error("塔位图档距必须满足 0 <= 最小档距 < 最大档距")
+        if args.tower_candidate_stride < 1:
+            ap.error("--tower-candidate-stride 必须是正整数")
+        if any(value is not None for value in tower_profile) and any(
+                value is None for value in tower_profile):
+            ap.error("净空筛查必须同时提供挂点高度、最大跨中弧垂和最小净空")
+    elif (args.tower_min_span_m is not None or args.tower_max_span_m is not None
+          or any(value is not None for value in tower_profile)):
+        ap.error("塔位图参数必须与 --experimental-tower-graph 同时使用")
 
     if args.rebuild_osm_cache:
         print("[OSM] 请求重建台湾 OSM 缓存 ...")
@@ -637,6 +708,39 @@ def main():
             minlat, maxlat = min(slat, elat) - margin, max(slat, elat) + margin
             dem, transform, crs, pm = load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, args.max_side)
             H, W = dem.shape
+            population_proxy = None
+            population_valid_mask = None
+            population_metadata = {
+                "status": "disabled_weight_zero",
+                "source_path": (str(Path(args.population_raster).resolve())
+                                if args.population_raster else None),
+                "weight": args.population_weight,
+                "normalization_scale_people_per_km2": (
+                    POPULATION_DENSITY_NORMALIZATION_PEOPLE_PER_KM2),
+            }
+            if args.population_weight > 0:
+                population_density, population_metadata = load_population_density_window(
+                    args.population_raster, dem.shape, transform, crs,
+                    required_mask=np.isfinite(dem),
+                )
+                population_proxy, population_unknown_mask = population_cost_for_routing(
+                    population_density)
+                population_valid_mask = ~population_unknown_mask
+                population_metadata["weight"] = args.population_weight
+                population_metadata["source_value_semantics"] = (
+                    "modelled people per source cell; not point locations")
+                population_metadata["cost_semantics"] = (
+                    "log1p(population_density_people_per_km2) / "
+                    "log1p(normalization_scale), clipped to [0, 1]")
+                population_metadata["nodata_cost_policy"] = (
+                    "maximum normalized proxy penalty (1.0); not a population estimate; "
+                    "unknown route cells are flagged")
+                print(
+                    "  人口软成本已对齐："
+                    f"coverage={population_metadata['coverage_ratio']:.3f}, "
+                    f"scale={population_metadata['normalization_scale_people_per_km2']:.0f} people/km², "
+                    f"NoData按最大归一化惩罚处理"
+                )
             if args.turn_penalty_weight > 0:
                 state_gib = H * W * (8 * 8 + 8) / (1024 ** 3)
                 if state_gib >= 0.5:
@@ -692,6 +796,8 @@ def main():
                 official_hazard_weight=args.official_hazard_weight,
                 terrain_slope_weight=args.terrain_slope_weight,
                 roughness_weight=args.roughness_weight,
+                population_proxy=population_proxy,
+                population_weight=args.population_weight,
             )
 
             real_geo = None
@@ -752,6 +858,7 @@ def main():
             t_vin = 0.0
             t_ppo = 0.0
             t_theta = 0.0
+            t_tower_graph = 0.0
             # AI methods are opt-in diagnostics; route selection below excludes them.
             if args.include_ai_diagnostics and HAS_TORCH and not args.no_vin and not same_grid_cell:
                 t_v = time.time()
@@ -924,6 +1031,44 @@ def main():
                 print(f"  [Theta*(experimental)] 路径 {len(geo_theta) if geo_theta else 0} 点, "
                       f"耗时 {t_theta:.1f}s；仅作对照候选")
 
+            experimental_tower_graph_results = None
+            if args.experimental_tower_graph:
+                started = time.time()
+                tower_profile_args = {}
+                if all(value is not None for value in tower_profile):
+                    tower_profile_args = {
+                        "dem_raster": dem,
+                        "attachment_height_m": args.tower_attachment_height_m,
+                        "max_midspan_sag_m": args.tower_max_midspan_sag_m,
+                        "minimum_clearance_m": args.tower_min_clearance_m,
+                    }
+                tower_path = tower_graph_route(
+                    cost_grid, hard_mask.astype(bool), hard_mask.astype(bool),
+                    (sr, sc), (er, ec), args.tower_min_span_m,
+                    args.tower_max_span_m, pixel_spacing=route_pixel_spacing,
+                    candidate_stride=args.tower_candidate_stride,
+                    turn_penalty_weight=args.turn_penalty_weight,
+                    **tower_profile_args,
+                )
+                tower_geo = ([rowcol_to_geo(row, col, transform)
+                              for row, col in tower_path] if tower_path else None)
+                tower_geo, grade_reports[TOWER_GRAPH_METHOD] = filter_path_by_ground_grade(
+                    tower_geo, dem, transform, args.max_ground_grade, crs)
+                methods[TOWER_GRAPH_METHOD] = tower_geo
+                t_tower_graph = time.time() - started
+                experimental_tower_graph_results = {
+                    "path": tower_path,
+                    "time_s": t_tower_graph,
+                    "span_min_m": args.tower_min_span_m,
+                    "span_max_m": args.tower_max_span_m,
+                    "candidate_stride": args.tower_candidate_stride,
+                    "turn_penalty_weight": args.turn_penalty_weight,
+                    "clearance_profile_screening": bool(tower_profile_args),
+                    "site_cost_model": "zero; no validated tower-construction cost supplied",
+                }
+                print(f"  [{TOWER_GRAPH_METHOD}] 路径 {len(tower_geo) if tower_geo else 0} 点, "
+                      f"耗时 {t_tower_graph:.1f}s；不参与最终选路")
+
             station_offsets_by_method = {}
             station_measurements = {}
             hard_violation_reports = {}
@@ -980,9 +1125,11 @@ def main():
             for m, geo in methods.items():
                 if geo:
                     method_grade_weight = (0.0 if m in experimental_neighbor_results
+                                           or m == TOWER_GRAPH_METHOD
                                            else args.grade_penalty_weight)
                     method_turn_weight = (args.turn_penalty_weight
-                                          if m == "A*(turn-aware)" else 0.0)
+                                          if m in ("A*(turn-aware)", TOWER_GRAPH_METHOD)
+                                          else 0.0)
                     met = compute_metrics(
                         geo, dem, transform, cost_grid, hard_mask, start_ll, end_ll,
                         grade_penalty_weight=method_grade_weight,
@@ -993,6 +1140,8 @@ def main():
                         official_hazard_masks, osm_layer_metadata,
                         official_hazard_metadata.get("coverage_status", "unknown"),
                         official_hazard_metadata.get("layers", {}))
+                    met["population_data_coverage"] = route_population_coverage(
+                        geo, population_valid_mask, transform, dem.shape)
                     met["search_window_margin_deg"] = args.window_margin_deg
                     met["search_window_edge_clearance_m"] = route_search_window_clearance_m(
                         geo, transform, dem.shape, route_pixel_spacing)
@@ -1018,7 +1167,27 @@ def main():
                         "A*(baseline)": t_astar,
                         "A*(weighted)": t_astar,
                         "A*(turn-aware)": t_astar,
+                        TOWER_GRAPH_METHOD: t_tower_graph,
                     }.get(m, experimental_neighbor_results.get(m, {}).get("time_s", 0.0)), 2)
+                    if m == TOWER_GRAPH_METHOD and experimental_tower_graph_results:
+                        met["search_objective_model"] = "candidate_tower_graph_screening"
+                        met["search_path_objective"] = {
+                            "status": ("measured" if geo else
+                                       "rejected_after_search" if experimental_tower_graph_results["path"]
+                                       else "no_path"),
+                            "unit": "cost_meter_plus_turn_penalty",
+                            "tower_graph_parameters": {
+                                key: value for key, value in experimental_tower_graph_results.items()
+                                if key not in ("path", "time_s")
+                            },
+                            "objective_scope": (
+                                "screening only; zero tower-site cost; optional parabolic DEM clearance "
+                                "is not conductor or load-case certification"),
+                        }
+                        met["candidate_validation_status"] = (
+                            "survived_validation" if geo else
+                            "rejected_after_search" if experimental_tower_graph_results["path"]
+                            else "no_path")
                     if m in experimental_neighbor_results:
                         experiment = experimental_neighbor_results[m]
                         search_cost = experiment["search_cost"]
@@ -1088,6 +1257,9 @@ def main():
                 [] if args.official_hazard_weight == 0 or hazard_coverage_complete
                 else ["official_hazards"])
             missing_screening_layers = missing_osm_layers + missing_hazard_layers
+            if (args.population_weight > 0
+                    and population_metadata.get("status") != "complete"):
+                missing_screening_layers.append("population_raster_coverage")
             screening_quality = (
                 "incomplete_screening_layers" if missing_screening_layers
                 else "configured_layers_present_osm_coverage_unverified")
@@ -1188,13 +1360,17 @@ def main():
                 "grade_penalty_weight": args.grade_penalty_weight,
                 "terrain_slope_weight": args.terrain_slope_weight,
                 "roughness_weight": args.roughness_weight,
+                "population_weight": args.population_weight,
+                "population_layer": population_metadata,
+                "population_data_coverage": route_population_coverage(
+                    final_geo, population_valid_mask, transform, dem.shape),
                 "max_ground_grade_ratio": args.max_ground_grade,
                 "max_surface_slope_deg": args.max_surface_slope_deg,
                 "max_terrain_elevation_m": args.max_terrain_elevation_m,
                 "osm_layer_metadata": osm_layer_metadata,
                 "voltage_rules_applied": False,
                 "route_constraints_limitations": (
-                    "No population/sensitive-target inventory, official protected-area boundaries, "
+                    "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area boundaries, "
                     "conductor clearance, tower siting or span feasibility checked"),
             })
             if station_task:
@@ -1224,10 +1400,12 @@ def main():
                             "grade_penalty_weight": args.grade_penalty_weight,
                             "terrain_slope_weight": args.terrain_slope_weight,
                             "roughness_weight": args.roughness_weight,
+                            "population_weight": args.population_weight,
+                            "population_layer": population_metadata,
                             "max_ground_grade_ratio": args.max_ground_grade,
                             "max_surface_slope_deg": args.max_surface_slope_deg,
                             "max_terrain_elevation_m": args.max_terrain_elevation_m,
-                            "route_constraints_limitations": "No population layer, official protected-area layer, conductor clearance, tower siting or span feasibility checked",
+                            "route_constraints_limitations": "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area layer, conductor clearance, tower siting or span feasibility checked",
                         })
             print(f"  [集成] 最终路线采用 {best_method} ({selection_rule})；线路相似度仅作事后指标")
             # 导出最终路线矢量 (GeoJSON)
@@ -1282,12 +1460,16 @@ def main():
                                            "grade_penalty_weight": args.grade_penalty_weight,
                                            "terrain_slope_weight": args.terrain_slope_weight,
                                            "roughness_weight": args.roughness_weight,
+                                            "population_weight": args.population_weight,
+                                            "population_layer": population_metadata,
+                                            "population_data_coverage": route_population_coverage(
+                                                final_geo, population_valid_mask, transform, dem.shape),
                                            "max_ground_grade_ratio": args.max_ground_grade,
                                            "max_surface_slope_deg": args.max_surface_slope_deg,
                                            "max_terrain_elevation_m": args.max_terrain_elevation_m,
                                            "osm_layer_metadata": osm_layer_metadata,
                                            "route_constraints_limitations": (
-                                               "No population/sensitive-target inventory, official protected-area boundaries, "
+                                                "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area boundaries, "
                                                "conductor clearance, tower siting or span feasibility checked"),
                                            **grade_reports.get(best_method, {}),
                                            **station_offsets_by_method.get(best_method, {}),
@@ -1454,6 +1636,7 @@ def main():
         print(f"  {'走廊':16s} {'方法':16s} {'较差方向P95(m)':>14s} {'采样最大(m)':>12s} "
               f"{'F1@100m':>9s} {'F1@1km':>9s} {'长度差(km)':>11s}")
         candidate_methods = ["A*(baseline)", "A*(weighted)", "A*(turn-aware)",
+                             TOWER_GRAPH_METHOD,
                              ASTAR_8_EXACT_METHOD, ASTAR_16_METHOD,
                              "Theta*(experimental)", "VIN-Grad", "PPO"]
         failed_case_names = {item["case"] for item in failed_cases}

@@ -173,7 +173,9 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
                      official_hazard_masks=None,
                      official_hazard_weight=0.0,
                      terrain_slope_weight=0.75,
-                     roughness_weight=0.25):
+                     roughness_weight=0.25,
+                     population_proxy=None,
+                     population_weight=0.0):
     """Build an interpretable screening cost with a soft built-up proxy.
 
     The proxy is the maximum of mapped-building occupancy fraction, mapped
@@ -230,9 +232,23 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
     if model_cost is not None:
         model = np.nan_to_num(model_cost, nan=0.0, posinf=1.0, neginf=0.0)
         terrain_cost = 0.5 * terrain_cost + 0.5 * np.clip(model, 0.0, 1.0)
-    return (
+    cost = (
         terrain_cost
         + max(float(settlement_weight), 0.0) * settlement_proxy
         + max(float(landcover_penalty_weight), 0.0) * landcover_proxy
         + max(float(official_hazard_weight), 0.0) * hazard_proxy
     ).astype(np.float32)
+    population_weight = float(population_weight)
+    if not np.isfinite(population_weight) or population_weight < 0:
+        raise ValueError("population_weight must be finite and non-negative")
+    if population_weight > 0:
+        if population_proxy is None:
+            raise ValueError("population_proxy is required when population_weight > 0")
+        population_proxy = np.asarray(population_proxy, dtype=np.float32)
+        if population_proxy.shape != cost.shape:
+            raise ValueError("population_proxy shape must match route cost grid")
+        if (not np.isfinite(population_proxy).all()
+                or np.any(population_proxy < 0) or np.any(population_proxy > 1)):
+            raise ValueError("population_proxy must contain finite values in [0, 1]")
+        cost += population_weight * population_proxy
+    return cost

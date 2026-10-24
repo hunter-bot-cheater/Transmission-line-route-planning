@@ -346,6 +346,33 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
             (None, None, "no_hard_constraint_compliant_route"),
         )
 
+    def test_final_route_does_not_select_experimental_tower_graph(self):
+        methods = {"Tower graph (experimental)": [(1, 1), (1, 2)]}
+        metrics = {"Tower graph (experimental)": {"hard_violations": 0}}
+
+        self.assertEqual(
+            _select_final_route(methods, metrics),
+            (None, None, "no_hard_constraint_compliant_route"),
+        )
+
+    def test_experimental_tower_graph_requires_explicit_span_bounds(self):
+        args = ["planner", "--experimental-tower-graph", "--start", "24,121",
+                "--end", "24.1,121.1"]
+        with patch("sys.argv", args), redirect_stderr(StringIO()):
+            with self.assertRaises(SystemExit) as exc:
+                main()
+
+        self.assertEqual(exc.exception.code, 2)
+
+    def test_tower_graph_span_parameters_require_experimental_mode(self):
+        args = ["planner", "--tower-min-span-m", "175", "--start", "24,121",
+                "--end", "24.1,121.1"]
+        with patch("sys.argv", args), redirect_stderr(StringIO()):
+            with self.assertRaises(SystemExit) as exc:
+                main()
+
+        self.assertEqual(exc.exception.code, 2)
+
     def test_cli_does_not_expose_reference_guidance_options(self):
         output = StringIO()
         with patch("sys.argv", ["planner", "--help"]), redirect_stdout(output):
