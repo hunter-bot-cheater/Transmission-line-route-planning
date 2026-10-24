@@ -11,6 +11,7 @@ from transmission_path_planner.experimental_theta_star import (
 from transmission_path_planner.metrics import path_cost_integral
 from transmission_path_planner.methods import astar_search
 from transmission_path_planner.smoothing import path_hard_violations
+from transmission_path_planner.smoothing import _ground_grade_grid_edge_passes
 
 
 def _route_geometry(path):
@@ -156,6 +157,38 @@ class ExperimentalThetaStarTests(unittest.TestCase):
 
         self.assertIsNone(
             theta_star_cost_path(cost, traversable, (5, 2), (5, 18)))
+
+    def test_ground_grade_limit_is_enforced_during_search(self):
+        cost = np.ones((5, 5), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+        elevation = np.zeros(cost.shape, dtype=np.float64)
+        elevation[2, 2] = 10.0
+
+        route = theta_star_cost_path(
+            cost, traversable, (2, 0), (2, 4), pixel_spacing=(1.0, 1.0),
+            elevation=elevation, max_ground_grade=0.5)
+
+        self.assertIsNotNone(route)
+        self.assertGreater(len(route), 2)
+        self.assertTrue(all(
+            _ground_grade_grid_edge_passes(
+                first, second, elevation, (1.0, 1.0), 0.5)
+            for first, second in zip(route, route[1:])))
+
+    def test_ground_grade_limit_requires_matching_dem_and_positive_threshold(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+
+        with self.assertRaisesRegex(ValueError, "elevation is required"):
+            theta_star_cost_path(
+                cost, traversable, (0, 0), (2, 2), max_ground_grade=0.5)
+        with self.assertRaisesRegex(ValueError, "positive and finite"):
+            theta_star_cost_path(
+                cost, traversable, (0, 0), (2, 2), elevation=cost,
+                max_ground_grade=0.0)
+        with self.assertRaisesRegex(ValueError, "match"):
+            theta_star_cost_path(
+                cost, traversable, (0, 0), (2, 2), elevation=np.zeros((2, 2)))
 
     def test_baseline_astar_and_theta_star_have_same_feasible_cost_in_open_grid(self):
         cost = np.ones((17, 23), dtype=np.float64)

@@ -13,8 +13,11 @@ from transmission_path_planner.cost import build_route_cost
 from transmission_path_planner.cli import (
     _select_final_route,
     attach_station_endpoints,
+    build_tower_masks,
+    overhead_span_grade_report,
     screening_data_quality,
     validate_route_hard_constraints,
+    validate_tower_span_lengths,
 )
 from transmission_path_planner.geometry import pixel_spacing_meters, rowcol_to_geo
 from transmission_path_planner.methods import astar_search
@@ -29,6 +32,7 @@ from transmission_path_planner.smoothing import (
     snap_to_valid,
 )
 from transmission_path_planner.stations import load_station_tasks, station_elevation_metrics
+from transmission_path_planner.experimental_tower_graph import tower_graph_route
 
 
 class StationPlanningTests(unittest.TestCase):
@@ -39,6 +43,63 @@ class StationPlanningTests(unittest.TestCase):
             writer.writerow(headers)
             writer.writerows(rows)
         return path
+
+    def test_tower_masks_allow_steep_spans_but_not_steep_sites(self):
+        dem = np.zeros((5, 5), dtype=np.float64)
+        slope = np.zeros_like(dem)
+        slope[:, 2] = 45.0
+        user_hard = np.zeros_like(dem, dtype=np.uint8)
+        user_hard[1, 1] = 1
+        buildings = np.zeros_like(user_hard)
+        buildings[3, 3] = 1
+        dem[0, 0] = np.nan
+        building_distance = np.full_like(dem, 100.0)
+        building_distance[4, 4] = 5.0
+
+        span_mask, site_mask = build_tower_masks(
+            dem, slope, user_hard, max_surface_slope_deg=30.0,
+            building_mask=buildings, building_distance_m=building_distance,
+            building_clearance_m=10.0)
+
+        self.assertTrue(span_mask[2, 2])
+        self.assertFalse(site_mask[2, 2])
+        self.assertFalse(span_mask[1, 1])
+        self.assertFalse(site_mask[1, 1])
+        self.assertFalse(span_mask[3, 3])
+        self.assertFalse(site_mask[3, 3])
+        self.assertFalse(span_mask[0, 0])
+        self.assertFalse(span_mask[4, 4])
+
+        route = tower_graph_route(
+            np.ones((5, 5)), span_mask, site_mask, (2, 0), (2, 4),
+            min_span_m=1.0, max_span_m=2.5, candidate_stride=1)
+        self.assertIsNotNone(route)
+        self.assertTrue(all(col != 2 for _, col in route[1:-1]))
+        self.assertTrue(any(min(first[1], second[1]) < 2 < max(first[1], second[1])
+                            for first, second in zip(route, route[1:])))
+
+    def test_overhead_span_grade_is_explicitly_unassessed(self):
+        report = overhead_span_grade_report()
+        self.assertEqual(report["grade_limit_status"], "not_applicable_overhead_spans")
+        self.assertFalse(report["grade_limit_assessed"])
+        self.assertIsNone(report["grade_limit_violation_count"])
+        self.assertIsNone(report["grade_limit_unassessed_count"])
+
+    def test_restored_tower_endpoints_are_rechecked_against_span_limits(self):
+        invalid_route = [(121.0, 25.0), (121.001, 25.0), (121.02, 25.0)]
+        rejected, report = validate_tower_span_lengths(
+            invalid_route, min_span_m=200.0, max_span_m=500.0)
+
+        self.assertIsNone(rejected)
+        self.assertEqual(report["tower_span_status"], "fail")
+        self.assertEqual(report["tower_span_violation_count"], 2)
+        self.assertEqual(report["tower_span_invalid_indices"], [0, 1])
+
+        valid_route = [(121.0, 25.0), (121.003, 25.0), (121.006, 25.0)]
+        accepted, valid_report = validate_tower_span_lengths(
+            valid_route, min_span_m=200.0, max_span_m=500.0)
+        self.assertEqual(accepted, valid_route)
+        self.assertEqual(valid_report["tower_span_status"], "pass")
 
     def test_loads_station_pair_and_route_voltage(self):
         with tempfile.TemporaryDirectory() as folder:

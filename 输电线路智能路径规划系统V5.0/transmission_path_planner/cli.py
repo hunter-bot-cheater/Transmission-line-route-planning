@@ -97,6 +97,40 @@ def validate_route_hard_constraints(geo, transform, hard_mask):
     return (geo if violations == 0 else None), report
 
 
+def validate_tower_span_lengths(geo, min_span_m, max_span_m, tolerance_m=0.5):
+    """Recheck every final tower span after exact endpoint restoration."""
+    if not geo or len(geo) < 2:
+        return None, {"tower_span_status": "no_path", "tower_span_violation_count": 0,
+                      "tower_span_lengths_m": []}
+    lengths = [haversine_km(*first, *second) * 1000.0
+               for first, second in zip(geo, geo[1:])]
+    violations = [index for index, length in enumerate(lengths)
+                  if length < min_span_m - tolerance_m
+                  or length > max_span_m + tolerance_m]
+    report = {
+        "tower_span_status": "pass" if not violations else "fail",
+        "tower_span_violation_count": len(violations),
+        "tower_span_lengths_m": [round(length, 2) for length in lengths],
+        "tower_span_invalid_indices": violations,
+        "tower_span_min_m": min_span_m,
+        "tower_span_max_m": max_span_m,
+        "tower_span_length_method": "haversine_horizontal_distance_after_endpoint_restore",
+    }
+    return (geo if not violations else None), report
+
+
+def overhead_span_grade_report():
+    """Mark ground-grade as unassessed for overhead conductor spans."""
+    return {
+        "grade_limit_status": "not_applicable_overhead_spans",
+        "grade_limit_assessed": False,
+        "grade_limit_violation_count": None,
+        "grade_limit_unassessed_count": None,
+        "grade_limit_max_sampled_grade_ratio": None,
+        "grade_limit_threshold_ratio": None,
+    }
+
+
 def route_search_window_clearance_m(geo, transform, shape, pixel_spacing):
     """Return the closest route-vertex distance to the raster window edge."""
     if not geo:
@@ -185,6 +219,37 @@ def validate_endpoint_cells(start, end, shape, hard_mask, blocking_layers=None):
                 raise ValueError(f"{label}位于不可通行像元（{reason_text}）；请核对接入点坐标或约束")
             raise ValueError(f"{label}位于NoData/建筑/配置禁区内；请核对接入点坐标或约束")
     return start, end
+
+
+def build_tower_masks(dem, slope, custom_hard_mask=None,
+                      max_surface_slope_deg=None, max_terrain_elevation_m=None,
+                      building_mask=None, building_distance_m=None,
+                      building_clearance_m=0.0):
+    """Separate overhead-span traversability from candidate tower-site limits."""
+    elevation = np.asarray(dem)
+    surface_slope = np.asarray(slope)
+    if elevation.ndim != 2 or surface_slope.shape != elevation.shape:
+        raise ValueError("dem and slope must be same-shaped 2D arrays")
+    span_mask = np.isfinite(elevation)
+    for mask, label in ((custom_hard_mask, "custom_hard_mask"),
+                        (building_mask, "building_mask")):
+        if mask is not None:
+            values = np.asarray(mask)
+            if values.shape != elevation.shape:
+                raise ValueError(f"{label} must match the DEM")
+            span_mask &= values == 0
+    if max_terrain_elevation_m is not None:
+        span_mask &= elevation <= max_terrain_elevation_m
+    if building_clearance_m > 0 and building_distance_m is not None:
+        distance = np.asarray(building_distance_m)
+        if distance.shape != elevation.shape:
+            raise ValueError("building_distance_m must match the DEM")
+        span_mask &= distance > building_clearance_m
+
+    site_mask = span_mask.copy()
+    if max_surface_slope_deg is not None:
+        site_mask &= surface_slope <= max_surface_slope_deg
+    return span_mask.astype(np.uint8), site_mask.astype(np.uint8)
 
 
 def _geometry_intersects_features(geometry, features):
@@ -807,21 +872,20 @@ def main():
             print(f"  代价面范围 [{np.nanmin(cost):.3f}, {np.nanmax(cost):.3f}]")
 
             slope = terrain["slope"]; elev = terrain["elevation"]
-            hard_mask = np.ones((H, W), np.uint8)
-            hard_mask[~np.isfinite(dem)] = 0
-            if custom_constraints:
-                hard_mask[custom_constraints["hard_mask"] > 0] = 0
+            building_mask = osm.get("building_mask")
             if args.max_surface_slope_deg is not None:
                 if not 0 < args.max_surface_slope_deg <= 90:
                     raise ValueError("--max-surface-slope-deg 必须在(0,90]内")
-                hard_mask[slope > args.max_surface_slope_deg] = 0
-            if args.max_terrain_elevation_m is not None:
-                hard_mask[elev > args.max_terrain_elevation_m] = 0
-            building_mask = osm.get("building_mask")
-            if building_mask is not None:
-                hard_mask[np.asarray(building_mask) > 0] = 0
-            if args.building_clearance_m > 0 and "building_distance_m" in osm:
-                hard_mask[osm["building_distance_m"] <= args.building_clearance_m] = 0
+            tower_span_mask, hard_mask = build_tower_masks(
+                dem, slope,
+                custom_hard_mask=(custom_constraints["hard_mask"]
+                                  if custom_constraints else None),
+                max_surface_slope_deg=args.max_surface_slope_deg,
+                max_terrain_elevation_m=args.max_terrain_elevation_m,
+                building_mask=building_mask,
+                building_distance_m=osm.get("building_distance_m"),
+                building_clearance_m=args.building_clearance_m,
+            )
             endpoint_blockers = {"DEM NoData": ~np.isfinite(dem)}
             if custom_constraints:
                 endpoint_blockers["用户硬约束"] = custom_constraints["hard_mask"] > 0
@@ -841,11 +905,18 @@ def main():
                 hard_mask, endpoint_blockers, building_geometries, transform,
                 args.building_clearance_m,
             )
-            validate_endpoint_cells((sr, sc), (er, ec), dem.shape, hard_mask,
+            for exception in endpoint_building_exceptions:
+                tower_span_mask[exception["row"], exception["col"]] = 1
+            endpoint_mask = (tower_span_mask if args.experimental_tower_graph
+                             else hard_mask)
+            validate_endpoint_cells((sr, sc), (er, ec), dem.shape, endpoint_mask,
                                     endpoint_blockers)
             same_grid_cell = (sr, sc) == (er, ec)
             cost_grid = (1.0 + 4.0 * cost).astype(np.float64)
             cost_grid = np.where(hard_mask == 0, np.inf, cost_grid)
+            tower_span_cost_grid = (1.0 + 4.0 * cost).astype(np.float64)
+            tower_span_cost_grid = np.where(
+                tower_span_mask > 0, tower_span_cost_grid, np.inf)
             if args.include_ai_diagnostics:
                 cost_finite = np.where(np.isfinite(cost), cost, 1.0).astype(np.float32)
                 cost_vin = np.where(hard_mask > 0, cost_grid, 0.0).astype(np.float32)
@@ -1015,7 +1086,8 @@ def main():
                 t_theta = time.time()
                 theta_path = theta_star_cost_path(
                     cost_grid, hard_mask, (sr, sc), (er, ec),
-                    pixel_spacing=route_pixel_spacing)
+                    pixel_spacing=route_pixel_spacing, elevation=dem,
+                    max_ground_grade=args.max_ground_grade)
                 geo_theta = ([rowcol_to_geo(r, c, transform) for r, c in theta_path]
                              if theta_path else None)
                 if geo_theta:
@@ -1024,7 +1096,7 @@ def main():
                         0.0, 0.0, route_pixel_spacing,
                         max_ground_grade=args.max_ground_grade, crs=crs,
                         shortcut_endpoints=shortcut_endpoints)
-                geo_theta, grade_reports["Theta*(experimental)"] = filter_path_by_ground_grade(
+                grade_reports["Theta*(experimental)"] = ground_grade_limit_report(
                     geo_theta, dem, transform, args.max_ground_grade, crs)
                 methods["Theta*(experimental)"] = geo_theta
                 t_theta = time.time() - t_theta
@@ -1043,7 +1115,7 @@ def main():
                         "minimum_clearance_m": args.tower_min_clearance_m,
                     }
                 tower_path = tower_graph_route(
-                    cost_grid, hard_mask.astype(bool), hard_mask.astype(bool),
+                    tower_span_cost_grid, tower_span_mask.astype(bool), hard_mask.astype(bool),
                     (sr, sc), (er, ec), args.tower_min_span_m,
                     args.tower_max_span_m, pixel_spacing=route_pixel_spacing,
                     candidate_stride=args.tower_candidate_stride,
@@ -1052,8 +1124,7 @@ def main():
                 )
                 tower_geo = ([rowcol_to_geo(row, col, transform)
                               for row, col in tower_path] if tower_path else None)
-                tower_geo, grade_reports[TOWER_GRAPH_METHOD] = filter_path_by_ground_grade(
-                    tower_geo, dem, transform, args.max_ground_grade, crs)
+                grade_reports[TOWER_GRAPH_METHOD] = overhead_span_grade_report()
                 methods[TOWER_GRAPH_METHOD] = tower_geo
                 t_tower_graph = time.time() - started
                 experimental_tower_graph_results = {
@@ -1063,6 +1134,7 @@ def main():
                     "span_max_m": args.tower_max_span_m,
                     "candidate_stride": args.tower_candidate_stride,
                     "turn_penalty_weight": args.turn_penalty_weight,
+                    "tower_site_max_surface_slope_deg": args.max_surface_slope_deg,
                     "clearance_profile_screening": bool(tower_profile_args),
                     "site_cost_model": "zero; no validated tower-construction cost supplied",
                 }
@@ -1072,14 +1144,24 @@ def main():
             station_offsets_by_method = {}
             station_measurements = {}
             hard_violation_reports = {}
+            tower_span_reports = {}
             if station_task:
                 for method, geo in list(methods.items()):
                     if not geo:
                         continue
                     geo, offsets = attach_station_endpoints(geo, station_task)
-                    geo, grade_report = filter_path_by_ground_grade(
-                        geo, dem, transform, args.max_ground_grade, crs)
-                    geo, hard_report = validate_route_hard_constraints(geo, transform, hard_mask)
+                    if method == TOWER_GRAPH_METHOD:
+                        geo, tower_span_reports[method] = validate_tower_span_lengths(
+                            geo, args.tower_min_span_m, args.tower_max_span_m)
+                        grade_report = grade_reports[method]
+                    else:
+                        geo, grade_report = filter_path_by_ground_grade(
+                            geo, dem, transform, args.max_ground_grade, crs)
+                    validation_mask = (tower_span_mask if method == TOWER_GRAPH_METHOD
+                                       else hard_mask)
+                    geo, hard_report = validate_route_hard_constraints(
+                        geo, transform, validation_mask)
+                    hard_report.update(tower_span_reports.get(method, {}))
                     if geo and osm_layer_metadata.get("buildings", {}).get("status") == "available":
                         geo, building_report = validate_route_against_buildings(
                             geo, building_geometries)
@@ -1102,10 +1184,17 @@ def main():
                 for method, geo in list(methods.items()):
                     geo = expand_single_cell_route(geo, (slat, slon), (elat, elon))
                     geo = attach_input_endpoints(geo, (slat, slon), (elat, elon))
-                    geo, grade_reports[method] = filter_path_by_ground_grade(
-                        geo, dem, transform, args.max_ground_grade, crs)
+                    if method == TOWER_GRAPH_METHOD:
+                        geo, tower_span_reports[method] = validate_tower_span_lengths(
+                            geo, args.tower_min_span_m, args.tower_max_span_m)
+                    else:
+                        geo, grade_reports[method] = filter_path_by_ground_grade(
+                            geo, dem, transform, args.max_ground_grade, crs)
+                    validation_mask = (tower_span_mask if method == TOWER_GRAPH_METHOD
+                                       else hard_mask)
                     geo, hard_report = validate_route_hard_constraints(
-                        geo, transform, hard_mask)
+                        geo, transform, validation_mask)
+                    hard_report.update(tower_span_reports.get(method, {}))
                     if geo and osm_layer_metadata.get("buildings", {}).get("status") == "available":
                         geo, building_report = validate_route_against_buildings(
                             geo, building_geometries)
@@ -1130,8 +1219,13 @@ def main():
                     method_turn_weight = (args.turn_penalty_weight
                                           if m in ("A*(turn-aware)", TOWER_GRAPH_METHOD)
                                           else 0.0)
+                    metric_cost_grid = (tower_span_cost_grid
+                                        if m == TOWER_GRAPH_METHOD else cost_grid)
+                    metric_hard_mask = (tower_span_mask
+                                        if m == TOWER_GRAPH_METHOD else hard_mask)
                     met = compute_metrics(
-                        geo, dem, transform, cost_grid, hard_mask, start_ll, end_ll,
+                        geo, dem, transform, metric_cost_grid, metric_hard_mask,
+                        start_ll, end_ll,
                         grade_penalty_weight=method_grade_weight,
                         turn_penalty_weight=method_turn_weight,
                         pixel_spacing=route_pixel_spacing)

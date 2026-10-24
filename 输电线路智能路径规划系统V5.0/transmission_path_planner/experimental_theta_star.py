@@ -6,9 +6,10 @@ any-angle links. Segment costs are exact integrals of a piecewise-constant raste
 cost (cost per metre) under a fixed local row/column metric. Hard constraints use
 the planner's shared conservative supercover raster test.
 
-Scope: non-negative isotropic terrain costs and a traversability mask only.
-There is no turn/curvature term, grade term, tower/span model, endpoint snapping,
-or global optimality guarantee for weighted Theta*.
+Scope: non-negative isotropic terrain costs and a traversability mask, with an
+optional sampled ground-grade edge limit. There is no turn/curvature term,
+tower/span model, endpoint snapping, or global optimality guarantee for
+weighted Theta*.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from itertools import count
 
 import numpy as np
 
-from .smoothing import _grid_cells_touched
+from .smoothing import _grid_cells_touched, _ground_grade_grid_edge_passes
 
 
 _NEIGHBORS = (
@@ -140,7 +141,8 @@ def integrate_polyline_cost(path, cost_raster, traversable_mask, pixel_spacing=(
 
 
 def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
-                         pixel_spacing=(1.0, 1.0)):
+                         pixel_spacing=(1.0, 1.0), elevation=None,
+                         max_ground_grade=None):
     """Find an experimental any-angle route over non-negative raster costs.
 
     Args:
@@ -148,6 +150,8 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
         traversable_mask: same-shaped mask where True/1 means traversable.
         start_rc, goal_rc: exact in-bounds cell indices; no snapping is performed.
         pixel_spacing: physical metres per row and column pixel.
+        elevation: optional DEM used to enforce the ground-grade edge limit.
+        max_ground_grade: optional positive grade ratio applied to every segment.
 
     Returns:
         A list of (row, column) cell-center vertices, or None when unreachable.
@@ -158,6 +162,22 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
     cost, traversable, spacing = _validated_inputs(
         cost_raster, traversable_mask, pixel_spacing)
     height, width = traversable.shape
+    if max_ground_grade is not None:
+        try:
+            max_ground_grade = float(max_ground_grade)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("max_ground_grade must be positive and finite") from exc
+        if not math.isfinite(max_ground_grade) or max_ground_grade <= 0.0:
+            raise ValueError("max_ground_grade must be positive and finite")
+        if elevation is None:
+            raise ValueError("elevation is required when max_ground_grade is set")
+        elevation = np.asarray(elevation, dtype=np.float64)
+        if elevation.shape != cost.shape:
+            raise ValueError("elevation must match the 2D cost raster")
+    elif elevation is not None:
+        elevation = np.asarray(elevation, dtype=np.float64)
+        if elevation.shape != cost.shape:
+            raise ValueError("elevation must match the 2D cost raster")
 
     start = _checked_cell(start_rc, "start_rc")
     goal = _checked_cell(goal_rc, "goal_rc")
@@ -178,6 +198,10 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
         dr = (goal[0] - row) * row_m
         dc = (goal[1] - col) * col_m
         return minimum_cost * math.hypot(dr, dc)
+
+    def grade_passes(first, second):
+        return (max_ground_grade is None or _ground_grade_grid_edge_passes(
+            first, second, elevation, spacing, max_ground_grade))
 
     g_score = np.full((height, width), np.inf, dtype=np.float64)
     parent_row = np.full((height, width), -1, dtype=np.int32)
@@ -221,13 +245,15 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
 
             # Unlike geometric Theta*, a visible long chord can cross expensive
             # cells. Compare it with the adjacent predecessor edge every time.
-            if _segment_is_clear(parent, neighbor, traversable):
+            if (_segment_is_clear(parent, neighbor, traversable)
+                    and grade_passes(parent, neighbor)):
                 direct_g = (g_score[parent]
                             + _segment_cost(parent, neighbor, cost, spacing))
                 candidate_parent, candidate_g = parent, direct_g
 
             current = (row, col)
-            if _segment_is_clear(current, neighbor, traversable):
+            if (_segment_is_clear(current, neighbor, traversable)
+                    and grade_passes(current, neighbor)):
                 via_g = (g_score[row, col]
                          + _segment_cost(current, neighbor, cost, spacing))
                 if via_g < candidate_g:
