@@ -1,0 +1,309 @@
+{
+  "evaluation": "direct 12-case run; reference geometry loaded after route selection for posthoc scoring",
+  "command": [
+    "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\transmission_path_planner\\__main__.py",
+    "--dem",
+    "data\\taiwan_dem_35m_georef_fixed.tif",
+    "--osm-cache-dir",
+    "D:\\大创\\V5_final\\data\\downloaded",
+    "--real-cases-csv",
+    "D:\\大创\\data\\real_cases_tw\\real_cases.csv",
+    "--real-dir",
+    "D:\\大创\\data\\real_cases_tw",
+    "--out-dir",
+    "outputs\\real_recheck_memory_order_20261025",
+    "--no-vin",
+    "--no-ppp",
+    "--max-side",
+    "4096"
+  ],
+  "run_summary": {
+    "expected_cases": 12,
+    "completed_cases": 12,
+    "failed_cases": [],
+    "no_route_cases": []
+  },
+  "planning_source": {
+    "base_commit": "c63d0fd4e50bf3e25763b91a5fe09437d49b9377",
+    "working_tree_was_dirty_at_run": true,
+    "runtime_source_file_hashes": [
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/__init__.py",
+        "size_bytes": 556,
+        "sha256": "b038356cd9612a78f52bf8c3164d76ddffab92009f0696a68e2517ba0dd42932"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/__main__.py",
+        "size_bytes": 168,
+        "sha256": "ca22886fbac055824344581f2ced4fa787532a8a91d27b2e98d801f6babd1222"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/cli.py",
+        "size_bytes": 116437,
+        "sha256": "d9b8bf5280c98885e2626efbf7d041c5fe07697eac90f67557d508dc8876a11e"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/config.py",
+        "size_bytes": 6863,
+        "sha256": "75f6467d828f0c04666a74ee111b1ff841b6571d19a101579ea81f328fe25c64"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/corridor.py",
+        "size_bytes": 6745,
+        "sha256": "8aef1bb09e9dbab5adde7f798bce0f8e41fe0f7650e1fd9e82c37bb5da237788"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/cost.py",
+        "size_bytes": 12652,
+        "sha256": "f5d07061852f524caa73dc3f60e1967ab0172f60cfae72e96c57098a35bb1f9d"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/data.py",
+        "size_bytes": 19220,
+        "sha256": "e6b79621a13d763daffd7003030cfe0005a20c298a5d832ac33b65b3f7b361e2"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/diverse_routes.py",
+        "size_bytes": 20156,
+        "sha256": "952d87838b2f32d01ab775c7ce1e0429d2a1ad51f3794d60a54b28fd40b3233a"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_astar_16.py",
+        "size_bytes": 8759,
+        "sha256": "d1368035b14c0316c76d2a8adb9cb2389483f42670c1b099dab7c6573b35a572"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_theta_star.py",
+        "size_bytes": 12128,
+        "sha256": "f45ba9efef5941325fe52682f05c7453ae586dfb283b279d3eebbcf25053b739"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_tower_graph.py",
+        "size_bytes": 23521,
+        "sha256": "5df75bee0b4eb3639bec3e5f394dd3390e8e468d5bb148dd6279aba987904781"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/geometry.py",
+        "size_bytes": 3854,
+        "sha256": "cef485dac1a7f6b7f5759b5f1fc6d18335e39a9bddb8b9e9d824c136942ad246"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/io_export.py",
+        "size_bytes": 4161,
+        "sha256": "db4444e2783c42d3daaf6a095e527fe01068181ea69e1b31f28b12d07d8e1311"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/methods.py",
+        "size_bytes": 57073,
+        "sha256": "975772dc1f3273896e09bf1b3a6a54b83b38d2c8bfbb4277836e1090be205a86"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/metrics.py",
+        "size_bytes": 41704,
+        "sha256": "6574fc88b20b3efd11af2c09ff3c23b89367121be6b9d83f7ff29f796b58e5e5"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/official_hazards.py",
+        "size_bytes": 22140,
+        "sha256": "aecb44ca3238f46f7d03939252b2d756b9ceb8c8cc67018c70382cd20244b817"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/osm.py",
+        "size_bytes": 27247,
+        "sha256": "97b9ffe505ee5f05748fa4121c70778f71f323e5d9c009f1421f22c16691b1f8"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/provenance.py",
+        "size_bytes": 9457,
+        "sha256": "7695d748f958b67238ca9b66ef7459206d74283ed34a4dc57b797169cdd035f0"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/rebuild_terrarium_dem.py",
+        "size_bytes": 6644,
+        "sha256": "ee69866a3a229e4855abb356acc7be1b42b5220241e051ff73bd66efdb2f380a"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/smoothing.py",
+        "size_bytes": 17112,
+        "sha256": "bed0a978e502f5add055ee350b8bd0e9385bb8049dc157c6cf9484cede14e44e"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/stations.py",
+        "size_bytes": 7640,
+        "sha256": "dba65208d0272edd31d624cb1df1809e0ac5671c0e5c327d5b58024400c8c738"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/terrarium.py",
+        "size_bytes": 1471,
+        "sha256": "3d4d823ff5731242f90127c59887bc734da4431db42a2412287179cf34d3942e"
+      },
+      {
+        "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/visualization.py",
+        "size_bytes": 11187,
+        "sha256": "a1de9b20d84d8d86a4fc534a08402ddd5f66a1ad201ced7cd6535c27b13fdf84"
+      }
+    ],
+    "reference_geometry_hashed_as_planning_input": false
+  },
+  "run_provenance_sha256": "e20034f79307c27ab4cad89353017e19a2412abb98f5671fe582c516bab34e6b",
+  "real_comparison_metrics_sha256": "8162f9db1fb47884703210976d77b4a01aeac3c8a0860796c7d1b8a9a2f9af07",
+  "route_error_plot_script_sha256": "189f6dd1a5ced348a55aad450718d8e138a8cfe51f412cd4c1f297dc47d5a3aa",
+  "plot_command": [
+    "D:\\python\\python.exe",
+    "-X",
+    "utf8",
+    "-B",
+    "tools\\plot_route_error_maps.py",
+    "--results-dir",
+    "outputs\\real_recheck_memory_order_20261025"
+  ],
+  "aggregate_metrics": {
+    "p95": {
+      "median": 9.473510202314193,
+      "mean": 8.993024153892998,
+      "min": 3.0540348874693257,
+      "max": 22.082320106315205
+    },
+    "f1_100": {
+      "median": 1.298390516674524,
+      "mean": 1.8865043271722486,
+      "min": 0.2208015094794102,
+      "max": 8.146104269031968
+    },
+    "f1_1k": {
+      "median": 7.398251566092394,
+      "mean": 13.052923042470198,
+      "min": 3.418231472145484,
+      "max": 58.63674209059043
+    },
+    "length_error": {
+      "median": 3.0804172620837993,
+      "mean": 5.97348275158581,
+      "min": 0.33096253801169884,
+      "max": 26.098223310406382
+    }
+  },
+  "cases": {
+    "TW173": {
+      "case_dir": "TW173-06a5036e04",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "15d92c2076e60ab7d88a2ca289dc6e0107081c0355aca3e08aa9a56fa5c374b0",
+      "reference_route_geojson_sha256_posthoc_only": "29963a8c0e3c27904a8fa9a34e72f39aea12e02eec20b762a6406b6512168460",
+      "final_route_geojson_sha256": "03cd2a5b58aafd812d8d8f00cdc1e0e19fd5827df9baac6936b2a92114e694a8"
+    },
+    "TW58": {
+      "case_dir": "TW58-cc00e6e4c2",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "aa2da8f70a94bcf2c23ce628c691bd8a3364cb8c2ab97ca715b27fe92db278c9",
+      "reference_route_geojson_sha256_posthoc_only": "8471e7f9fc2f0aa9938f0edc5fa918c9832de6dbc13fc574733cb2c522f1fde8",
+      "final_route_geojson_sha256": "7e83c0b21459ca6d6145027e0b2613edbba9ba898a84bf2fca219aa82852a98b"
+    },
+    "天輪~龍潭線": {
+      "case_dir": "route-b64eac92e5",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "dc9ca172f238323c19dd8fbb5496677ec1dba5f5eb6283456a24f50c885e759d",
+      "reference_route_geojson_sha256_posthoc_only": "c30f039a5bd8b4cde71a32692998e6fab3e82f9afdd4d05317d3951c720e01b1",
+      "final_route_geojson_sha256": "a2a7637a02b2b290e42d257097b7c6f73ff1deaef28d632fd37cd86df0da195f"
+    },
+    "TW59": {
+      "case_dir": "TW59-70c0b5c4d3",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "62a24b9bc1d27f9b83ef914c6f319f06c37a017efd2ffd37b6ffc393d70e8ed4",
+      "reference_route_geojson_sha256_posthoc_only": "45c462ea33e1259c7cc353a6eae717d010ef34f01e19b25f5614e3c379113ddc",
+      "final_route_geojson_sha256": "e1ec70ae805404b5a9d3d487e3a60af4a68980d924999c08937c90de75f8f166"
+    },
+    "深美～冬山線": {
+      "case_dir": "route-8fbecc61d4",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "6920bfc9670a9b481f86023ec5d3daf97d5f84b3f4965752e6320adc2169f7b7",
+      "reference_route_geojson_sha256_posthoc_only": "951ab3cc205489ffbf232e9593dae399457715dde5b5141009557ef1680ffa09",
+      "final_route_geojson_sha256": "d8c7df0fab4c1f0fe02f1d2a1aef1add0d504756e8ce4448841ea828fced6747"
+    },
+    "TW102": {
+      "case_dir": "TW102-2090e70a51",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "ffd18e332817e489b636e3cbbc2f6d35e1d2e0a6619c97bfed288601e9fe2b6b",
+      "reference_route_geojson_sha256_posthoc_only": "de839cd4086315757b6319b17de23fc93bf12993dd33a40a4ed6426d7c438d27",
+      "final_route_geojson_sha256": "08453481107b687d3f7f1991e9dea126e02cbcc0f7cfce21c95832f23a2a1c16"
+    },
+    "TW766": {
+      "case_dir": "TW766-b3c8aa0607",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "cc4a90ea681c6e6c8a8f7d2267f055b0e097ad21c488ee34de3fdc1a7bd1ebde",
+      "reference_route_geojson_sha256_posthoc_only": "a8b75767e69a64289ee98988f65094909d41433b2499dd3da5de2a24d5e0d3e0",
+      "final_route_geojson_sha256": "d6a672ceabbaf0c211cb84c48a6b316f9d9845bc33108ac1913da8d5b82cf297"
+    },
+    "TW252": {
+      "case_dir": "TW252-fc8f065bc8",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "72d718e5fe54977955e529bc7046b4a3d9f6992e06805071fe75a0696565e2bd",
+      "reference_route_geojson_sha256_posthoc_only": "7877b8465ee4f226d5a743c8061a74ac5d7da3364437841b5410b3ffe84c2f83",
+      "final_route_geojson_sha256": "b23be395cea925786a416de9517ac50b1e2a40cbaf75570309a19441668912df"
+    },
+    "TW769": {
+      "case_dir": "TW769-f7d5758fc6",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "be7d66ce0abbd2ec059e8b76331752d66ff2c1ae23203d0e73999a34626f2d46",
+      "reference_route_geojson_sha256_posthoc_only": "1592ef766ace7f69eddae3214630ec3076769822044a0bd52ccf6450bf158ba9",
+      "final_route_geojson_sha256": "f7598b831c8ac41c571098a0d4edd5e88ec8fd5e3220a157795cd8d09490c0cb"
+    },
+    "TW345": {
+      "case_dir": "TW345-34e5d646cb",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "ef6d5b958c30d125a0393fecc5d2e9f9c93b64f5b454b4964c0806e8c404717c",
+      "reference_route_geojson_sha256_posthoc_only": "4542b0015a4c1ee22ebff02c8e3ec1db54a9fd96161ba656fb8af9132c39d5ec",
+      "final_route_geojson_sha256": "34f33c3a8b8f2254ec25a4ade5cd9c63b8b317eda077dcfe0d75a7acf4b51208"
+    },
+    "明潭-鳳林線": {
+      "case_dir": "route-38d068a645",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "01470182a371a916c409b6f8e0588e3a18eff5413224cc4f109beca43fdda817",
+      "reference_route_geojson_sha256_posthoc_only": "2ad2bc2b624444055a01a076fc68d22f847ebc5a294a450e28daf2a04ce71167",
+      "final_route_geojson_sha256": "f7024d6c694d24fe5b2eff6f903c9dc2dc48d34872e481d6e7f54ba6a644e0a1"
+    },
+    "TW311": {
+      "case_dir": "TW311-2a5b3b57c1",
+      "buildings_status": "available",
+      "landuse_status": "available",
+      "planning_status": "screening_candidate",
+      "missing_osm_layers": [],
+      "planned_route_geojson_sha256": "7999b57609980e5cf27ce66827717544108bd8292869d47d4f606c0ea1475d03",
+      "reference_route_geojson_sha256_posthoc_only": "3e33baf3141676e0d06e92b6588e96a998fe2b430850a3a981d968ff13dd6949",
+      "final_route_geojson_sha256": "95869a71202a9e157a8d1f29db8f69adc43f3e96ab2be8b25a0a46d39f7322b4"
+    }
+  },
+  "interpretation": "F1@100m is a length-weighted symmetric coverage diagnostic, not a percent error rate. P95 is the worse of the two directional, length-weighted 95th-percentile distances."
+}

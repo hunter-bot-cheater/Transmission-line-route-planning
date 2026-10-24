@@ -165,6 +165,17 @@ def screening_data_quality(osm_layer_metadata):
             else "osm_proxy_features_observed_coverage_unverified"), missing
 
 
+def reject_osm_planning_layer_read_errors(osm_layer_metadata):
+    """Do not plan with empty geometries produced by a failed cache read."""
+    errors = [
+        f"{name} ({osm_layer_metadata.get(name, {}).get('reason', 'unknown')})"
+        for name in ("buildings", "landuse")
+        if osm_layer_metadata.get(name, {}).get("status") == "read_error"
+    ]
+    if errors:
+        raise RuntimeError("OSM规划图层读取失败，拒绝按空图层继续规划: " + ", ".join(errors))
+
+
 def route_hazard_exposure(geo, hazard_masks, transform, shape):
     """Report raster-cell contact with hazard masks for the selected route."""
     if not geo or len(geo) < 2:
@@ -838,17 +849,9 @@ def main():
                  float(station_task["to_station"]["lat"])),
             ) if station_task else ((float(slon), float(slat)), (float(elon), float(elat)))
 
-            terrain = compute_terrain_factors(dem, pm, transform, crs)
             left = transform.c; top = transform.f
             right = left + transform.a * W; bottom = top + transform.e * H
             bbox = (left, bottom, right, top)
-            official_hazard_masks, official_hazard_metadata = load_official_hazard_masks(
-                args.official_hazards_dir, bbox, transform, dem.shape)
-            official_hazard_metadata["soft_weight_applied_in_run"] = args.official_hazard_weight
-            if official_hazard_metadata.get("coverage_status") != "complete":
-                print("  [warn] 官方灾害图层覆盖不完整；未知瓦片不按无风险处理。"
-                      f" status={official_hazard_metadata.get('status')}, "
-                      f"coverage={official_hazard_metadata.get('coverage_status')}")
             needs_feature_stack = costunet is not None or (
                 args.include_ai_diagnostics and HAS_TORCH and not args.no_vin)
             osm = compute_osm_bands(
@@ -857,6 +860,15 @@ def main():
                 include_building_distance=args.building_clearance_m > 0,
             )
             osm_layer_metadata = getattr(osm, "metadata", {}).get("layers", {})
+            reject_osm_planning_layer_read_errors(osm_layer_metadata)
+            terrain = compute_terrain_factors(dem, pm, transform, crs)
+            official_hazard_masks, official_hazard_metadata = load_official_hazard_masks(
+                args.official_hazards_dir, bbox, transform, dem.shape)
+            official_hazard_metadata["soft_weight_applied_in_run"] = args.official_hazard_weight
+            if official_hazard_metadata.get("coverage_status") != "complete":
+                print("  [warn] 官方灾害图层覆盖不完整；未知瓦片不按无风险处理。"
+                      f" status={official_hazard_metadata.get('status')}, "
+                      f"coverage={official_hazard_metadata.get('coverage_status')}")
             custom_constraints = (
                 load_user_constraint_overlays(args.constraint_geojson, transform, dem.shape)
                 if args.constraint_geojson else None

@@ -32,6 +32,7 @@ from transmission_path_planner.cli import (
     validate_unique_case_names,
     configure_console_output,
     summarize_run_completion,
+    reject_osm_planning_layer_read_errors,
 )
 from transmission_path_planner.geometry import geo_to_rowcol, rowcol_to_geo
 from transmission_path_planner import methods as route_methods
@@ -41,6 +42,19 @@ from transmission_path_planner import metrics
 
 
 class ReferenceIndependentPlanningTests(unittest.TestCase):
+    def test_planning_rejects_osm_cache_read_errors_instead_of_using_empty_layers(self):
+        with self.assertRaisesRegex(RuntimeError, r"buildings \(MemoryError\)"):
+            reject_osm_planning_layer_read_errors({
+                "buildings": {"status": "read_error", "reason": "MemoryError"},
+                "landuse": {"status": "available"},
+            })
+
+    def test_planning_layer_validator_allows_explicitly_available_or_missing_layers(self):
+        reject_osm_planning_layer_read_errors({
+            "buildings": {"status": "available"},
+            "landuse": {"status": "missing_file"},
+        })
+
     def test_search_window_clearance_uses_nearest_rectangular_edge(self):
         transform = Affine(1, 0, 0, 0, -1, 10)
         path = [rowcol_to_geo(1, 1, transform), rowcol_to_geo(8, 4, transform)]
