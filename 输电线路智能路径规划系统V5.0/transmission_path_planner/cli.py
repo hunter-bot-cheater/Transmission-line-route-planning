@@ -13,6 +13,7 @@ from .visualization import *
 from .io_export import *
 from .stations import *
 from .official_hazards import load_official_hazard_masks
+from .provenance import capture_run_provenance, write_run_provenance
 from .experimental_theta_star import theta_star_cost_path
 from .experimental_astar_16 import (
     NEIGHBORS_8,
@@ -543,7 +544,6 @@ def main():
         print("[OSM] 缓存重建完成, 继续后续流程。")
 
     OUT = Path(args.out_dir) if args.out_dir else OUTPUTS_DIR
-    OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(RANDOM_SEED)
 
     print("=" * 70)
@@ -607,6 +607,18 @@ def main():
     if use_real:
         mode = "单任务目标线路" if global_real_exists else args.real_dir
         print(f"[真实对比] 已启用: 模式={mode}；真实线仅用于规划后的事后评估")
+
+    run_provenance = capture_run_provenance(
+        Path(__file__).resolve().parents[1], args, cases, dem_path,
+        DOWNLOADED_DIR, model_weights=MODEL_WEIGHTS, has_torch=HAS_TORCH,
+        effective_runtime={
+            "random_seed": RANDOM_SEED,
+            "has_torch": HAS_TORCH,
+            "has_scipy": HAS_SCIPY,
+            "has_rasterio": HAS_RASTERIO,
+            "has_geopandas": HAS_GPD,
+        })
+    OUT.mkdir(parents=True, exist_ok=True)
 
     # CostUNet（全局加载一次）
     costunet = load_costunet() if args.use_costunet and HAS_TORCH else None
@@ -1504,6 +1516,13 @@ def main():
     print(f"  总耗时: {time.time() - t0:.1f}s")
     print(f"  输出目录: {OUT}")
     print("=" * 70)
+    try:
+        provenance_path = write_run_provenance(
+            run_provenance, OUT,
+            (args.real_dir, Path(args.real_shp).parent if args.real_shp else None))
+        print(f"[运行溯源] {provenance_path}")
+    except Exception as exc:
+        print(f"[WARN] 运行溯源写出失败: {exc}")
 
 
 if __name__ == "__main__":

@@ -393,6 +393,14 @@ def test_profile_numerical_overflow_is_unknown():
     assert status["reason"] == "numerical_overflow"
 
 
+def test_profile_span_length_overflow_is_unknown():
+    status = span_clearance_status(
+        (0, 0), (0, 2), np.zeros((1, 3)), (1.0, 1e308), 20.0, 5.0, 3.0)
+
+    assert status["status"] == "unknown"
+    assert status["reason"] == "numerical_overflow"
+
+
 def test_profile_checks_interior_minimum_when_vertex_denominator_would_overflow():
     dem = np.array([[0.0, 5e307], [5e307, 0.0]])
 

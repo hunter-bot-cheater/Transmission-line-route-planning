@@ -360,6 +360,8 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
     row_m, col_m = spacing
     dr, dc = end[0] - start[0], end[1] - start[1]
     span_length = math.hypot(dr * row_m, dc * col_m)
+    if not math.isfinite(span_length):
+        return {"status": "unknown", "reason": "numerical_overflow"}
     minimum_clearance = math.inf
     limiting_distance = 0.0
 
@@ -459,6 +461,8 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
               else "fail")
     if reversed_input:
         limiting_distance = span_length - limiting_distance
+    if not math.isfinite(limiting_distance):
+        return {"status": "unknown", "reason": "numerical_overflow"}
     return {"status": status,
             "sampled_minimum_clearance_m": minimum_clearance,
             "required_clearance_m": required_clearance,

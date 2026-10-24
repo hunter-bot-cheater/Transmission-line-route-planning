@@ -100,6 +100,55 @@ class ExperimentalThetaStarTests(unittest.TestCase):
             "route vertices should skirt the high-cost region",
         )
 
+    def test_two_medium_route_matches_independent_snell_oracle(self):
+        cost = np.ones((64, 64), dtype=np.float64)
+        cost[:, 30:] = 6.0
+        traversable = np.ones(cost.shape, dtype=bool)
+        start, goal = (10, 3), (50, 54)
+
+        start_x, start_y = start[1] + 0.5, start[0] + 0.5
+        goal_x, goal_y = goal[1] + 0.5, goal[0] + 0.5
+        interface_x = 30.0
+        first_dx, second_dx = interface_x - start_x, goal_x - interface_x
+
+        def crossing_derivative(y):
+            return ((y - start_y) / math.hypot(first_dx, y - start_y)
+                    - 6.0 * (goal_y - y) / math.hypot(second_dx, goal_y - y))
+
+        low, high = start_y, goal_y
+        for _ in range(80):
+            middle = (low + high) / 2.0
+            if crossing_derivative(middle) < 0.0:
+                low = middle
+            else:
+                high = middle
+        oracle_crossing_y = (low + high) / 2.0
+        oracle_cost = (
+            math.hypot(first_dx, oracle_crossing_y - start_y)
+            + 6.0 * math.hypot(second_dx, goal_y - oracle_crossing_y))
+
+        theta_route = theta_star_cost_path(
+            cost, traversable, start, goal, pixel_spacing=(1.0, 1.0))
+        astar_route = astar_search(
+            cost, start, goal, pixel_spacing=(1.0, 1.0), heuristic_weight=1.0)
+        theta_cost = integrate_polyline_cost(
+            theta_route, cost, traversable, pixel_spacing=(1.0, 1.0))
+        astar_cost = integrate_polyline_cost(
+            astar_route, cost, traversable, pixel_spacing=(1.0, 1.0))
+
+        crossing_y = None
+        for (row0, col0), (row1, col1) in zip(theta_route, theta_route[1:]):
+            x0, x1 = col0 + 0.5, col1 + 0.5
+            if x0 <= interface_x <= x1:
+                y0, y1 = row0 + 0.5, row1 + 0.5
+                crossing_y = y0 + (interface_x - x0) * (y1 - y0) / (x1 - x0)
+                break
+
+        self.assertIsNotNone(crossing_y)
+        self.assertAlmostEqual(crossing_y, oracle_crossing_y, delta=1.0)
+        self.assertLessEqual(theta_cost, oracle_cost * 1.002)
+        self.assertLess(theta_cost, astar_cost)
+
     def test_unreachable_when_hard_barrier_spans_entire_raster(self):
         cost = np.ones((11, 21), dtype=np.float64)
         traversable = np.ones(cost.shape, dtype=bool)
