@@ -427,7 +427,7 @@ def load_real_path(shp_path, max_features=None, require_single_line=False, raise
 
 VISUAL_TOLERANCES_M = (100, 500, 1000, 5000)
 ROUTE_SAMPLE_STEP_M = 20.0
-FRECHET_SAMPLE_COUNT = 256
+FRECHET_SAMPLE_INTERVAL_M = 100.0
 
 
 def _line_samples(projected, step_m):
@@ -480,26 +480,16 @@ def _distance_summary(distances, sample_weights):
 
 
 def _discrete_frechet(first, second):
-    """Compute discrete Frechet distance using linear memory."""
-    previous = np.full(len(second), np.inf, dtype=np.float64)
-    for i, point_a in enumerate(first):
-        current = np.full(len(second), np.inf, dtype=np.float64)
-        for j, point_b in enumerate(second):
-            distance = float(np.linalg.norm(point_a - point_b))
-            if i == 0 and j == 0:
-                current[j] = distance
-            elif i == 0:
-                current[j] = max(current[j - 1], distance)
-            elif j == 0:
-                current[j] = max(previous[j], distance)
-            else:
-                current[j] = max(min(previous[j], previous[j - 1], current[j - 1]), distance)
-        previous = current
-    return float(previous[-1])
+    """Compute discrete Frechet distance with GEOS over sampled vertices."""
+    from shapely import frechet_distance
+    from shapely.geometry import LineString
+
+    return float(frechet_distance(LineString(first), LineString(second)))
 
 
-def _resample_line(coordinates, count):
+def _resample_line(coordinates, max_interval_m):
     line = LineString(coordinates)
+    count = max(2, int(math.ceil(line.length / max_interval_m)) + 1)
     return np.asarray([
         line.interpolate(float(distance)).coords[0]
         for distance in np.linspace(0.0, line.length, count)
@@ -697,15 +687,21 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
                 "planned_end_to_reference_endpoint_m": endpoint_offsets[1],
             }
 
-            planned_shape = _resample_line(planned_projected, FRECHET_SAMPLE_COUNT)
-            reference_shape = _resample_line(real_projected[0], FRECHET_SAMPLE_COUNT)
+            planned_shape = _resample_line(planned_projected, FRECHET_SAMPLE_INTERVAL_M)
+            reference_shape = _resample_line(real_projected[0], FRECHET_SAMPLE_INTERVAL_M)
             frechet = min(
                 _discrete_frechet(planned_shape, reference_shape),
                 _discrete_frechet(planned_shape, reference_shape[::-1]),
             )
             route_similarity["discrete_frechet_approx"] = {
                 "distance_m": frechet,
-                "sample_points_per_route": FRECHET_SAMPLE_COUNT,
+                "target_max_sample_interval_m": FRECHET_SAMPLE_INTERVAL_M,
+                "planned_sample_points": len(planned_shape),
+                "reference_sample_points": len(reference_shape),
+                "planned_max_sample_interval_m": float(
+                    planned_length_m / (len(planned_shape) - 1)),
+                "reference_max_sample_interval_m": float(
+                    reference_length_m / (len(reference_shape) - 1)),
             }
 
         try:
@@ -724,7 +720,7 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
             route_similarity["buffer_iou"] = {}
 
         return {
-            "route_similarity_version": 4,
+            "route_similarity_version": 5,
             "route_similarity": route_similarity,
         }
     except Exception as ex:
@@ -753,7 +749,7 @@ def eval_error(plan_len_km, dev):
     similarity = dict(similarity)
     similarity["length"] = length
     return {
-        "route_similarity_version": 4,
+        "route_similarity_version": 5,
         "route_similarity": similarity,
     }
 

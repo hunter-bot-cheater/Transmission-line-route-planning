@@ -71,8 +71,9 @@ def draw_line(ax, line, **kwargs):
         ax.plot(coordinates[:, 0], coordinates[:, 1], **kwargs)
 
 
-def prepare_routes(results_dir: Path):
-    metrics = json.loads((results_dir / "real_comparison_metrics.json").read_text(encoding="utf-8"))
+def prepare_routes(results_dir: Path, metrics_path: Path | None = None):
+    metrics_path = metrics_path or results_dir / "real_comparison_metrics.json"
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
     metrics_by_case = {}
     for row in metrics:
         method = row.get("A*(baseline)") or row.get("A*(weighted)")
@@ -118,6 +119,8 @@ def set_limits(ax, planned, reference):
 
 def plot_case(case, planned, reference, metrics, out_path, cmap, norm, interval_m):
     sim = metrics["route_similarity"]
+    frechet = sim.get("discrete_frechet_approx")
+    frechet_km = (frechet["distance_m"] / 1000.0) if frechet else None
     fig, axes = plt.subplots(1, 2, figsize=(13, 6.2), constrained_layout=True)
     for ax, colored, other, title in (
         (axes[0], planned, reference, "规划线 → 参考线"),
@@ -135,7 +138,10 @@ def plot_case(case, planned, reference, metrics, out_path, cmap, norm, interval_
     axes[1].scatter([end[0] / 1000], [end[1] / 1000], s=25, color="#c0392b", zorder=5)
     f1 = sim["symmetric"]["coverage_f1_within_m"]["100"] * 100
     p95 = sim["symmetric"]["p95_m"] / 1000
-    fig.suptitle(f"{case} | 较差方向 P95 {p95:.2f} km | F1@100米 {f1:.1f}%（覆盖诊断）")
+    frechet_label = (f"顺序 Fréchet@100m {frechet_km:.2f} km"
+                     if frechet_km is not None else "顺序 Fréchet 未定义")
+    fig.suptitle(f"{case} | 较差方向 P95 {p95:.2f} km | F1@100米 {f1:.1f}%（覆盖诊断）"
+                 f" | {frechet_label}")
     fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axes, label="彩线到另一条线路的距离（km）")
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
@@ -154,7 +160,11 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
         draw_line(ax, reference, color="#343a40", linestyle="--", linewidth=1.05, zorder=2)
         f1 = sim["symmetric"]["coverage_f1_within_m"]["100"] * 100
         p95 = sim["symmetric"]["p95_m"] / 1000
-        ax.set_title(f"{case}\n较差方向 P95 {p95:.1f} km | F1@100m {f1:.1f}%", fontsize=9)
+        frechet = sim.get("discrete_frechet_approx")
+        frechet_label = (f"Fréchet@100m {frechet['distance_m'] / 1000:.2f} km"
+                         if frechet else "Fréchet 未定义")
+        ax.set_title(f"{case}\nP95 {p95:.1f} km | F1@100m {f1:.1f}%"
+                     f"\n{frechet_label}", fontsize=9)
         set_limits(ax, planned, reference)
     for ax in axes.flat[len(cases):]:
         ax.axis("off")
@@ -174,18 +184,23 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results-dir", type=Path, required=True)
+    parser.add_argument("--metrics-file", type=Path, default=None,
+                        help="指标 JSON，默认读取 results-dir/real_comparison_metrics.json")
+    parser.add_argument("--output-dir", type=Path, default=None,
+                        help="图件目录，默认写入 results-dir/error_maps_100m")
     parser.add_argument("--sample-interval-m", type=float, default=20.0,
                         help="沿线颜色采样间距（米），默认 20 米")
     args = parser.parse_args()
     if not math.isfinite(args.sample_interval_m) or args.sample_interval_m <= 0:
         parser.error("--sample-interval-m must be a positive finite number")
     results_dir = args.results_dir.resolve()
-    out_dir = results_dir / "error_maps_100m"
+    out_dir = (args.output_dir or results_dir / "error_maps_100m").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
     plt.rcParams["axes.unicode_minus"] = False
-    routes = prepare_routes(results_dir)
+    metrics_file = args.metrics_file.resolve() if args.metrics_file else None
+    routes = prepare_routes(results_dir, metrics_file)
     max_distance_km = max(
         m["route_similarity"]["symmetric"]["sampled_hausdorff_m"] / 1000
         for _, _, m in routes.values()

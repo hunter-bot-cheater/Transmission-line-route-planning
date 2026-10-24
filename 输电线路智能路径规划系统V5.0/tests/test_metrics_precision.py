@@ -31,7 +31,7 @@ class MetricPrecisionTests(unittest.TestCase):
         self.assertAlmostEqual(score["symmetric"]["sampled_hausdorff_m"], score["planned_to_reference"]["sampled_max_m"])
         self.assertEqual(score["sampling_interval_m"], 20.0)
         self.assertLess(score["symmetric"]["coverage_f1_within_m"]["100"], 0.1)
-        self.assertEqual(metrics["route_similarity_version"], 4)
+        self.assertEqual(metrics["route_similarity_version"], 5)
 
     def test_reference_line_coverage_in_planning_window_is_reported(self):
         route = [(120.0, 24.0), (120.01, 24.0)]
@@ -99,7 +99,11 @@ class MetricPrecisionTests(unittest.TestCase):
         self.assertLess(score["endpoint_offsets"]["planned_end_to_reference_endpoint_m"], 0.01)
         self.assertEqual(score["endpoint_offsets"]["orientation"], "reversed")
         self.assertLess(score["discrete_frechet_approx"]["distance_m"], 0.01)
-        self.assertEqual(score["discrete_frechet_approx"]["sample_points_per_route"], 256)
+        frechet = score["discrete_frechet_approx"]
+        self.assertEqual(frechet["target_max_sample_interval_m"], 100.0)
+        self.assertLessEqual(frechet["planned_max_sample_interval_m"], 100.0)
+        self.assertLessEqual(frechet["reference_max_sample_interval_m"], 100.0)
+        self.assertGreater(frechet["planned_sample_points"], 2)
 
     def test_vertex_density_does_not_change_arc_length_sampled_metrics(self):
         coarse = [(121.0, 24.0), (121.02, 24.0)]
@@ -307,7 +311,7 @@ class MetricPrecisionTests(unittest.TestCase):
         dev = compute_deviation(route, route)
         error = eval_error(dev["route_similarity"]["length"]["reference_km"] * 1.2, dev)
 
-        self.assertEqual(error["route_similarity_version"], 4)
+        self.assertEqual(error["route_similarity_version"], 5)
         self.assertAlmostEqual(error["route_similarity"]["length"]["absolute_difference_pct"], 20.0)
         self.assertEqual(error["route_similarity"]["symmetric"]["sampled_hausdorff_m"], 0.0)
         self.assertNotIn("pass8", error)
