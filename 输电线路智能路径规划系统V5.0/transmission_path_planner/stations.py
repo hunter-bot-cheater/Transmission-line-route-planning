@@ -62,7 +62,7 @@ def load_station_tasks(stations_csv, route_tasks_csv):
     """读取 stations.csv 与 route_tasks.csv，验证站点引用并返回规划任务。"""
     stations = {}
     with open(stations_csv, encoding="utf-8-sig", newline="") as f:
-        reader = _dict_reader(f, "站点", {"station_id", "lat", "lon"})
+        reader = _dict_reader(f, "站点", {"station_id", "lat", "lon", "coordinate_crs"})
         for row_number, row in enumerate(reader, start=2):
             if None in row:
                 raise ValueError(f"站点表第 {row_number} 行字段数多于表头")
@@ -71,6 +71,11 @@ def load_station_tasks(stations_csv, route_tasks_csv):
                 raise ValueError("站点表缺少 station_id")
             if station_id in stations:
                 raise ValueError(f"站点 ID 重复: {station_id}")
+            coordinate_crs = (row.get("coordinate_crs") or "").strip().upper()
+            if coordinate_crs != "EPSG:4326":
+                raise ValueError(
+                    f"站点 {station_id} 的 coordinate_crs 必须明确为 EPSG:4326；"
+                    "其他坐标系请先转换后再填写 lat/lon")
             try:
                 lat, lon = float(row["lat"]), float(row["lon"])
             except (KeyError, TypeError, ValueError) as exc:
@@ -89,6 +94,7 @@ def load_station_tasks(stations_csv, route_tasks_csv):
                 "name": (row.get("name") or station_id).strip(),
                 "lat": lat,
                 "lon": lon,
+                "coordinate_crs": coordinate_crs,
                 "voltage_kv": (row.get("voltage_kv") or "").strip(),
                 "station_type": (row.get("station_type") or "").strip(),
                 "source": (row.get("source") or "").strip(),

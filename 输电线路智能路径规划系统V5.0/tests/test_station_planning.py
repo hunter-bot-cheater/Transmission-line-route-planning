@@ -104,15 +104,16 @@ class StationPlanningTests(unittest.TestCase):
     def test_loads_station_pair_and_route_voltage(self):
         with tempfile.TemporaryDirectory() as folder:
             stations = self._csv(folder, "stations.csv",
-                                 ["station_id", "name", "lat", "lon", "voltage_kv", "ground_elevation_m",
+                                 ["station_id", "name", "lat", "lon", "coordinate_crs", "voltage_kv", "ground_elevation_m",
                                   "ground_elevation_source", "vertical_datum"],
-                                 [["S1", "North", 24.1, 120.1, 220, 120.5, "survey A", "datum A"],
-                                  ["S2", "South", 24.2, 120.2, 220, 143.0, "survey B", "datum A"]])
+                                 [["S1", "North", 24.1, 120.1, "EPSG:4326", 220, 120.5, "survey A", "datum A"],
+                                  ["S2", "South", 24.2, 120.2, "EPSG:4326", 220, 143.0, "survey B", "datum A"]])
             tasks = self._csv(folder, "routes.csv",
                               ["route_id", "from_station_id", "to_station_id"], [["R1", "S1", "S2"]])
             result = load_station_tasks(stations, tasks)
         self.assertEqual(result[0]["route_id"], "R1")
         self.assertEqual(result[0]["from_station"]["station_id"], "S1")
+        self.assertEqual(result[0]["from_station"]["coordinate_crs"], "EPSG:4326")
         self.assertEqual(result[0]["voltage_kv"], "220")
         self.assertEqual(result[0]["from_station"]["ground_elevation_m"], 120.5)
 
@@ -131,8 +132,8 @@ class StationPlanningTests(unittest.TestCase):
     def test_rejects_duplicate_route_task_csv_headers(self):
         with tempfile.TemporaryDirectory() as folder:
             stations = self._csv(folder, "stations.csv",
-                                 ["station_id", "lat", "lon"],
-                                 [["S1", 24, 120], ["S2", 25, 121]])
+                                 ["station_id", "lat", "lon", "coordinate_crs"],
+                                 [["S1", 24, 120, "EPSG:4326"], ["S2", 25, 121, "EPSG:4326"]])
             tasks = self._csv(folder, "routes.csv",
                               ["route_id", "from_station_id", "to_station_id", "to_station_id"],
                               [["R1", "S1", "S2", "S1"]])
@@ -173,8 +174,9 @@ class StationPlanningTests(unittest.TestCase):
     def test_rejects_nonfinite_station_ground_elevation(self):
         with tempfile.TemporaryDirectory() as folder:
             stations = self._csv(folder, "stations.csv",
-                                 ["station_id", "lat", "lon", "ground_elevation_m"],
-                                 [["S1", 24.1, 120.1, "NaN"], ["S2", 24.2, 120.2, ""]])
+                                 ["station_id", "lat", "lon", "coordinate_crs", "ground_elevation_m"],
+                                 [["S1", 24.1, 120.1, "EPSG:4326", "NaN"],
+                                  ["S2", 24.2, 120.2, "EPSG:4326", ""]])
             tasks = self._csv(folder, "routes.csv",
                               ["route_id", "from_station_id", "to_station_id"], [["R1", "S1", "S2"]])
             with self.assertRaisesRegex(ValueError, "有限数值"):
@@ -182,9 +184,32 @@ class StationPlanningTests(unittest.TestCase):
 
     def test_rejects_unknown_station_reference(self):
         with tempfile.TemporaryDirectory() as folder:
-            stations = self._csv(folder, "stations.csv", ["station_id", "lat", "lon"], [["S1", 24.1, 120.1]])
+            stations = self._csv(folder, "stations.csv",
+                                 ["station_id", "lat", "lon", "coordinate_crs"],
+                                 [["S1", 24.1, 120.1, "EPSG:4326"]])
             tasks = self._csv(folder, "routes.csv", ["route_id", "from_station_id", "to_station_id"], [["R1", "S1", "S2"]])
             with self.assertRaisesRegex(ValueError, "不存在"):
+                load_station_tasks(stations, tasks)
+
+    def test_rejects_station_coordinates_without_declared_crs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stations = self._csv(folder, "stations.csv", ["station_id", "lat", "lon"],
+                                 [["S1", 24.1, 120.1]])
+            tasks = self._csv(folder, "routes.csv",
+                              ["route_id", "from_station_id", "to_station_id"],
+                              [["R1", "S1", "S1"]])
+            with self.assertRaisesRegex(ValueError, "缺少列: coordinate_crs"):
+                load_station_tasks(stations, tasks)
+
+    def test_rejects_unsupported_station_coordinate_crs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stations = self._csv(folder, "stations.csv",
+                                 ["station_id", "lat", "lon", "coordinate_crs"],
+                                 [["S1", 24.1, 120.1, "EPSG:3826"]])
+            tasks = self._csv(folder, "routes.csv",
+                              ["route_id", "from_station_id", "to_station_id"],
+                              [["R1", "S1", "S1"]])
+            with self.assertRaisesRegex(ValueError, "必须明确为 EPSG:4326"):
                 load_station_tasks(stations, tasks)
 
     def test_building_density_increases_route_cost(self):
