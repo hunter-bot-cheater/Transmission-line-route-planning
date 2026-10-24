@@ -211,14 +211,21 @@ def population_density_cost(density_people_per_km2):
     return cost
 
 
-def population_cost_for_routing(density_people_per_km2):
-    """Penalize unknown cells conservatively, retaining their uncertainty mask.
-
-    The fixed value is a search penalty, not an estimate of population density.
-    """
+def population_cost_for_routing(density_people_per_km2, nodata_policy="maximum"):
+    """Fill unknown population cells for search while retaining their mask."""
     proxy = population_density_cost(density_people_per_km2)
     unknown = ~np.isfinite(proxy)
-    return np.where(unknown, 1.0, proxy).astype(np.float32), unknown
+    if nodata_policy == "maximum":
+        fill_cost = 1.0
+    elif nodata_policy == "median":
+        if not np.any(~unknown):
+            raise ValueError("median NoData policy requires at least one valid population cell")
+        fill_cost = float(np.median(proxy[~unknown]))
+    elif nodata_policy == "zero":
+        fill_cost = 0.0
+    else:
+        raise ValueError("population NoData policy must be maximum, median, or zero")
+    return np.where(unknown, fill_cost, proxy).astype(np.float32), unknown
 
 
 def load_dem_window(dem_path, minlon, minlat, maxlon, maxlat, max_side=WORK_MAX_SIDE):

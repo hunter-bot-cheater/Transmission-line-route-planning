@@ -514,6 +514,9 @@ def main():
                     help="可选单波段 EPSG:4326 人口数栅格；值须为每像元人口估算数")
     ap.add_argument("--population-weight", type=float, default=0.0,
                     help="WorldPop 人口密度软成本权重；默认0关闭，需同时指定 --population-raster")
+    ap.add_argument("--population-nodata-policy", choices=("maximum", "median", "zero"),
+                    default="maximum",
+                    help="人口栅格 NoData 搜索代价填充值；默认 maximum 保守惩罚，median 仅作缺失敏感性分析")
     ap.add_argument("--ridge-penalty-weight", type=float, default=0.10,
                     help="基于300米TPI的高脊软惩罚权重；仅用地形，不读取线路几何")
     ap.add_argument("--landcover-penalty-weight", type=float, default=0.0,
@@ -794,7 +797,7 @@ def main():
                     required_mask=np.isfinite(dem),
                 )
                 population_proxy, population_unknown_mask = population_cost_for_routing(
-                    population_density)
+                    population_density, nodata_policy=args.population_nodata_policy)
                 population_valid_mask = ~population_unknown_mask
                 population_metadata["weight"] = args.population_weight
                 population_metadata["source_value_semantics"] = (
@@ -802,9 +805,11 @@ def main():
                 population_metadata["cost_semantics"] = (
                     "log1p(population_density_people_per_km2) / "
                     "log1p(normalization_scale), clipped to [0, 1]")
-                population_metadata["nodata_cost_policy"] = (
-                    "maximum normalized proxy penalty (1.0); not a population estimate; "
-                    "unknown route cells are flagged")
+                population_metadata["nodata_cost_policy"] = {
+                    "maximum": "fixed maximum normalized proxy penalty (1.0); not a population estimate",
+                    "median": "median normalized proxy among valid cells in this planning window; imputation only",
+                    "zero": "zero routing penalty; neutral sensitivity scenario, not an empty-population estimate",
+                }[args.population_nodata_policy]
                 print(
                     "  人口软成本已对齐："
                     f"coverage={population_metadata['coverage_ratio']:.3f}, "

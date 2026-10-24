@@ -92,6 +92,26 @@ class PopulationCostTests(unittest.TestCase):
         np.testing.assert_array_equal(proxy[0, 1], 1.0)
         self.assertEqual(proxy[0, 0], 0.0)
 
+    def test_population_nodata_median_and_zero_are_explicit_sensitivity_policies(self):
+        density = np.array([[0.0, np.nan, 10000.0]], dtype=np.float32)
+        median_proxy, median_unknown = population_cost_for_routing(
+            density, nodata_policy="median")
+        zero_proxy, zero_unknown = population_cost_for_routing(
+            density, nodata_policy="zero")
+
+        np.testing.assert_array_equal(median_unknown, [[False, True, False]])
+        np.testing.assert_allclose(median_proxy, [[0.0, 0.5, 1.0]])
+        np.testing.assert_array_equal(zero_unknown, median_unknown)
+        np.testing.assert_array_equal(zero_proxy, [[0.0, 0.0, 1.0]])
+
+    def test_population_nodata_median_requires_valid_cells_and_policy_is_validated(self):
+        with self.assertRaisesRegex(ValueError, "at least one valid"):
+            population_cost_for_routing(
+                np.full((2, 2), np.nan), nodata_policy="median")
+        with self.assertRaisesRegex(ValueError, "must be maximum, median, or zero"):
+            population_cost_for_routing(
+                np.array([[1.0, np.nan]]), nodata_policy="nearest")
+
     def test_route_coverage_flags_unknown_cells(self):
         transform = Affine(1.0, 0.0, 0.0, 0.0, -1.0, 2.0)
         valid = np.array([[True, False, True], [True, True, True]])
