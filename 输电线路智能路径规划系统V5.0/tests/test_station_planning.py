@@ -31,7 +31,11 @@ from transmission_path_planner.smoothing import (
     smooth_path_with_constraints,
     snap_to_valid,
 )
-from transmission_path_planner.stations import load_station_tasks, station_elevation_metrics
+from transmission_path_planner.stations import (
+    load_station_tasks,
+    station_coordinate_crs_properties,
+    station_elevation_metrics,
+)
 from transmission_path_planner.experimental_tower_graph import tower_graph_route
 
 
@@ -114,6 +118,11 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(result[0]["route_id"], "R1")
         self.assertEqual(result[0]["from_station"]["station_id"], "S1")
         self.assertEqual(result[0]["from_station"]["coordinate_crs"], "EPSG:4326")
+        self.assertEqual(
+            station_coordinate_crs_properties(result[0]),
+            {"from_station_coordinate_crs": "EPSG:4326",
+             "to_station_coordinate_crs": "EPSG:4326"},
+        )
         self.assertEqual(result[0]["voltage_kv"], "220")
         self.assertEqual(result[0]["from_station"]["ground_elevation_m"], 120.5)
 
@@ -128,6 +137,9 @@ class StationPlanningTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "重复列名"):
                 load_station_tasks(stations, tasks)
+
+    def test_station_coordinate_crs_properties_are_empty_without_station_task(self):
+        self.assertEqual(station_coordinate_crs_properties(None), {})
 
     def test_rejects_duplicate_route_task_csv_headers(self):
         with tempfile.TemporaryDirectory() as folder:

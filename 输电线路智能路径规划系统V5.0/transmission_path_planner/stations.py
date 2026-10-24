@@ -14,6 +14,15 @@ def route_output_name(route_id):
     return f"{stem}-{suffix}"
 
 
+def station_coordinate_crs_properties(station_task):
+    if not station_task:
+        return {}
+    return {
+        "from_station_coordinate_crs": station_task["from_station"]["coordinate_crs"],
+        "to_station_coordinate_crs": station_task["to_station"]["coordinate_crs"],
+    }
+
+
 def station_elevation_metrics(station_task):
     """Summarize surveyed station-ground elevations without mixing vertical datums."""
     start = station_task["from_station"]
