@@ -12,6 +12,7 @@ rasterio>=1.3
 geopandas>=0.13
 pyproj>=3.4
 pyogrio>=0.7               # GDAL MVT driver for official hazard vector tiles
+scikit-image>=0.20         # DEM resizing when a route window exceeds --max-side
 
 # ---- 可视化 ----
 matplotlib>=3.6
