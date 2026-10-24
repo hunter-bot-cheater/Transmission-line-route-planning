@@ -375,7 +375,7 @@ def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_
 
 def load_real_path(shp_path, max_features=None, require_single_line=False, raise_errors=False):
     """读取真实/参考线路 SHP(EPSG:4326), 返回折线列表 real_geo = [ [(lon,lat),...], ... ]。
-    require_single_line 用于 --real-shp，拒绝多要素和 MultiLineString 线网。"""
+    require_single_line 用于单任务评测，拒绝多要素和 MultiLineString 线网。"""
     if not shp_path or not Path(shp_path).exists():
         return None
     if not HAS_GPD:
@@ -395,7 +395,7 @@ def load_real_path(shp_path, max_features=None, require_single_line=False, raise
         if not geoms:
             return None
         if require_single_line and (len(geoms) != 1 or geoms[0].geom_type != "LineString"):
-            raise ValueError("单任务 --real-shp 必须恰含一个 LineString 要素，避免区域线网污染误差")
+            raise ValueError("单任务参考线路必须恰含一个 LineString 要素，避免多资产几何污染误差")
         if require_single_line and geoms[0].length <= 0:
             raise ValueError("单任务目标线路长度必须大于零")
         if max_features:

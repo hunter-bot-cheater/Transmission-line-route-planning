@@ -766,19 +766,31 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         self.assertIsNone(route)
         self.assertEqual(status, "reference_invalid_or_empty")
 
-    def test_invalid_direct_reference_is_reported_without_raising(self):
+    def test_multifeature_case_reference_is_rejected_by_default(self):
         line = LineString([(121.0, 24.0), (121.1, 24.1)])
-        frame = SimpleNamespace(crs="EPSG:4326", geometry=[line, line])
+        nearby_unrelated_line = LineString([(121.0005, 24.0005), (121.1005, 24.1005)])
+        frame = SimpleNamespace(crs="EPSG:4326", geometry=[line, nearby_unrelated_line])
         with TemporaryDirectory() as temp_dir:
             route_file = Path(temp_dir) / "route.shp"
             route_file.touch()
             with patch.object(metrics, "HAS_GPD", True), \
                  patch.object(metrics.gpd, "read_file", return_value=frame):
                 with redirect_stdout(StringIO()):
-                    route, status = load_case_reference(
-                        route_file, require_single_line=True)
+                    route, status = load_case_reference(route_file)
         self.assertIsNone(route)
         self.assertEqual(status, "reference_invalid_or_empty")
+
+    def test_single_line_case_reference_loads_by_default(self):
+        line = LineString([(121.0, 24.0), (121.1, 24.1)])
+        frame = SimpleNamespace(crs="EPSG:4326", geometry=[line])
+        with TemporaryDirectory() as temp_dir:
+            route_file = Path(temp_dir) / "route.shp"
+            route_file.touch()
+            with patch.object(metrics, "HAS_GPD", True), \
+                 patch.object(metrics.gpd, "read_file", return_value=frame):
+                route, status = load_case_reference(route_file)
+        self.assertEqual(route, [[(121.0, 24.0), (121.1, 24.1)]])
+        self.assertEqual(status, "reference_loaded")
 
     def test_3d_reference_lines_use_horizontal_coordinates(self):
         line = LineString([(121.0, 24.0, 100.0), (121.1, 24.1, 200.0)])

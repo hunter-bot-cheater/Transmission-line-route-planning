@@ -394,7 +394,7 @@ def validate_cases_available(cases):
         raise ValueError("起终点坐标相同，不能生成零长度线路")
 
 
-def load_case_reference(path, require_single_line=False):
+def load_case_reference(path, require_single_line=True):
     if not path or not Path(path).is_file():
         return None, "reference_missing"
     try:
@@ -580,7 +580,7 @@ def main():
                     help="从真实走廊 CSV(列: name,start_lat,start_lon,end_lat,end_lon)载入测试用例；"
                          "默认在 CSV 同目录查找参考线，可用 --real-dir 指定其他目录。真实线只用于规划后的对照。")
     ap.add_argument("--real-dir", type=str, default=None,
-                    help="真实线路 SHP 所在目录(按 '<净化名>_real_path.shp' 匹配)")
+                    help="逐任务参考线目录；每个匹配 SHP 必须恰含一个 LineString 资产")
     ap.add_argument("--real-shp", type=str, default=None,
                     help="单任务指定只含一个 LineString 且 CRS 明确的目标线路 SHP 作为事后对照; "
                          "多任务请用 --real-dir 按任务分别提供线路。规划阶段不会读取该线。")
