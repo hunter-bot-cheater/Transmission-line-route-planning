@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import heapq
 import math
-from bisect import bisect_left, bisect_right
+from bisect import bisect_left
 from itertools import count
 
 import numpy as np
@@ -187,49 +187,68 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
         start_ground_elevation_m, goal_ground_elevation_m = (
             goal_ground_elevation_m, start_ground_elevation_m)
 
-    cells = {start_node, goal_node}
-    for row in range(0, height, stride):
-        for col in range(0, width, stride):
-            if tower_allowed[row, col] and traversable[row, col]:
-                cells.add((row, col))
-    nodes = sorted(cells)
-    node_id = {cell: index for index, cell in enumerate(nodes)}
-    start_id, goal_id = node_id[start_node], node_id[goal_node]
+    candidate_rows, candidate_cols = np.nonzero(
+        tower_allowed[::stride, ::stride] & traversable[::stride, ::stride])
+    candidate_nodes = np.column_stack((candidate_rows * stride,
+                                       candidate_cols * stride))
+    nodes = candidate_nodes.astype(np.float64)
+    for terminal in sorted((start_node, goal_node)):
+        first = int(np.searchsorted(nodes[:, 0], terminal[0], side="left"))
+        last = int(np.searchsorted(nodes[:, 0], terminal[0], side="right"))
+        offset = int(np.searchsorted(nodes[first:last, 1], terminal[1], side="left"))
+        node_index = first + offset
+        if node_index >= last or not np.array_equal(nodes[node_index], terminal):
+            nodes = np.insert(nodes, node_index, terminal, axis=0)
 
-    rows_to_cols = {}
-    for index, (row, col) in enumerate(nodes):
-        rows_to_cols.setdefault(row, []).append((col, index))
-    candidate_rows = sorted(rows_to_cols)
+    def find_node_id(position):
+        first = int(np.searchsorted(nodes[:, 0], position[0], side="left"))
+        last = int(np.searchsorted(nodes[:, 0], position[0], side="right"))
+        offset = int(np.searchsorted(nodes[first:last, 1], position[1], side="left"))
+        node_index = first + offset
+        if node_index >= last or not np.array_equal(nodes[node_index], position):
+            raise RuntimeError("terminal position is missing from tower graph")
+        return node_index
+
+    start_id, goal_id = find_node_id(start_node), find_node_id(goal_node)
+    row_starts = np.concatenate((
+        np.array([0]), np.flatnonzero(nodes[1:, 0] != nodes[:-1, 0]) + 1))
+    candidate_rows = nodes[row_starts, 0]
+    row_offsets = np.append(row_starts, len(nodes))
+
+    def route_coordinate(node_index):
+        if node_index == start_id:
+            return start_node
+        if node_index == goal_id:
+            return goal_node
+        row, col = nodes[node_index]
+        return int(row), int(col)
     row_m, col_m = spacing
     row_radius = max_span / row_m
     col_radius = max_span / col_m
-    adjacency = [[] for _ in nodes]
-    adjacency_ready = [False] * len(nodes)
-    checked_edges = set()
-    edge_cost = {} if turn_weight > 0.0 else None
+    adjacency = {}
 
     def get_neighbors(first_id):
-        if adjacency_ready[first_id]:
+        if first_id in adjacency:
             return adjacency[first_id]
 
+        neighbors = []
         row, col = nodes[first_id]
-        first_row = bisect_left(candidate_rows, row - row_radius)
-        last_row = bisect_right(candidate_rows, row + row_radius)
-        for next_row in candidate_rows[first_row:last_row]:
+        first_row = np.searchsorted(candidate_rows, row - row_radius, side="left")
+        last_row = np.searchsorted(candidate_rows, row + row_radius, side="right")
+        for row_index in range(first_row, last_row):
+            next_row = candidate_rows[row_index]
             if abs(next_row - row) * row_m > max_span:
                 continue
-            row_candidates = rows_to_cols[next_row]
-            left = bisect_left(row_candidates, (col - col_radius, -1))
-            right = bisect_right(row_candidates, (col + col_radius, len(nodes)))
-            for _, second_id in row_candidates[left:right]:
+            row_start, row_end = row_offsets[row_index:row_index + 2]
+            row_candidates = nodes[row_start:row_end, 1]
+            left = np.searchsorted(row_candidates, col - col_radius, side="left")
+            right = np.searchsorted(row_candidates, col + col_radius, side="right")
+            for second_id in range(row_start + left, row_start + right):
                 if second_id == first_id:
                     continue
-                edge = (min(first_id, second_id), max(first_id, second_id))
-                if edge in checked_edges:
-                    continue
-                checked_edges.add(edge)
-
-                first, second = nodes[edge[0]], nodes[edge[1]]
+                edge_first_id = min(first_id, second_id)
+                edge_second_id = max(first_id, second_id)
+                first, second = nodes[edge_first_id], nodes[edge_second_id]
                 distance = math.hypot((second[0] - first[0]) * row_m,
                                       (second[1] - first[1]) * col_m)
                 if distance < min_span or distance > max_span:
@@ -240,11 +259,11 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                                                    traversable):
                     continue
                 if profile_enabled:
-                    first_ground = (start_ground_elevation_m if first == start_node
-                                    else goal_ground_elevation_m if first == goal_node
+                    first_ground = (start_ground_elevation_m if edge_first_id == start_id
+                                    else goal_ground_elevation_m if edge_first_id == goal_id
                                     else None)
-                    second_ground = (start_ground_elevation_m if second == start_node
-                                     else goal_ground_elevation_m if second == goal_node
+                    second_ground = (start_ground_elevation_m if edge_second_id == start_id
+                                     else goal_ground_elevation_m if edge_second_id == goal_id
                                      else None)
                     profile = span_clearance_status(
                         first, second, dem, spacing, attachment_height,
@@ -257,14 +276,10 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                     first_position, second_position, cost, spacing)
                 if not math.isfinite(span_cost):
                     continue
-                adjacency[edge[0]].append((edge[1], span_cost))
-                adjacency[edge[1]].append((edge[0], span_cost))
-                if edge_cost is not None:
-                    edge_cost[edge] = span_cost
-                    edge_cost[edge[1], edge[0]] = span_cost
+                neighbors.append((second_id, span_cost))
 
-        adjacency_ready[first_id] = True
-        return adjacency[first_id]
+        adjacency[first_id] = neighbors
+        return neighbors
 
     minimum_cost = float(cost[traversable].min())
 
@@ -291,14 +306,14 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                     current_id = parent[current_id]
                 route_ids.append(start_id)
                 route_ids.reverse()
-                route = [nodes[index] for index in route_ids]
+                route = [route_coordinate(index) for index in route_ids]
                 return route[::-1] if reversed_result else route
 
             for next_id, span_cost in get_neighbors(current_id):
                 added_cost = span_cost
                 if next_id != goal_id and next_id != start_id:
                     next_row, next_col = nodes[next_id]
-                    added_cost += float(tower_cost[next_row, next_col])
+                    added_cost += float(tower_cost[int(next_row), int(next_col)])
                 candidate_cost = current_cost + added_cost
                 if candidate_cost >= best_cost.get(next_id, math.inf):
                     continue
@@ -326,10 +341,18 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                 state = parent[state]
             route_ids.append(start_id)
             route_ids.reverse()
-            route = [nodes[index] for index in route_ids]
+            route = [route_coordinate(index) for index in route_ids]
             return route[::-1] if reversed_result else route
 
-        for next_id, span_cost in get_neighbors(current_id):
+        neighbors = get_neighbors(current_id)
+        previous_span_cost = None
+        if previous_id >= 0:
+            previous_edge = bisect_left(neighbors, (previous_id, -math.inf))
+            if (previous_edge == len(neighbors)
+                    or neighbors[previous_edge][0] != previous_id):
+                raise RuntimeError("previous tower span is missing from cached neighbors")
+            previous_span_cost = neighbors[previous_edge][1]
+        for next_id, span_cost in neighbors:
             # A tower span cannot be used as an immediate out-and-back detour
             # to manipulate the direction penalty.
             if next_id == previous_id:
@@ -337,7 +360,7 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
             added_cost = span_cost
             if next_id != goal_id and next_id != start_id:
                 next_row, next_col = nodes[next_id]
-                added_cost += float(tower_cost[next_row, next_col])
+                added_cost += float(tower_cost[int(next_row), int(next_col)])
             if previous_id >= 0:
                 previous, current, following = (
                     nodes[previous_id], nodes[current_id], nodes[next_id])
@@ -351,7 +374,7 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                            + first_vector[1] * second_vector[1])
                           / (first_length * second_length))
                 turn_cost = (turn_weight
-                             * 0.5 * (edge_cost[previous_id, current_id] + span_cost)
+                             * 0.5 * (previous_span_cost + span_cost)
                              * (1.0 - min(max(cosine, -1.0), 1.0)))
                 added_cost += turn_cost
 
