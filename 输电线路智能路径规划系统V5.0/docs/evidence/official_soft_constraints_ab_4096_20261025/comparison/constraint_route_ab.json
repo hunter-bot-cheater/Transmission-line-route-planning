@@ -1,0 +1,3000 @@
+{
+  "constraint_file_sha256": "5967d659856b925cd42909a6b5e1cf4ac09ae808d6d1c8e7ecd851003fa530b5",
+  "dem_file_sha256": "dc963ff6047f911275e9d2b3be678539f09ee8457939511c094721be6a2b4025",
+  "constraint_feature_counts_by_category": {
+    "drinking_water_protection": 134,
+    "marine_wildlife_habitat": 6
+  },
+  "soft_feature_count": 140,
+  "max_side": 4096,
+  "window_margin_deg": 0.3,
+  "source_comparison": {
+    "runtime_source_files_identical_except_inactive_tower_graph": true,
+    "excluded_source_file_differences": [
+      "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_tower_graph.py"
+    ],
+    "excluded_source_file_hashes": {
+      "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_tower_graph.py": {
+        "baseline": {
+          "size_bytes": 26276,
+          "sha256": "1c1e9f2d3a41f650b32b1e4fba7784f77d0441a849641daf20a7b877e201eeda"
+        },
+        "treatment": {
+          "size_bytes": 27755,
+          "sha256": "65f0560c47c97efaa29d85320b661484d1727ab8b99971b27362540e129027b7"
+        }
+      }
+    },
+    "tower_graph_disabled_in_both_runs": true,
+    "baseline_commit": "c35db305fdbd4a5e072ba0fbc032155cfcdc1323",
+    "treatment_commit": "7d57d4ced4593288d6584f24100ee895e4e825a1"
+  },
+  "paired_runs": {
+    "without_constraints": {
+      "run_provenance_sha256": "6739bffba982345176962b0f25400811713e66ee049483e0df67b7f6f96f7f70",
+      "run_summary_sha256": "b4a674c27e5035178bd76758f938c319b122d091070a8f3c6c63589984f2dcd0",
+      "command": {
+        "argv": [
+          "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\transmission_path_planner\\__main__.py",
+          "--dem",
+          "data\\taiwan_dem_35m_georef_fixed.tif",
+          "--osm-cache-dir",
+          "D:\\大创\\V5_final\\data\\downloaded",
+          "--real-cases-csv",
+          "D:\\大创\\data\\real_cases_tw\\real_cases.csv",
+          "--real-dir",
+          "D:\\大创\\data\\real_cases_tw",
+          "--out-dir",
+          "outputs\\real_recheck_parent_index_int32_20261025",
+          "--no-vin",
+          "--no-ppp",
+          "--max-side",
+          "4096"
+        ],
+        "cwd": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0"
+      },
+      "configuration": {
+        "dem": "data\\taiwan_dem_35m_georef_fixed.tif",
+        "dem_vertical_datum": null,
+        "start": null,
+        "end": null,
+        "stations_csv": null,
+        "route_tasks_csv": null,
+        "allow_unverified_endpoints": false,
+        "constraint_geojson": null,
+        "official_hazards_dir": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023",
+        "official_hazard_weight": 1.0,
+        "turn_penalty_weight": 0.0,
+        "settlement_weight": 2.0,
+        "population_raster": null,
+        "population_weight": 0.0,
+        "population_nodata_policy": "maximum",
+        "ridge_penalty_weight": 0.1,
+        "landcover_penalty_weight": 0.0,
+        "building_clearance_m": 0.0,
+        "grade_penalty_weight": 1.0,
+        "terrain_slope_weight": 0.75,
+        "roughness_weight": 0.25,
+        "astar_heuristic_weight": 1.0,
+        "experimental_theta_star": false,
+        "experimental_astar_16": false,
+        "experimental_sampled_pareto": false,
+        "experimental_tower_graph": false,
+        "select_experimental_tower_graph": false,
+        "tower_min_span_m": null,
+        "tower_max_span_m": null,
+        "tower_candidate_stride": 2,
+        "tower_attachment_height_m": null,
+        "tower_max_midspan_sag_m": null,
+        "tower_min_clearance_m": null,
+        "max_ground_grade": null,
+        "max_surface_slope_deg": null,
+        "max_terrain_elevation_m": null,
+        "use_costunet": false,
+        "max_side": 4096,
+        "window_margin_deg": 0.3,
+        "cases": 4,
+        "include_ai_diagnostics": false,
+        "no_ppp": true,
+        "no_vin": true,
+        "out_dir": "outputs\\real_recheck_parent_index_int32_20261025",
+        "with_real": false,
+        "real_cases": false,
+        "real_cases_csv": "D:\\大创\\data\\real_cases_tw\\real_cases.csv",
+        "real_dir": "D:\\大创\\data\\real_cases_tw",
+        "real_shp": null,
+        "osm_cache_dir": "D:\\大创\\V5_final\\data\\downloaded",
+        "rebuild_osm_cache": false,
+        "ppo_updates": 60,
+        "ppo_episodes": 8,
+        "ppo_epochs": 4,
+        "ppo_bc": 60
+      },
+      "source": {
+        "available": true,
+        "root": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创",
+        "commit": "c35db305fdbd4a5e072ba0fbc032155cfcdc1323",
+        "branch": "codex/station-route-hardening",
+        "dirty": true,
+        "status_porcelain": [
+          " M \"\\350\\276\\223\\347\\224\\265\\347\\272\\277\\350\\267\\257\\346\\231\\272\\350\\203\\275\\350\\267\\257\\345\\276\\204\\350\\247\\204\\345\\210\\222\\347\\263\\273\\347\\273\\237V5.0/tests/test_station_planning.py\"",
+          " M \"\\350\\276\\223\\347\\224\\265\\347\\272\\277\\350\\267\\257\\346\\231\\272\\350\\203\\275\\350\\267\\257\\345\\276\\204\\350\\247\\204\\345\\210\\222\\347\\263\\273\\347\\273\\237V5.0/transmission_path_planner/methods.py\""
+        ],
+        "runtime_source_files": [
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/__init__.py",
+            "size_bytes": 556,
+            "sha256": "b038356cd9612a78f52bf8c3164d76ddffab92009f0696a68e2517ba0dd42932"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/__main__.py",
+            "size_bytes": 168,
+            "sha256": "ca22886fbac055824344581f2ced4fa787532a8a91d27b2e98d801f6babd1222"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/cli.py",
+            "size_bytes": 129812,
+            "sha256": "c355fb57c03aa39a412a78359703e3e537fb3643c9dae6ba5efbd226e5a8d334"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/config.py",
+            "size_bytes": 6863,
+            "sha256": "75f6467d828f0c04666a74ee111b1ff841b6571d19a101579ea81f328fe25c64"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/corridor.py",
+            "size_bytes": 6745,
+            "sha256": "8aef1bb09e9dbab5adde7f798bce0f8e41fe0f7650e1fd9e82c37bb5da237788"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/cost.py",
+            "size_bytes": 12652,
+            "sha256": "f5d07061852f524caa73dc3f60e1967ab0172f60cfae72e96c57098a35bb1f9d"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/data.py",
+            "size_bytes": 19220,
+            "sha256": "e6b79621a13d763daffd7003030cfe0005a20c298a5d832ac33b65b3f7b361e2"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/diverse_routes.py",
+            "size_bytes": 20156,
+            "sha256": "952d87838b2f32d01ab775c7ce1e0429d2a1ad51f3794d60a54b28fd40b3233a"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_astar_16.py",
+            "size_bytes": 8759,
+            "sha256": "d1368035b14c0316c76d2a8adb9cb2389483f42670c1b099dab7c6573b35a572"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_theta_star.py",
+            "size_bytes": 12126,
+            "sha256": "fb400beb30c77cf1968190acdf17b5dafe57f52e729a7f287b4baca05855c494"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_tower_graph.py",
+            "size_bytes": 26276,
+            "sha256": "1c1e9f2d3a41f650b32b1e4fba7784f77d0441a849641daf20a7b877e201eeda"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/geometry.py",
+            "size_bytes": 3854,
+            "sha256": "cef485dac1a7f6b7f5759b5f1fc6d18335e39a9bddb8b9e9d824c136942ad246"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/io_export.py",
+            "size_bytes": 4161,
+            "sha256": "db4444e2783c42d3daaf6a095e527fe01068181ea69e1b31f28b12d07d8e1311"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/methods.py",
+            "size_bytes": 57239,
+            "sha256": "cfe44e73af001d9a44207a0eae412f8900eeef954f816ed4ccd19317dd164792"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/metrics.py",
+            "size_bytes": 41956,
+            "sha256": "b6f3808ea9a36843d1195404899aa0be72f9c6f3b2903125c4a0fdb21a305574"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/official_hazards.py",
+            "size_bytes": 22140,
+            "sha256": "aecb44ca3238f46f7d03939252b2d756b9ceb8c8cc67018c70382cd20244b817"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/osm.py",
+            "size_bytes": 28931,
+            "sha256": "2121cca442b63f3e65b0d74f489b9508f9ccd8f9a52aa9a255fdacff4118e5d9"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/provenance.py",
+            "size_bytes": 9457,
+            "sha256": "7695d748f958b67238ca9b66ef7459206d74283ed34a4dc57b797169cdd035f0"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/rebuild_terrarium_dem.py",
+            "size_bytes": 6644,
+            "sha256": "ee69866a3a229e4855abb356acc7be1b42b5220241e051ff73bd66efdb2f380a"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/smoothing.py",
+            "size_bytes": 17112,
+            "sha256": "bed0a978e502f5add055ee350b8bd0e9385bb8049dc157c6cf9484cede14e44e"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/stations.py",
+            "size_bytes": 11190,
+            "sha256": "93c92d8cf4cf0048856fe49973fa0ccc2344a9ec1d024d8527d12f5f82cae966"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/terrarium.py",
+            "size_bytes": 1471,
+            "sha256": "3d4d823ff5731242f90127c59887bc734da4431db42a2412287179cf34d3942e"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/visualization.py",
+            "size_bytes": 11187,
+            "sha256": "a1de9b20d84d8d86a4fc534a08402ddd5f66a1ad201ced7cd6535c27b13fdf84"
+          }
+        ]
+      },
+      "effective_runtime": {
+        "random_seed": 42,
+        "has_torch": true,
+        "has_scipy": true,
+        "has_rasterio": true,
+        "has_geopandas": true
+      },
+      "planning_inputs": [
+        {
+          "role": "case_tasks",
+          "path": "D:\\大创\\data\\real_cases_tw\\real_cases.csv",
+          "status": "hashed",
+          "size_bytes": 659,
+          "sha256": "86f64aae31104ac32eef4adcc4157dbab864c15bffe439a95b500201822d10a5"
+        },
+        {
+          "role": "dem",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\taiwan_dem_35m_georef_fixed.tif",
+          "status": "hashed",
+          "size_bytes": 108648188,
+          "sha256": "dc963ff6047f911275e9d2b3be678539f09ee8457939511c094721be6a2b4025"
+        },
+        {
+          "role": "osm_cache:landuse",
+          "path": "D:\\大创\\V5_final\\data\\downloaded\\taiwan_landuse.pkl",
+          "status": "hashed",
+          "size_bytes": 62594277,
+          "sha256": "823b984a95b1ced79b2c73a5b438f6c3851316879f0f109b63a2015c54d7a093"
+        },
+        {
+          "role": "osm_cache:buildings",
+          "path": "D:\\大创\\V5_final\\data\\downloaded\\taiwan_buildings.pkl",
+          "status": "hashed",
+          "size_bytes": 142960916,
+          "sha256": "d601bd68ce1fdcf6833b53553db8f4378ee2f02ccdda20db51e19030b063c3d3"
+        },
+        {
+          "role": "official_hazard_manifest",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\manifest.json",
+          "status": "hashed",
+          "size_bytes": 3057,
+          "sha256": "d6d9328ad03a1ac73a8fc8aaf3cff8a1d4afdc59df4134da8d6a77f654bf320b"
+        },
+        {
+          "role": "official_hazard_manifest",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\tiles.sha256",
+          "status": "hashed",
+          "size_bytes": 15742,
+          "sha256": "3d0fcf3137def46c5ad5b5d2452da27c120fb42cfba68967c4f3d57751466a37"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\437\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 4889,
+          "sha256": "21e55fba667b5e820a4ea4cb1f2646b656cd739000c6db8e9ab147744e9392d8"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\437\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1794,
+          "sha256": "804dabe39d3fd125df70682823ed972005dd18c869a8276ad607cf0c23ddd6e1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\438\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 36848,
+          "sha256": "3fee5235382efd0cf566fcd9f63530349aff037654f304adb4331b264dbf8964"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 24186,
+          "sha256": "643dfa6fb17d5c40bb2ed995ddec97bc0ca7421eb2aa2c3fee8cbefbc41d5a76"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\439\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 388,
+          "sha256": "cd86f0db0db4c8d2db33e65e0d9d698d956804c465c2074a338561329d3ebf5d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 20590,
+          "sha256": "f36aa4760b1a8c9bd9217ea7efb918a74bdf240118329c8d4f47e24c69de5ee1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 12798,
+          "sha256": "6cff95b8a9947d1075af16ea23ec584801a798bf54eb67ad2e3716701fcd4d2b"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\439\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 12368,
+          "sha256": "44e4ebc2bb4b7c7c8f679d05eaa3e2325e7894cb87e7b55536b2b2d92c6a18e6"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 312,
+          "sha256": "b06502707d07f2a1665a447dabf9221228bcbb338fa657a70b9c97e72dac7eb8"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 18440,
+          "sha256": "daf2e8f112b5ed3990200db5498eb4e3f6199096be724054df151d5c792071e5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4185,
+          "sha256": "b477d387911538f06fe620585728e0f59a36065e96fe465debff94e166da30e2"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3248,
+          "sha256": "c9a3fbd7104100ec0b756b2c3629021cebf6a09ae3d7dae7df9b55a0b7eb4c03"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 4809,
+          "sha256": "bbed7882ecce4b723f78d8e5a75fa42191df25778ce6599c49151b63596fcdc3"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 28692,
+          "sha256": "6b73df4df6da562ddeafbe3b48ef2f456bbe1b408d4d02a08bf2c3e4e3c0009c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 21575,
+          "sha256": "3dfa5e2ca27306032816ad0f9a7e8a6dbf9cfaf2786b225531d93867c1609dbd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 8926,
+          "sha256": "5d0dae887e692271158c45df4edd4ef65d572c27190da224535b8712ef96a459"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\441\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 481,
+          "sha256": "d4668bf3bdc0cb195258fa60ab274f5c66fe83d6b4bfc11448e885c10c889ec0"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\442\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 363,
+          "sha256": "6c2ae335a33588a84a91311199f22f72c41e33e51b9cc75a2fedf9022509ab52"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 33697,
+          "sha256": "6c50ef3e61147712678bf6e8cdb3d19c32c5204594ee081b79594f112c183eb7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\442\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2256,
+          "sha256": "5a36c0c2144dbc5aecbd841d93b40bec80130ace9aaa7e9b807bbc101139cf41"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 13031,
+          "sha256": "8155b3f65cc9972021ed5c81dacf8a3aa1869c963526d80fb46c41b76c03234e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 5932,
+          "sha256": "68a6f99a38e9314941c6321c9bb0f7a03d47033db74d98cb46b2d333867f4bb1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 20744,
+          "sha256": "333845c99d9befdfce7c5d62a3035cab86ff8e841098d78f81057f50971e23da"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1866,
+          "sha256": "fa3c60edc7c0d95b985a9b7b5af45b5dbdb7ec2bcc5fa5634607c64b72ab4af1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 10152,
+          "sha256": "8dfe813303ee57e397d77c8e12a39ba993ccc9991ea1472774c39cc64ea76025"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 7096,
+          "sha256": "ef8fce86562afe1720474332cbcfa33f4e8c8c1c122293abcf0ce92fead4850d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 19216,
+          "sha256": "154ea2bec36169e46fbfea1b92403ef0a7d7bc8c6b8e32dd6bd78b3b5ca2622e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 8654,
+          "sha256": "6ca4a54fcf407c52ccbdb757551eb1b80e03d135a7676a8cc7f6db3061fb9860"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\444\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3711,
+          "sha256": "cf896173583f093642bf52f945b571d5513be62b15cb391222df5bec5dac0337"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\445\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 4744,
+          "sha256": "e4dba4b737950a80734c355d82c68add2b78fb576e5207cc9b25c368305e1cc5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 7354,
+          "sha256": "e8d21ce5882f3b4ec183733046a46a1c7b90f3ea9478a23452dc88d562bf4e76"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 13733,
+          "sha256": "fb9b552a9c826d768fa369f17dca9d586fc13628c4aa3c0b7f187158069b1579"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 13390,
+          "sha256": "5742d88e34cfe6fb96e44392a2fde242cc28e0c6a7401738a7d1906105bd6f3f"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2492,
+          "sha256": "e8b1e49e7ed5171954a14d4a5a19344b4e7b6088d7d9d4cb0ce33008d2f7144d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\447\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 6227,
+          "sha256": "ee45788fb88e77f52417c33d44463dff5bdcd36c6ca4c485a8a030e14e325066"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\437\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 7252,
+          "sha256": "2a17e06c9c4596a4b3e5f723467879408034d01bca8560ae424f3e5df5fad308"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\437\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 3046,
+          "sha256": "08fea5c2335ffaad34fb437b19194a7bb51ff74f6b734ab391330de1b42c8d13"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\438\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 40468,
+          "sha256": "8a34ba93abbcf3f2c5e855c38d74a2b837b5cac87e1a2099ec539c807fad2342"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 31990,
+          "sha256": "4e1371f4a2a098655052aa68af7b9af80bbd883e76d3518807d0b6bf6e524bb9"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\439\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 734,
+          "sha256": "0eaeacd4f27fc72f555f81e6dfa3de056f242e0496f2b58cc2ed7129fe7a5718"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 23138,
+          "sha256": "0676f08d46a46eb684a30cafc7050567477f81ec1463439a06fc72c5ca707971"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 19362,
+          "sha256": "32a0c1409aa054ae751fe0640cf4af826c8db075e4b2e70d65d2b8505d1cfdd0"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\439\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 15684,
+          "sha256": "919c22dcc8dfa4cfdd7f128cc6c541ac1047880d83d1e1b8ab320f0dc6d39f58"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 22267,
+          "sha256": "87af58fec30da75b80a2b0afd978be496760660963ef69b345358ad8061ca10c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 10559,
+          "sha256": "eb4fabcdfa549b04f4e6a147079d7e4ac5c14a1c7545841f18777b39cd3a405d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 5435,
+          "sha256": "daaf1ead3a67ec093bd7eda60b3ee7f8e8035f12927df5c90c7fe7c00487abbd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\440\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 6546,
+          "sha256": "675f2edf03cc9daf4f0eeebe3c20ecf049fde626e46c822273fd7e6338e95e9a"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 29640,
+          "sha256": "a578b10488859cb339ab0db36ab9cc0fad2a907f43f33d8d1b223aafc7c0cfab"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 21414,
+          "sha256": "fb22cde60863eb3fa39a439c5272d4345c0a2ae20f59b4f5a14c377b2a6043fb"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 9287,
+          "sha256": "d00b360f01d677a665df8f098adfdd048b65b4c25b418654902945ee244ed3c7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\441\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1084,
+          "sha256": "1530c273629e6196903e59810ee20b5ca90e9b38fb1d7e9f4f5665e0850f6bee"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 31998,
+          "sha256": "1a055c81e4d7df34db99c617bd76d4aa5399dfd05cd22cc687a66c466d89a2e1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\442\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4213,
+          "sha256": "9ff3de1ad9282298ca3a2eac713e27d1cbea07015cb07b2650b470aadd8fa218"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 16098,
+          "sha256": "dd366ed42ef63a0274465d27efdcb936f8e8e38ff6b45c5a9a1f861598d00224"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 8264,
+          "sha256": "beea294a6fdf3a095532025075a273e857594ad6b5bdddc874a2b6147f4b5020"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 27602,
+          "sha256": "557b83dc7a9147b5ddd151249b27e2ac6c26e9e8c63bd9c09c21286e111a0856"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4129,
+          "sha256": "a7116249d6b231dbaf2b6932ff59b5eea52a2d16c4b407cd9c75c532771e386f"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 12653,
+          "sha256": "5067a01341222540828aa1f0d8756adbca47969caf529ec5b6b353f04ae20104"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 10412,
+          "sha256": "df1b01f9bcdd32e6ae1c975d32f6d0dd6dff42fcdf9cf466b531ce9416723a90"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 18073,
+          "sha256": "af1704384feb376477cf61b1796c2db855a0908a021154d7f6c8753067956f84"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 12552,
+          "sha256": "66e2c24cf2e10319b49e2eb2040a6ac71789080794d017cb4646cb7767410857"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\444\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 5596,
+          "sha256": "d4f5c4f7c19e273ec285cfaf1c691b6a6e028932ba72fd84622cc78890b3dbea"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\445\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 4931,
+          "sha256": "8a18651c77eaa3cd1ff9971adcffddf51641746d0c2818eab3a9e6513f481dad"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 8434,
+          "sha256": "e15847edebde9474194f8488b24ad6b97bf3115f8ac02d34c758b3c7a071b9bc"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 15037,
+          "sha256": "e21c5eb4712d9cbd7d6d733f38acb74d1a320f9c4e33df7a3cb4c7cb27775b96"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 13925,
+          "sha256": "b92c8bcf7ece60804a99c1c9cbc0256ae0e03a256e936123b75f659d3e94a03d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 3077,
+          "sha256": "fa43bd507cf4c7ef40f120b9b3d5ff465105d8c5f7f313b23f6fbcea2cee8b33"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\447\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 8219,
+          "sha256": "a9db3d7c8e7b0ae60dfdd58855a54de12fa673607433bc5bd8cab09e7a5b07c2"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1627,
+          "sha256": "d8b3ca94ff743caf90cb8f5650b05977f83e0c0a04378b7d9dbe6bcd0eafcccf"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2399,
+          "sha256": "065f8de55f53e0756e8181a84cfc9439b6173def4100668b8fdfe673f9168687"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3833,
+          "sha256": "8645b5129129a011b559408e775d47a2c2340d3be4a6164b7ce8c6e670414820"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2914,
+          "sha256": "8c174d6259d4f9a5632a4df43979ba5e840fa35891158983cd6b8628e210756e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 3359,
+          "sha256": "5679a6daa4c54443946f800e7c070c5be29445e351623d2f1f23479e0ea02aff"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 770,
+          "sha256": "9a01fe99e633a3a7b83567fdbbefbba362f5c36e7bdb1e87e81ebcd7175181ad"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 824,
+          "sha256": "4792f1d9e5374c57905049583c9c2a8a2cfb6ac3898a4fc14b8e802959d73f79"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1294,
+          "sha256": "e534394d30f281edb5c4aa4c6c0d09066f6c804a87cbf8acb148470d07325340"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 876,
+          "sha256": "b6cce6dbf7eecc304aae36027b0394537addb1d1707927359f65c92b3102a42f"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 1583,
+          "sha256": "bf17cbe65604a5ca7607ab52c4a2770b6be3e21b30957dbcfc7c9ebcff106852"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2014,
+          "sha256": "03751a990f4a6260d459137448cd3c357b4935ff2941afb0d536a7d55ec7ee18"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 1183,
+          "sha256": "f61dab47cfc43a00eca0cde69a264756636f04f0e8d5195c5c0e43f44f326097"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 4421,
+          "sha256": "37c50412a701ddacf0287ca7a7c164d2384cb075517c528f4bc78eb59d924e8e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 868,
+          "sha256": "d06a0cba652dbf1b047afb093b41a0974dca141cbcae59410125919c50145694"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2462,
+          "sha256": "94c9531fce4fe3a9450218a1a7edb607b23709971b19a34bd6c23670141634cd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 1564,
+          "sha256": "ea59f376034f5a679dc8b7aa6f4d0130fc9da8b4ad5f147925a5ae918e105ab5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2912,
+          "sha256": "6b429ee3276c1009da576c771040cd23ac6eb82b9d2900b70551b0be21716866"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1238,
+          "sha256": "24a770233604e1e8dc10f7d13c35b2150893d8752980b08cda4487c8eb9c8a89"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2627,
+          "sha256": "6d116cf494703e3f13403cf2be248900149caed4d2350ce0691ca3c9ad0a4e18"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 3109,
+          "sha256": "8a9d5956c0245ed1a8fec6dab8e2cd93b384686be501359f0bfa3e756239b593"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2010,
+          "sha256": "d15ecab945fcc387749a0cebb33ba2db5d44e0d0e410db5cea19b64a2fd8eaa9"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 834,
+          "sha256": "b6d0c5e498da0c9b8bf39c628ef13c9a30d4c752604f207ff3f939c47214af9d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1518,
+          "sha256": "4929fcbfa874ad34719cf182bc9c5b82311075ffbcae9a0dcba33a88993edfad"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2184,
+          "sha256": "0ac244c60fb5b6020ced64eaf116e4fdf6a235542d22da91ce8fd28ea97b7859"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3267,
+          "sha256": "6d1a8715bf540298cec9419320d6264d41d75364d6293d1e6e069e488c557789"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 3290,
+          "sha256": "f22f0ac97deb9779976b4e9dd00eff7ccea5587e8b86a5f57b09e2f5027d8044"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4088,
+          "sha256": "4c91280b6447495d3e038f5653b567bcde3a3f3e03c059810c7c76362347bff7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 417,
+          "sha256": "f2366b2eeaf6386680991e881a5f8d7028ac5b914bdb561a896e8b4df0529c1e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 455,
+          "sha256": "5cafdbb1affab1cd27fbad9232188b5eb6a73117447860fa8aae858e5ac74ff0"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 833,
+          "sha256": "9c769374e7b82811746fb4bf8c470c1b8fb586018a91365c4d819137a93875cf"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 636,
+          "sha256": "e82f2528b5f99860103358ecc7247db74740405454ac377e86410f06ec825265"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 1746,
+          "sha256": "34a89a92924769a51166b37a054928a3965da415e96a86ed036313eab3d36fbb"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 1986,
+          "sha256": "7b2b1ec1054cd61f8bf647c1bdb15e696afec0b2f3c82791ea7f9ed633a04376"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 557,
+          "sha256": "a2e7cbba8621264d5789d60036700dc59c716de0614d8edb8fc6514a9fc36446"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 3468,
+          "sha256": "3f185f28932814838c7e9d0111512db84bf877b6aa8d8a412f8080ba3ace29f4"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 653,
+          "sha256": "312822c2e3b5a1f32b9b162dcb99504f014a784e3668fecbb6f3b55be8d47949"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2131,
+          "sha256": "6113034972e21c93426c57335bd43626e676227da332da6b9e94512b62f0d857"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 1233,
+          "sha256": "db08aaf274c49a10267d4b48581c86d2c0641c1c61c148f01a8f8caf4b0fdde7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2441,
+          "sha256": "0345c5f904bb1d426bf94d7e824fb54554e2c5cc42311523fcee663e98d04a76"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1056,
+          "sha256": "4569de832851763249a68201d0473b23785aa5a14c599e428856b4bd07ec7c91"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2866,
+          "sha256": "ca104cd2f900b679902fab6b368d7015e2d3e71bf1d7949d61ed73494b5ef3ca"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2989,
+          "sha256": "68d00c6bc534c5bc8959251c47fa2965ac1165974b1678b54f39b8272e39c12b"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 1877,
+          "sha256": "837fda105e5d25debb41f7350391c33ca8d51f5d003b6bf5d0d489792acb5356"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 650,
+          "sha256": "94f9b8b607198a1f957779eb0ccfd713dfeab03d6548f031e12fddbc226fa2b5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\437\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3161,
+          "sha256": "ec32ff1033dc79ae4da661933e9a4c330974ef54566e2373e3b2ca0b2b43a62e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\437\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1433,
+          "sha256": "8210d429465e35a8e475764962ec7f54f115be1b4fe8ec3ef4fc555d4b18a6ec"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\438\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 20197,
+          "sha256": "6231b382bacc4afa0bf3ea22a89145ffc08d476b7c4c377cfbd4958ad96e21d8"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 16315,
+          "sha256": "0cb51f9b2094b226a45a13c15180a51e53c4627b1415018d99a788d197411a54"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\439\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 178,
+          "sha256": "25c26fc7d2e6cdb01c4653bdf23f0d2aad11a8a5df1886690012a6c51f8978ee"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 11182,
+          "sha256": "b7f08ad6931b0fbb5df972d018b6362e405e84a7fe53b0b5e7c5050350b25ba7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 9558,
+          "sha256": "c17258f0395f67441c425e03675e72d753bed777d72653014d753d22c04590cd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\439\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 7614,
+          "sha256": "9ffa26bef63b1434a0b792be5c268d66ded4168072c1a894aecc00ca45b5e91a"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 10299,
+          "sha256": "36c09b7538c20c8909bcc9b7d3c34317ec149acece5d4d464b7187df1b4a5a59"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4821,
+          "sha256": "3dc272431732343557aa4c5ac9742bf9fd1b2fc7ac7674e625449b93d3e8ef9b"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2753,
+          "sha256": "f5f4d7f1debe7ecc71ef8eeb939b7e27154bf6bf7019d4454e48e5b1b3b83f5e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\440\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 2640,
+          "sha256": "94e7271c4e6c1e840c5f68604ec232ec815c7b3736a78a205e8b81aa43ef2026"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 15251,
+          "sha256": "f94e92461c15328ba1c8c1981aa2465fb666e7366511aba87d6faca62117d8c8"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 10869,
+          "sha256": "6c215e7d84daba79b5eda413069e6a6d6dfcbc2f7cd107ed36dec9f74f333587"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 5213,
+          "sha256": "8c8dd0e7b02af07111d7eeb3bdabccc8c2df3d40071bdcf33d6fe11707151b9a"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\441\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 291,
+          "sha256": "f20f6de12e00ffa02e514625c6b5e9e32582dc87e3fd9043cde3b99661a96629"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\442\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 209,
+          "sha256": "003aa853c42cf6c9294deea5eba841be8e621e07c9af938a209863c941a987fd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 16315,
+          "sha256": "347fb938f58b79d1363a0d7915920efabf154086815ad293e694afa59a8d0e78"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\442\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1788,
+          "sha256": "232d4c167ef07b5375aab830382196a846ca63da15cbba8a403a5ef0f43ee29f"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 8661,
+          "sha256": "f959ba646154d8c0952925e7e1d4613e9e4bb86bd98c2a121346468b5ffdc7df"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 3598,
+          "sha256": "0698bc76daf2b62108d638b983a61b009f712d61f7e453517b4a8d9bf237f186"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 13260,
+          "sha256": "ea549a2aff74d03eb37973bc61e4fe12f7efd8c84990209247772d590353d004"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1598,
+          "sha256": "fb53d7ac9c0c9fb6ab60c0d70b5302b4d15b5f40c39da3d03bdc6b2e17677181"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 6013,
+          "sha256": "7027b27e2d0f5b4927a8fac5885a598e172937f2996a31880835390c3ecfb145"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 4740,
+          "sha256": "b235655c648d1dc5289047eb8a0c516ff6c788c10b169b0f8b98bd3e7a8f9a09"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 9332,
+          "sha256": "af404d37e20af16f25d676755935eeecde632b2ee57ce3ffd3c8c685d6f7c6ca"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 6076,
+          "sha256": "76edddc91930aa24b9debdf39fd1f2219e95ebd8c65fc2f0f7b50642dd94a1bf"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\444\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2437,
+          "sha256": "0593296f12de03203adb59f27069b3d7c2a5c0f884c1a8b1ea1e4f8d3448eb8c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\445\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 2113,
+          "sha256": "fc9f8a8492248afee480f61b93d715a0920dca76293c1fc57045862b39ebef2c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 3702,
+          "sha256": "9536575eedc2764206b1fef93a289f9e4c8bce92793b13542020a6911bff5c3e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 7692,
+          "sha256": "d7be9a26afe48d4af67d54bd27994293eef19aa50eb616bc5e6586f98e35b452"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 6534,
+          "sha256": "cf1c02922e06040ac6d24c66c1c0f80ebf01e42af45aa26954940c1e5a08324c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1385,
+          "sha256": "0fb9e01710af0806a290eed6c104c0573b3507933b6da453ef8a5f615e5a3ca5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\447\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 3120,
+          "sha256": "d054007db8af7eef81411b858a8e072b0fdc25994eed2225395a9683605b13ca"
+        }
+      ],
+      "reference_geometry_policy": {
+        "hashed_by_provenance": false,
+        "paths_are_configuration_only": true
+      },
+      "summary": {
+        "expected_cases": 12,
+        "completed_cases": 12,
+        "failed_cases": [],
+        "no_route_cases": []
+      }
+    },
+    "with_constraints": {
+      "run_provenance_sha256": "efafa5bfbcb691e75075ee530cf745a3da371a64cf1472a48837aaa519f5f00b",
+      "run_summary_sha256": "046ab2ac28145391c0003da1e6e91b4a7960a19fd8bb61ad36a46aaab2d1482e",
+      "command": {
+        "argv": [
+          "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\transmission_path_planner\\__main__.py",
+          "--dem",
+          "data\\taiwan_dem_35m_georef_fixed.tif",
+          "--osm-cache-dir",
+          "D:\\大创\\V5_final\\data\\downloaded",
+          "--real-cases-csv",
+          "D:\\大创\\data\\real_cases_tw\\real_cases.csv",
+          "--real-dir",
+          "D:\\大创\\data\\real_cases_tw",
+          "--constraint-geojson",
+          "data\\official_constraints_20261023.geojson",
+          "--out-dir",
+          "outputs\\official_soft_constraints_ab_20261025",
+          "--no-vin",
+          "--no-ppp",
+          "--max-side",
+          "4096"
+        ],
+        "cwd": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0"
+      },
+      "configuration": {
+        "dem": "data\\taiwan_dem_35m_georef_fixed.tif",
+        "dem_vertical_datum": null,
+        "start": null,
+        "end": null,
+        "stations_csv": null,
+        "route_tasks_csv": null,
+        "allow_unverified_endpoints": false,
+        "constraint_geojson": "data\\official_constraints_20261023.geojson",
+        "official_hazards_dir": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023",
+        "official_hazard_weight": 1.0,
+        "turn_penalty_weight": 0.0,
+        "settlement_weight": 2.0,
+        "population_raster": null,
+        "population_weight": 0.0,
+        "population_nodata_policy": "maximum",
+        "ridge_penalty_weight": 0.1,
+        "landcover_penalty_weight": 0.0,
+        "building_clearance_m": 0.0,
+        "grade_penalty_weight": 1.0,
+        "terrain_slope_weight": 0.75,
+        "roughness_weight": 0.25,
+        "astar_heuristic_weight": 1.0,
+        "experimental_theta_star": false,
+        "experimental_astar_16": false,
+        "experimental_sampled_pareto": false,
+        "experimental_tower_graph": false,
+        "select_experimental_tower_graph": false,
+        "tower_min_span_m": null,
+        "tower_max_span_m": null,
+        "tower_candidate_stride": 2,
+        "tower_attachment_height_m": null,
+        "tower_max_midspan_sag_m": null,
+        "tower_min_clearance_m": null,
+        "max_ground_grade": null,
+        "max_surface_slope_deg": null,
+        "max_terrain_elevation_m": null,
+        "use_costunet": false,
+        "max_side": 4096,
+        "window_margin_deg": 0.3,
+        "cases": 4,
+        "include_ai_diagnostics": false,
+        "no_ppp": true,
+        "no_vin": true,
+        "out_dir": "outputs\\official_soft_constraints_ab_20261025",
+        "with_real": false,
+        "real_cases": false,
+        "real_cases_csv": "D:\\大创\\data\\real_cases_tw\\real_cases.csv",
+        "real_dir": "D:\\大创\\data\\real_cases_tw",
+        "real_shp": null,
+        "osm_cache_dir": "D:\\大创\\V5_final\\data\\downloaded",
+        "rebuild_osm_cache": false,
+        "ppo_updates": 60,
+        "ppo_episodes": 8,
+        "ppo_epochs": 4,
+        "ppo_bc": 60
+      },
+      "source": {
+        "available": true,
+        "root": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创",
+        "commit": "7d57d4ced4593288d6584f24100ee895e4e825a1",
+        "branch": "codex/station-route-hardening",
+        "dirty": true,
+        "status_porcelain": [
+          "?? \"\\350\\276\\223\\347\\224\\265\\347\\272\\277\\350\\267\\257\\346\\231\\272\\350\\203\\275\\350\\267\\257\\345\\276\\204\\350\\247\\204\\345\\210\\222\\347\\263\\273\\347\\273\\237V5.0/docs/\\345\\256\\230\\346\\226\\271\\350\\275\\257\\347\\272\\246\\346\\235\\237\\345\\233\\276\\345\\261\\20212\\347\\272\\277\\350\\267\\257\\351\\205\\215\\345\\257\\271\\345\\256\\236\\351\\252\\214\\351\\242\\204\\346\\263\\250\\345\\206\\214_20261025.md\""
+        ],
+        "runtime_source_files": [
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/__init__.py",
+            "size_bytes": 556,
+            "sha256": "b038356cd9612a78f52bf8c3164d76ddffab92009f0696a68e2517ba0dd42932"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/__main__.py",
+            "size_bytes": 168,
+            "sha256": "ca22886fbac055824344581f2ced4fa787532a8a91d27b2e98d801f6babd1222"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/cli.py",
+            "size_bytes": 129812,
+            "sha256": "c355fb57c03aa39a412a78359703e3e537fb3643c9dae6ba5efbd226e5a8d334"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/config.py",
+            "size_bytes": 6863,
+            "sha256": "75f6467d828f0c04666a74ee111b1ff841b6571d19a101579ea81f328fe25c64"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/corridor.py",
+            "size_bytes": 6745,
+            "sha256": "8aef1bb09e9dbab5adde7f798bce0f8e41fe0f7650e1fd9e82c37bb5da237788"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/cost.py",
+            "size_bytes": 12652,
+            "sha256": "f5d07061852f524caa73dc3f60e1967ab0172f60cfae72e96c57098a35bb1f9d"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/data.py",
+            "size_bytes": 19220,
+            "sha256": "e6b79621a13d763daffd7003030cfe0005a20c298a5d832ac33b65b3f7b361e2"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/diverse_routes.py",
+            "size_bytes": 20156,
+            "sha256": "952d87838b2f32d01ab775c7ce1e0429d2a1ad51f3794d60a54b28fd40b3233a"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_astar_16.py",
+            "size_bytes": 8759,
+            "sha256": "d1368035b14c0316c76d2a8adb9cb2389483f42670c1b099dab7c6573b35a572"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_theta_star.py",
+            "size_bytes": 12126,
+            "sha256": "fb400beb30c77cf1968190acdf17b5dafe57f52e729a7f287b4baca05855c494"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_tower_graph.py",
+            "size_bytes": 27755,
+            "sha256": "65f0560c47c97efaa29d85320b661484d1727ab8b99971b27362540e129027b7"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/geometry.py",
+            "size_bytes": 3854,
+            "sha256": "cef485dac1a7f6b7f5759b5f1fc6d18335e39a9bddb8b9e9d824c136942ad246"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/io_export.py",
+            "size_bytes": 4161,
+            "sha256": "db4444e2783c42d3daaf6a095e527fe01068181ea69e1b31f28b12d07d8e1311"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/methods.py",
+            "size_bytes": 57239,
+            "sha256": "cfe44e73af001d9a44207a0eae412f8900eeef954f816ed4ccd19317dd164792"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/metrics.py",
+            "size_bytes": 41956,
+            "sha256": "b6f3808ea9a36843d1195404899aa0be72f9c6f3b2903125c4a0fdb21a305574"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/official_hazards.py",
+            "size_bytes": 22140,
+            "sha256": "aecb44ca3238f46f7d03939252b2d756b9ceb8c8cc67018c70382cd20244b817"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/osm.py",
+            "size_bytes": 28931,
+            "sha256": "2121cca442b63f3e65b0d74f489b9508f9ccd8f9a52aa9a255fdacff4118e5d9"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/provenance.py",
+            "size_bytes": 9457,
+            "sha256": "7695d748f958b67238ca9b66ef7459206d74283ed34a4dc57b797169cdd035f0"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/rebuild_terrarium_dem.py",
+            "size_bytes": 6644,
+            "sha256": "ee69866a3a229e4855abb356acc7be1b42b5220241e051ff73bd66efdb2f380a"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/smoothing.py",
+            "size_bytes": 17112,
+            "sha256": "bed0a978e502f5add055ee350b8bd0e9385bb8049dc157c6cf9484cede14e44e"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/stations.py",
+            "size_bytes": 11190,
+            "sha256": "93c92d8cf4cf0048856fe49973fa0ccc2344a9ec1d024d8527d12f5f82cae966"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/terrarium.py",
+            "size_bytes": 1471,
+            "sha256": "3d4d823ff5731242f90127c59887bc734da4431db42a2412287179cf34d3942e"
+          },
+          {
+            "path": "输电线路智能路径规划系统V5.0/transmission_path_planner/visualization.py",
+            "size_bytes": 11187,
+            "sha256": "a1de9b20d84d8d86a4fc534a08402ddd5f66a1ad201ced7cd6535c27b13fdf84"
+          }
+        ]
+      },
+      "effective_runtime": {
+        "random_seed": 42,
+        "has_torch": true,
+        "has_scipy": true,
+        "has_rasterio": true,
+        "has_geopandas": true
+      },
+      "planning_inputs": [
+        {
+          "role": "case_tasks",
+          "path": "D:\\大创\\data\\real_cases_tw\\real_cases.csv",
+          "status": "hashed",
+          "size_bytes": 659,
+          "sha256": "86f64aae31104ac32eef4adcc4157dbab864c15bffe439a95b500201822d10a5"
+        },
+        {
+          "role": "user_constraints",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_constraints_20261023.geojson",
+          "status": "hashed",
+          "size_bytes": 9910543,
+          "sha256": "5967d659856b925cd42909a6b5e1cf4ac09ae808d6d1c8e7ecd851003fa530b5"
+        },
+        {
+          "role": "dem",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\taiwan_dem_35m_georef_fixed.tif",
+          "status": "hashed",
+          "size_bytes": 108648188,
+          "sha256": "dc963ff6047f911275e9d2b3be678539f09ee8457939511c094721be6a2b4025"
+        },
+        {
+          "role": "osm_cache:landuse",
+          "path": "D:\\大创\\V5_final\\data\\downloaded\\taiwan_landuse.pkl",
+          "status": "hashed",
+          "size_bytes": 62594277,
+          "sha256": "823b984a95b1ced79b2c73a5b438f6c3851316879f0f109b63a2015c54d7a093"
+        },
+        {
+          "role": "osm_cache:buildings",
+          "path": "D:\\大创\\V5_final\\data\\downloaded\\taiwan_buildings.pkl",
+          "status": "hashed",
+          "size_bytes": 142960916,
+          "sha256": "d601bd68ce1fdcf6833b53553db8f4378ee2f02ccdda20db51e19030b063c3d3"
+        },
+        {
+          "role": "official_hazard_manifest",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\manifest.json",
+          "status": "hashed",
+          "size_bytes": 3057,
+          "sha256": "d6d9328ad03a1ac73a8fc8aaf3cff8a1d4afdc59df4134da8d6a77f654bf320b"
+        },
+        {
+          "role": "official_hazard_manifest",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\tiles.sha256",
+          "status": "hashed",
+          "size_bytes": 15742,
+          "sha256": "3d0fcf3137def46c5ad5b5d2452da27c120fb42cfba68967c4f3d57751466a37"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\437\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 4889,
+          "sha256": "21e55fba667b5e820a4ea4cb1f2646b656cd739000c6db8e9ab147744e9392d8"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\437\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1794,
+          "sha256": "804dabe39d3fd125df70682823ed972005dd18c869a8276ad607cf0c23ddd6e1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\438\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 36848,
+          "sha256": "3fee5235382efd0cf566fcd9f63530349aff037654f304adb4331b264dbf8964"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 24186,
+          "sha256": "643dfa6fb17d5c40bb2ed995ddec97bc0ca7421eb2aa2c3fee8cbefbc41d5a76"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\439\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 388,
+          "sha256": "cd86f0db0db4c8d2db33e65e0d9d698d956804c465c2074a338561329d3ebf5d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 20590,
+          "sha256": "f36aa4760b1a8c9bd9217ea7efb918a74bdf240118329c8d4f47e24c69de5ee1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 12798,
+          "sha256": "6cff95b8a9947d1075af16ea23ec584801a798bf54eb67ad2e3716701fcd4d2b"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\439\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 12368,
+          "sha256": "44e4ebc2bb4b7c7c8f679d05eaa3e2325e7894cb87e7b55536b2b2d92c6a18e6"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 312,
+          "sha256": "b06502707d07f2a1665a447dabf9221228bcbb338fa657a70b9c97e72dac7eb8"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 18440,
+          "sha256": "daf2e8f112b5ed3990200db5498eb4e3f6199096be724054df151d5c792071e5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4185,
+          "sha256": "b477d387911538f06fe620585728e0f59a36065e96fe465debff94e166da30e2"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3248,
+          "sha256": "c9a3fbd7104100ec0b756b2c3629021cebf6a09ae3d7dae7df9b55a0b7eb4c03"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\440\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 4809,
+          "sha256": "bbed7882ecce4b723f78d8e5a75fa42191df25778ce6599c49151b63596fcdc3"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 28692,
+          "sha256": "6b73df4df6da562ddeafbe3b48ef2f456bbe1b408d4d02a08bf2c3e4e3c0009c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 21575,
+          "sha256": "3dfa5e2ca27306032816ad0f9a7e8a6dbf9cfaf2786b225531d93867c1609dbd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 8926,
+          "sha256": "5d0dae887e692271158c45df4edd4ef65d572c27190da224535b8712ef96a459"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\441\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 481,
+          "sha256": "d4668bf3bdc0cb195258fa60ab274f5c66fe83d6b4bfc11448e885c10c889ec0"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\442\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 363,
+          "sha256": "6c2ae335a33588a84a91311199f22f72c41e33e51b9cc75a2fedf9022509ab52"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 33697,
+          "sha256": "6c50ef3e61147712678bf6e8cdb3d19c32c5204594ee081b79594f112c183eb7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\442\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2256,
+          "sha256": "5a36c0c2144dbc5aecbd841d93b40bec80130ace9aaa7e9b807bbc101139cf41"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 13031,
+          "sha256": "8155b3f65cc9972021ed5c81dacf8a3aa1869c963526d80fb46c41b76c03234e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 5932,
+          "sha256": "68a6f99a38e9314941c6321c9bb0f7a03d47033db74d98cb46b2d333867f4bb1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 20744,
+          "sha256": "333845c99d9befdfce7c5d62a3035cab86ff8e841098d78f81057f50971e23da"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1866,
+          "sha256": "fa3c60edc7c0d95b985a9b7b5af45b5dbdb7ec2bcc5fa5634607c64b72ab4af1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 10152,
+          "sha256": "8dfe813303ee57e397d77c8e12a39ba993ccc9991ea1472774c39cc64ea76025"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 7096,
+          "sha256": "ef8fce86562afe1720474332cbcfa33f4e8c8c1c122293abcf0ce92fead4850d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 19216,
+          "sha256": "154ea2bec36169e46fbfea1b92403ef0a7d7bc8c6b8e32dd6bd78b3b5ca2622e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 8654,
+          "sha256": "6ca4a54fcf407c52ccbdb757551eb1b80e03d135a7676a8cc7f6db3061fb9860"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\444\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3711,
+          "sha256": "cf896173583f093642bf52f945b571d5513be62b15cb391222df5bec5dac0337"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\445\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 4744,
+          "sha256": "e4dba4b737950a80734c355d82c68add2b78fb576e5207cc9b25c368305e1cc5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 7354,
+          "sha256": "e8d21ce5882f3b4ec183733046a46a1c7b90f3ea9478a23452dc88d562bf4e76"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 13733,
+          "sha256": "fb9b552a9c826d768fa369f17dca9d586fc13628c4aa3c0b7f187158069b1579"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 13390,
+          "sha256": "5742d88e34cfe6fb96e44392a2fde242cc28e0c6a7401738a7d1906105bd6f3f"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2492,
+          "sha256": "e8b1e49e7ed5171954a14d4a5a19344b4e7b6088d7d9d4cb0ce33008d2f7144d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRIS1753_20260126\\10\\447\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 6227,
+          "sha256": "ee45788fb88e77f52417c33d44463dff5bdcd36c6ca4c485a8a030e14e325066"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\437\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 7252,
+          "sha256": "2a17e06c9c4596a4b3e5f723467879408034d01bca8560ae424f3e5df5fad308"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\437\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 3046,
+          "sha256": "08fea5c2335ffaad34fb437b19194a7bb51ff74f6b734ab391330de1b42c8d13"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\438\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 40468,
+          "sha256": "8a34ba93abbcf3f2c5e855c38d74a2b837b5cac87e1a2099ec539c807fad2342"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 31990,
+          "sha256": "4e1371f4a2a098655052aa68af7b9af80bbd883e76d3518807d0b6bf6e524bb9"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\439\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 734,
+          "sha256": "0eaeacd4f27fc72f555f81e6dfa3de056f242e0496f2b58cc2ed7129fe7a5718"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 23138,
+          "sha256": "0676f08d46a46eb684a30cafc7050567477f81ec1463439a06fc72c5ca707971"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 19362,
+          "sha256": "32a0c1409aa054ae751fe0640cf4af826c8db075e4b2e70d65d2b8505d1cfdd0"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\439\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 15684,
+          "sha256": "919c22dcc8dfa4cfdd7f128cc6c541ac1047880d83d1e1b8ab320f0dc6d39f58"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 22267,
+          "sha256": "87af58fec30da75b80a2b0afd978be496760660963ef69b345358ad8061ca10c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 10559,
+          "sha256": "eb4fabcdfa549b04f4e6a147079d7e4ac5c14a1c7545841f18777b39cd3a405d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 5435,
+          "sha256": "daaf1ead3a67ec093bd7eda60b3ee7f8e8035f12927df5c90c7fe7c00487abbd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\440\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 6546,
+          "sha256": "675f2edf03cc9daf4f0eeebe3c20ecf049fde626e46c822273fd7e6338e95e9a"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 29640,
+          "sha256": "a578b10488859cb339ab0db36ab9cc0fad2a907f43f33d8d1b223aafc7c0cfab"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 21414,
+          "sha256": "fb22cde60863eb3fa39a439c5272d4345c0a2ae20f59b4f5a14c377b2a6043fb"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 9287,
+          "sha256": "d00b360f01d677a665df8f098adfdd048b65b4c25b418654902945ee244ed3c7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\441\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1084,
+          "sha256": "1530c273629e6196903e59810ee20b5ca90e9b38fb1d7e9f4f5665e0850f6bee"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 31998,
+          "sha256": "1a055c81e4d7df34db99c617bd76d4aa5399dfd05cd22cc687a66c466d89a2e1"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\442\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4213,
+          "sha256": "9ff3de1ad9282298ca3a2eac713e27d1cbea07015cb07b2650b470aadd8fa218"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 16098,
+          "sha256": "dd366ed42ef63a0274465d27efdcb936f8e8e38ff6b45c5a9a1f861598d00224"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 8264,
+          "sha256": "beea294a6fdf3a095532025075a273e857594ad6b5bdddc874a2b6147f4b5020"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 27602,
+          "sha256": "557b83dc7a9147b5ddd151249b27e2ac6c26e9e8c63bd9c09c21286e111a0856"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4129,
+          "sha256": "a7116249d6b231dbaf2b6932ff59b5eea52a2d16c4b407cd9c75c532771e386f"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 12653,
+          "sha256": "5067a01341222540828aa1f0d8756adbca47969caf529ec5b6b353f04ae20104"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 10412,
+          "sha256": "df1b01f9bcdd32e6ae1c975d32f6d0dd6dff42fcdf9cf466b531ce9416723a90"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 18073,
+          "sha256": "af1704384feb376477cf61b1796c2db855a0908a021154d7f6c8753067956f84"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 12552,
+          "sha256": "66e2c24cf2e10319b49e2eb2040a6ac71789080794d017cb4646cb7767410857"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\444\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 5596,
+          "sha256": "d4f5c4f7c19e273ec285cfaf1c691b6a6e028932ba72fd84622cc78890b3dbea"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\445\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 4931,
+          "sha256": "8a18651c77eaa3cd1ff9971adcffddf51641746d0c2818eab3a9e6513f481dad"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 8434,
+          "sha256": "e15847edebde9474194f8488b24ad6b97bf3115f8ac02d34c758b3c7a071b9bc"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 15037,
+          "sha256": "e21c5eb4712d9cbd7d6d733f38acb74d1a320f9c4e33df7a3cb4c7cb27775b96"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 13925,
+          "sha256": "b92c8bcf7ece60804a99c1c9cbc0256ae0e03a256e936123b75f659d3e94a03d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 3077,
+          "sha256": "fa43bd507cf4c7ef40f120b9b3d5ff465105d8c5f7f313b23f6fbcea2cee8b33"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\DEBRISSTREAM1753_20260126\\10\\447\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 8219,
+          "sha256": "a9db3d7c8e7b0ae60dfdd58855a54de12fa673607433bc5bd8cab09e7a5b07c2"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1627,
+          "sha256": "d8b3ca94ff743caf90cb8f5650b05977f83e0c0a04378b7d9dbe6bcd0eafcccf"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2399,
+          "sha256": "065f8de55f53e0756e8181a84cfc9439b6173def4100668b8fdfe673f9168687"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3833,
+          "sha256": "8645b5129129a011b559408e775d47a2c2340d3be4a6164b7ce8c6e670414820"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2914,
+          "sha256": "8c174d6259d4f9a5632a4df43979ba5e840fa35891158983cd6b8628e210756e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 3359,
+          "sha256": "5679a6daa4c54443946f800e7c070c5be29445e351623d2f1f23479e0ea02aff"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 770,
+          "sha256": "9a01fe99e633a3a7b83567fdbbefbba362f5c36e7bdb1e87e81ebcd7175181ad"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 824,
+          "sha256": "4792f1d9e5374c57905049583c9c2a8a2cfb6ac3898a4fc14b8e802959d73f79"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1294,
+          "sha256": "e534394d30f281edb5c4aa4c6c0d09066f6c804a87cbf8acb148470d07325340"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 876,
+          "sha256": "b6cce6dbf7eecc304aae36027b0394537addb1d1707927359f65c92b3102a42f"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 1583,
+          "sha256": "bf17cbe65604a5ca7607ab52c4a2770b6be3e21b30957dbcfc7c9ebcff106852"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2014,
+          "sha256": "03751a990f4a6260d459137448cd3c357b4935ff2941afb0d536a7d55ec7ee18"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 1183,
+          "sha256": "f61dab47cfc43a00eca0cde69a264756636f04f0e8d5195c5c0e43f44f326097"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 4421,
+          "sha256": "37c50412a701ddacf0287ca7a7c164d2384cb075517c528f4bc78eb59d924e8e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 868,
+          "sha256": "d06a0cba652dbf1b047afb093b41a0974dca141cbcae59410125919c50145694"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2462,
+          "sha256": "94c9531fce4fe3a9450218a1a7edb607b23709971b19a34bd6c23670141634cd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 1564,
+          "sha256": "ea59f376034f5a679dc8b7aa6f4d0130fc9da8b4ad5f147925a5ae918e105ab5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2912,
+          "sha256": "6b429ee3276c1009da576c771040cd23ac6eb82b9d2900b70551b0be21716866"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1238,
+          "sha256": "24a770233604e1e8dc10f7d13c35b2150893d8752980b08cda4487c8eb9c8a89"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2627,
+          "sha256": "6d116cf494703e3f13403cf2be248900149caed4d2350ce0691ca3c9ad0a4e18"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 3109,
+          "sha256": "8a9d5956c0245ed1a8fec6dab8e2cd93b384686be501359f0bfa3e756239b593"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2010,
+          "sha256": "d15ecab945fcc387749a0cebb33ba2db5d44e0d0e410db5cea19b64a2fd8eaa9"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_20260106\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 834,
+          "sha256": "b6d0c5e498da0c9b8bf39c628ef13c9a30d4c752604f207ff3f939c47214af9d"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1518,
+          "sha256": "4929fcbfa874ad34719cf182bc9c5b82311075ffbcae9a0dcba33a88993edfad"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2184,
+          "sha256": "0ac244c60fb5b6020ced64eaf116e4fdf6a235542d22da91ce8fd28ea97b7859"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3267,
+          "sha256": "6d1a8715bf540298cec9419320d6264d41d75364d6293d1e6e069e488c557789"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 3290,
+          "sha256": "f22f0ac97deb9779976b4e9dd00eff7ccea5587e8b86a5f57b09e2f5027d8044"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4088,
+          "sha256": "4c91280b6447495d3e038f5653b567bcde3a3f3e03c059810c7c76362347bff7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 417,
+          "sha256": "f2366b2eeaf6386680991e881a5f8d7028ac5b914bdb561a896e8b4df0529c1e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 455,
+          "sha256": "5cafdbb1affab1cd27fbad9232188b5eb6a73117447860fa8aae858e5ac74ff0"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 833,
+          "sha256": "9c769374e7b82811746fb4bf8c470c1b8fb586018a91365c4d819137a93875cf"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 636,
+          "sha256": "e82f2528b5f99860103358ecc7247db74740405454ac377e86410f06ec825265"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 1746,
+          "sha256": "34a89a92924769a51166b37a054928a3965da415e96a86ed036313eab3d36fbb"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 1986,
+          "sha256": "7b2b1ec1054cd61f8bf647c1bdb15e696afec0b2f3c82791ea7f9ed633a04376"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 557,
+          "sha256": "a2e7cbba8621264d5789d60036700dc59c716de0614d8edb8fc6514a9fc36446"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 3468,
+          "sha256": "3f185f28932814838c7e9d0111512db84bf877b6aa8d8a412f8080ba3ace29f4"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 653,
+          "sha256": "312822c2e3b5a1f32b9b162dcb99504f014a784e3668fecbb6f3b55be8d47949"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2131,
+          "sha256": "6113034972e21c93426c57335bd43626e676227da332da6b9e94512b62f0d857"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 1233,
+          "sha256": "db08aaf274c49a10267d4b48581c86d2c0641c1c61c148f01a8f8caf4b0fdde7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2441,
+          "sha256": "0345c5f904bb1d426bf94d7e824fb54554e2c5cc42311523fcee663e98d04a76"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1056,
+          "sha256": "4569de832851763249a68201d0473b23785aa5a14c599e428856b4bd07ec7c91"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 2866,
+          "sha256": "ca104cd2f900b679902fab6b368d7015e2d3e71bf1d7949d61ed73494b5ef3ca"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 2989,
+          "sha256": "68d00c6bc534c5bc8959251c47fa2965ac1165974b1678b54f39b8272e39c12b"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 1877,
+          "sha256": "837fda105e5d25debb41f7350391c33ca8d51f5d003b6bf5d0d489792acb5356"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\POTENTIAL_LANDSLIDE_AFFECT_20260106\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 650,
+          "sha256": "94f9b8b607198a1f957779eb0ccfd713dfeab03d6548f031e12fddbc226fa2b5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\437\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 3161,
+          "sha256": "ec32ff1033dc79ae4da661933e9a4c330974ef54566e2373e3b2ca0b2b43a62e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\437\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 1433,
+          "sha256": "8210d429465e35a8e475764962ec7f54f115be1b4fe8ec3ef4fc555d4b18a6ec"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\438\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 20197,
+          "sha256": "6231b382bacc4afa0bf3ea22a89145ffc08d476b7c4c377cfbd4958ad96e21d8"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\438\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 16315,
+          "sha256": "0cb51f9b2094b226a45a13c15180a51e53c4627b1415018d99a788d197411a54"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\439\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 178,
+          "sha256": "25c26fc7d2e6cdb01c4653bdf23f0d2aad11a8a5df1886690012a6c51f8978ee"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\439\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 11182,
+          "sha256": "b7f08ad6931b0fbb5df972d018b6362e405e84a7fe53b0b5e7c5050350b25ba7"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\439\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 9558,
+          "sha256": "c17258f0395f67441c425e03675e72d753bed777d72653014d753d22c04590cd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\439\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 7614,
+          "sha256": "9ffa26bef63b1434a0b792be5c268d66ded4168072c1a894aecc00ca45b5e91a"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\440\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 10299,
+          "sha256": "36c09b7538c20c8909bcc9b7d3c34317ec149acece5d4d464b7187df1b4a5a59"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\440\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 4821,
+          "sha256": "3dc272431732343557aa4c5ac9742bf9fd1b2fc7ac7674e625449b93d3e8ef9b"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\440\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2753,
+          "sha256": "f5f4d7f1debe7ecc71ef8eeb939b7e27154bf6bf7019d4454e48e5b1b3b83f5e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\440\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 2640,
+          "sha256": "94e7271c4e6c1e840c5f68604ec232ec815c7b3736a78a205e8b81aa43ef2026"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\441\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 15251,
+          "sha256": "f94e92461c15328ba1c8c1981aa2465fb666e7366511aba87d6faca62117d8c8"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\441\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 10869,
+          "sha256": "6c215e7d84daba79b5eda413069e6a6d6dfcbc2f7cd107ed36dec9f74f333587"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\441\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 5213,
+          "sha256": "8c8dd0e7b02af07111d7eeb3bdabccc8c2df3d40071bdcf33d6fe11707151b9a"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\441\\858.pbf",
+          "status": "hashed",
+          "size_bytes": 291,
+          "sha256": "f20f6de12e00ffa02e514625c6b5e9e32582dc87e3fd9043cde3b99661a96629"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\442\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 209,
+          "sha256": "003aa853c42cf6c9294deea5eba841be8e621e07c9af938a209863c941a987fd"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\442\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 16315,
+          "sha256": "347fb938f58b79d1363a0d7915920efabf154086815ad293e694afa59a8d0e78"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\442\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1788,
+          "sha256": "232d4c167ef07b5375aab830382196a846ca63da15cbba8a403a5ef0f43ee29f"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\442\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 8661,
+          "sha256": "f959ba646154d8c0952925e7e1d4613e9e4bb86bd98c2a121346468b5ffdc7df"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\443\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 3598,
+          "sha256": "0698bc76daf2b62108d638b983a61b009f712d61f7e453517b4a8d9bf237f186"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\443\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 13260,
+          "sha256": "ea549a2aff74d03eb37973bc61e4fe12f7efd8c84990209247772d590353d004"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\443\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1598,
+          "sha256": "fb53d7ac9c0c9fb6ab60c0d70b5302b4d15b5f40c39da3d03bdc6b2e17677181"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\443\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 6013,
+          "sha256": "7027b27e2d0f5b4927a8fac5885a598e172937f2996a31880835390c3ecfb145"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\444\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 4740,
+          "sha256": "b235655c648d1dc5289047eb8a0c516ff6c788c10b169b0f8b98bd3e7a8f9a09"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\444\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 9332,
+          "sha256": "af404d37e20af16f25d676755935eeecde632b2ee57ce3ffd3c8c685d6f7c6ca"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\444\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 6076,
+          "sha256": "76edddc91930aa24b9debdf39fd1f2219e95ebd8c65fc2f0f7b50642dd94a1bf"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\444\\857.pbf",
+          "status": "hashed",
+          "size_bytes": 2437,
+          "sha256": "0593296f12de03203adb59f27069b3d7c2a5c0f884c1a8b1ea1e4f8d3448eb8c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\445\\854.pbf",
+          "status": "hashed",
+          "size_bytes": 2113,
+          "sha256": "fc9f8a8492248afee480f61b93d715a0920dca76293c1fc57045862b39ebef2c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\445\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 3702,
+          "sha256": "9536575eedc2764206b1fef93a289f9e4c8bce92793b13542020a6911bff5c3e"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\445\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 7692,
+          "sha256": "d7be9a26afe48d4af67d54bd27994293eef19aa50eb616bc5e6586f98e35b452"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\446\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 6534,
+          "sha256": "cf1c02922e06040ac6d24c66c1c0f80ebf01e42af45aa26954940c1e5a08324c"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\446\\856.pbf",
+          "status": "hashed",
+          "size_bytes": 1385,
+          "sha256": "0fb9e01710af0806a290eed6c104c0573b3507933b6da453ef8a5f615e5a3ca5"
+        },
+        {
+          "role": "official_hazard_tile",
+          "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\WATERSHED1753_20260102\\10\\447\\855.pbf",
+          "status": "hashed",
+          "size_bytes": 3120,
+          "sha256": "d054007db8af7eef81411b858a8e072b0fdc25994eed2225395a9683605b13ca"
+        }
+      ],
+      "reference_geometry_policy": {
+        "hashed_by_provenance": false,
+        "paths_are_configuration_only": true
+      },
+      "summary": {
+        "expected_cases": 12,
+        "completed_cases": 12,
+        "failed_cases": [],
+        "no_route_cases": []
+      }
+    }
+  },
+  "cases": [
+    {
+      "case": "TW102",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 49.264,
+      "length_with_km": 49.264,
+      "length_delta_km": 0.0,
+      "route_geometry_identical": true,
+      "route_vertex_hausdorff_m": 0.0,
+      "raster_soft_cells_without": 0,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 0.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 0.0,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.0,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 3054.034697204277,
+      "f1_100m_without": 0.007404360345536817,
+      "f1_1000m_without": 0.07006711247520216,
+      "symmetric_p95_m_with": 3054.034697204277,
+      "f1_100m_with": 0.007404360345536817,
+      "f1_1000m_with": 0.07006711247520216,
+      "pixel_size_m": 34.988379632133444,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "TW173",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 69.409,
+      "length_with_km": 54.575,
+      "length_delta_km": -14.834000000000003,
+      "route_geometry_identical": false,
+      "route_vertex_hausdorff_m": 16279.56493584769,
+      "raster_soft_cells_without": 1108,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 1108.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 30.522102582489048,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.4403029549761725,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 22082.32047674391,
+      "f1_100m_without": 0.004558354609307372,
+      "f1_1000m_without": 0.034182314721454825,
+      "symmetric_p95_m_with": 7691.0304539476965,
+      "f1_100m_with": 0.005455032511019653,
+      "f1_1000m_with": 0.04653560331619868,
+      "pixel_size_m": 34.85567309764307,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 30.522102582489048,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "TW252",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 54.284,
+      "length_with_km": 54.284,
+      "length_delta_km": 0.0,
+      "route_geometry_identical": true,
+      "route_vertex_hausdorff_m": 0.0,
+      "raster_soft_cells_without": 0,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 0.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 0.0,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.0,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 10430.218245512004,
+      "f1_100m_without": 0.013852916364497458,
+      "f1_1000m_without": 0.10264575240792673,
+      "symmetric_p95_m_with": 10430.218245512004,
+      "f1_100m_with": 0.013852916364497458,
+      "f1_1000m_with": 0.10264575240792673,
+      "pixel_size_m": 35.10824025626859,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "TW311",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 64.391,
+      "length_with_km": 65.53,
+      "length_delta_km": 1.1389999999999958,
+      "route_geometry_identical": false,
+      "route_vertex_hausdorff_m": 7143.102562309638,
+      "raster_soft_cells_without": 487,
+      "raster_soft_cells_with": 10,
+      "raster_soft_weight_sum_without": 487.0,
+      "raster_soft_weight_sum_with": 10.0,
+      "vector_overlap_km_without": 12.77407826834956,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.19823383382476759,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 9790.49248043138,
+      "f1_100m_without": 0.012385726924211148,
+      "f1_1000m_without": 0.06605721026245946,
+      "symmetric_p95_m_with": 9772.937587642056,
+      "f1_100m_with": 0.03245102713295703,
+      "f1_1000m_with": 0.1885697382809636,
+      "pixel_size_m": 34.9452592050299,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 12.77407826834956,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "TW345",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 51.182,
+      "length_with_km": 51.182,
+      "length_delta_km": 0.0,
+      "route_geometry_identical": true,
+      "route_vertex_hausdorff_m": 0.0,
+      "raster_soft_cells_without": 0,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 0.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 0.0,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.0,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 5089.808977039332,
+      "f1_100m_without": 0.037021682351477965,
+      "f1_1000m_without": 0.19274099791371374,
+      "symmetric_p95_m_with": 5089.808977039332,
+      "f1_100m_with": 0.037021682351477965,
+      "f1_1000m_with": 0.19274099791371374,
+      "pixel_size_m": 34.96238607565648,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "TW58",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 32.404,
+      "length_with_km": 32.404,
+      "length_delta_km": 0.0,
+      "route_geometry_identical": true,
+      "route_vertex_hausdorff_m": 0.0,
+      "raster_soft_cells_without": 0,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 0.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 0.0,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.0,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 4573.238681151976,
+      "f1_100m_without": 0.007836045810729355,
+      "f1_1000m_without": 0.07789791884664576,
+      "symmetric_p95_m_with": 4573.238681151976,
+      "f1_100m_with": 0.007836045810729355,
+      "f1_1000m_with": 0.07789791884664576,
+      "pixel_size_m": 34.796624113053554,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "TW59",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 61.12,
+      "length_with_km": 61.12,
+      "length_delta_km": 0.0,
+      "route_geometry_identical": true,
+      "route_vertex_hausdorff_m": 0.0,
+      "raster_soft_cells_without": 0,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 0.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 0.0,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.0,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 9156.527053759153,
+      "f1_100m_without": 0.017202797639296784,
+      "f1_1000m_without": 0.16083020852661747,
+      "symmetric_p95_m_with": 9156.527053759153,
+      "f1_100m_with": 0.017202797639296784,
+      "f1_1000m_with": 0.16083020852661747,
+      "pixel_size_m": 34.79939737155788,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "TW766",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 58.022,
+      "length_with_km": 58.022,
+      "length_delta_km": 0.0,
+      "route_geometry_identical": true,
+      "route_vertex_hausdorff_m": 0.0,
+      "raster_soft_cells_without": 0,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 0.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 0.0,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.0,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 10007.627385318601,
+      "f1_100m_without": 0.018946038874464947,
+      "f1_1000m_without": 0.06865886030939086,
+      "symmetric_p95_m_with": 10007.627385318601,
+      "f1_100m_with": 0.018946038874464947,
+      "f1_1000m_with": 0.06865886030939086,
+      "pixel_size_m": 35.15872098129342,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "TW769",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 50.412,
+      "length_with_km": 50.412,
+      "length_delta_km": 0.0,
+      "route_geometry_identical": true,
+      "route_vertex_hausdorff_m": 0.0,
+      "raster_soft_cells_without": 0,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 0.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 0.0,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.0,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 10507.526050564831,
+      "f1_100m_without": 0.013582083409279326,
+      "f1_1000m_without": 0.06255971144365029,
+      "symmetric_p95_m_with": 10507.526050564831,
+      "f1_100m_with": 0.013582083409279326,
+      "f1_1000m_with": 0.06255971144365029,
+      "pixel_size_m": 35.1561785033953,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "天輪~龍潭線",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 102.906,
+      "length_with_km": 104.044,
+      "length_delta_km": 1.137999999999991,
+      "route_geometry_identical": false,
+      "route_vertex_hausdorff_m": 1496.4312741741492,
+      "raster_soft_cells_without": 169,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 169.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 4.636247991540629,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.04512220869207474,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 11407.98149001202,
+      "f1_100m_without": 0.0022080150947941025,
+      "f1_1000m_without": 0.052809939872423876,
+      "symmetric_p95_m_with": 11404.13055403656,
+      "f1_100m_with": 0.0021954554073068747,
+      "f1_1000m_with": 0.052490093868451874,
+      "pixel_size_m": 34.85615278839848,
+      "drinking_water_protection_overlap_km_without": 4.636247991540629,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "明潭-鳳林線",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 67.98,
+      "length_with_km": 67.98,
+      "length_delta_km": 0.0,
+      "route_geometry_identical": true,
+      "route_vertex_hausdorff_m": 0.0,
+      "raster_soft_cells_without": 0,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 0.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 0.0,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.0,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 3055.721716811054,
+      "f1_100m_without": 0.08146104269031972,
+      "f1_1000m_without": 0.5863674209059044,
+      "symmetric_p95_m_with": 3055.721716811054,
+      "f1_100m_with": 0.08146104269031972,
+      "f1_1000m_with": 0.5863674209059044,
+      "pixel_size_m": 34.95402478090825,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    },
+    {
+      "case": "深美～冬山線",
+      "status_without": "route",
+      "status_with": "route",
+      "failure_reason_without": "",
+      "failure_reason_with": "",
+      "length_without_km": 47.471,
+      "length_with_km": 47.471,
+      "length_delta_km": 0.0,
+      "route_geometry_identical": true,
+      "route_vertex_hausdorff_m": 0.0,
+      "raster_soft_cells_without": 0,
+      "raster_soft_cells_with": 0,
+      "raster_soft_weight_sum_without": 0.0,
+      "raster_soft_weight_sum_with": 0.0,
+      "vector_overlap_km_without": 0.0,
+      "vector_overlap_km_with": 0.0,
+      "vector_overlap_fraction_without": 0.0,
+      "vector_overlap_fraction_with": 0.0,
+      "symmetric_p95_m_without": 8760.801069790383,
+      "f1_100m_without": 0.009921455146754857,
+      "f1_1000m_without": 0.09153331741103414,
+      "symmetric_p95_m_with": 8760.801069790383,
+      "f1_100m_with": 0.009921455146754857,
+      "f1_1000m_with": 0.09153331741103414,
+      "pixel_size_m": 34.8113517759113,
+      "drinking_water_protection_overlap_km_without": 0.0,
+      "drinking_water_protection_overlap_km_with": 0.0,
+      "marine_wildlife_habitat_overlap_km_without": 0.0,
+      "marine_wildlife_habitat_overlap_km_with": 0.0
+    }
+  ]
+}

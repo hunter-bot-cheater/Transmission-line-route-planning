@@ -1,0 +1,242 @@
+[
+  {
+    "path": "baseline\\comparison_metrics.json",
+    "size_bytes": 482037,
+    "sha256": "19ad21af586c1335ccb44f2ec229d9fa571b1fc75967b7c5b0246e724a7e1fc5"
+  },
+  {
+    "path": "baseline\\real_comparison_metrics.json",
+    "size_bytes": 77280,
+    "sha256": "f33c15d665b4c0d0f47fcb744981034bb2e8dacc45504f2bd7c8a5503deabea2"
+  },
+  {
+    "path": "baseline\\run_provenance.json",
+    "size_bytes": 116320,
+    "sha256": "6739bffba982345176962b0f25400811713e66ee049483e0df67b7f6f96f7f70"
+  },
+  {
+    "path": "baseline\\run_summary.json",
+    "size_bytes": 2561,
+    "sha256": "b4a674c27e5035178bd76758f938c319b122d091070a8f3c6c63589984f2dcd0"
+  },
+  {
+    "path": "baseline\\routes\\route-38d068a645\\final_route.geojson",
+    "size_bytes": 89972,
+    "sha256": "58fbdc771f052f0f5e8c5f8a6d949b6e8e472a9d4342e22c822ae5475f2a6bdd"
+  },
+  {
+    "path": "baseline\\routes\\route-8fbecc61d4\\final_route.geojson",
+    "size_bytes": 66118,
+    "sha256": "c6b0aa9ffb7c2aff2b6804ad124b7fd0f1f0572e13a1173eca33c45a76415648"
+  },
+  {
+    "path": "baseline\\routes\\route-b64eac92e5\\final_route.geojson",
+    "size_bytes": 119254,
+    "sha256": "75abe63c352c0688071700ad08330f2e1584f427bf119a21c7e16d114ab2cca9"
+  },
+  {
+    "path": "baseline\\routes\\TW102-2090e70a51\\final_route.geojson",
+    "size_bytes": 67644,
+    "sha256": "1d10b40380f07eecacc2033e499a132ba44a5cec2789e55531116d7813a5ff25"
+  },
+  {
+    "path": "baseline\\routes\\TW173-06a5036e04\\final_route.geojson",
+    "size_bytes": 48378,
+    "sha256": "4dd3282ae0bfc2ca4d4630d30feeab4cb1d16c127400304c5b6236873db48eac"
+  },
+  {
+    "path": "baseline\\routes\\TW252-fc8f065bc8\\final_route.geojson",
+    "size_bytes": 43077,
+    "sha256": "ec0c73cb67cba63be703e672e7a383edcb315824b8e55c1edcf5f91516cfc06a"
+  },
+  {
+    "path": "baseline\\routes\\TW311-2a5b3b57c1\\final_route.geojson",
+    "size_bytes": 46212,
+    "sha256": "e989047c8e5aaf8316ccb2d4560f6291a35eca646f74f882b4917dc526849449"
+  },
+  {
+    "path": "baseline\\routes\\TW345-34e5d646cb\\final_route.geojson",
+    "size_bytes": 40084,
+    "sha256": "fba8638d9077043e4c868fe2e03cb9783e1adc53e9e7c0a4e1a13cd45e498baf"
+  },
+  {
+    "path": "baseline\\routes\\TW58-cc00e6e4c2\\final_route.geojson",
+    "size_bytes": 49517,
+    "sha256": "ab976f8a0523b7b56d6a60540e434729d4e0a0adaf3af395b8a152429367d27d"
+  },
+  {
+    "path": "baseline\\routes\\TW59-70c0b5c4d3\\final_route.geojson",
+    "size_bytes": 82245,
+    "sha256": "099e1576fb84e4b8c76c112207632563e7d7c07d7116755ffeb35881f3455dd0"
+  },
+  {
+    "path": "baseline\\routes\\TW766-b3c8aa0607\\final_route.geojson",
+    "size_bytes": 42862,
+    "sha256": "b6a70e10e4ef6c05d642668c17f38fdbc3753b6b304256982915700437985eb9"
+  },
+  {
+    "path": "baseline\\routes\\TW769-f7d5758fc6\\final_route.geojson",
+    "size_bytes": 39390,
+    "sha256": "0d6b4b71ebd8b97d5b97d7e1cb7173812e24f67d94f5ae4e634608ff409b8be8"
+  },
+  {
+    "path": "comparison\\constraint_route_ab.csv",
+    "size_bytes": 3694,
+    "sha256": "7b45596e37a7899d272431a358d211a80f94385d057865129479a88353c23203"
+  },
+  {
+    "path": "comparison\\constraint_route_ab.json",
+    "size_bytes": 171594,
+    "sha256": "6d40196e7e841474d2c965268f059e02f8da953ecc444174b671051dce4da032"
+  },
+  {
+    "path": "comparison\\constraint_route_ab.png",
+    "size_bytes": 772437,
+    "sha256": "44cad7062354d285a339708c0660c740c98edaf14f97eb4797b4d4bcd325fee7"
+  },
+  {
+    "path": "posthoc_error_maps\\12_route_error_overview.png",
+    "size_bytes": 615752,
+    "sha256": "dd582f37b0ca9a551ee8e9744bc58effe36a8a97157dccd22ade116b2e1f3f74"
+  },
+  {
+    "path": "posthoc_error_maps\\明潭-鳳林線_error_map.png",
+    "size_bytes": 151174,
+    "sha256": "038c4049fb68b23f52ba8aea24d0bb5937899cf8e02c18dc86f5093ebda3a033"
+  },
+  {
+    "path": "posthoc_error_maps\\深美_冬山線_error_map.png",
+    "size_bytes": 157838,
+    "sha256": "4ccf0d4c9bceafe119bc678f24010e19036d13052a9581d392da8f50d7c47084"
+  },
+  {
+    "path": "posthoc_error_maps\\天輪_龍潭線_error_map.png",
+    "size_bytes": 172115,
+    "sha256": "75c2ea774461008dd48556ac40eb3b5a0461fd48ecf91fc0f65e584d18b7d17e"
+  },
+  {
+    "path": "posthoc_error_maps\\TW102_error_map.png",
+    "size_bytes": 144342,
+    "sha256": "b60f394341b5df5f5e465c78cd6f27b46b9e7b8be7a30755f4db478260199224"
+  },
+  {
+    "path": "posthoc_error_maps\\TW173_error_map.png",
+    "size_bytes": 161589,
+    "sha256": "0604abc8f1d5f5d2ade26c5d2a98078fa56a00cf7915b6d57fedbb4709881aa2"
+  },
+  {
+    "path": "posthoc_error_maps\\TW252_error_map.png",
+    "size_bytes": 149755,
+    "sha256": "46ca0f5b3faf2796096d039800c6db2472b5b30c07d9b3d635f4e8474b06e112"
+  },
+  {
+    "path": "posthoc_error_maps\\TW311_error_map.png",
+    "size_bytes": 141183,
+    "sha256": "8d645a230ec57d84723ca0559cddac17b5c9a342c37cfb45b304efb5dffacdec"
+  },
+  {
+    "path": "posthoc_error_maps\\TW345_error_map.png",
+    "size_bytes": 169624,
+    "sha256": "56f170e4ac53a293f3ad78453361281b685b00b20a182cf195cdbac45e0a85f5"
+  },
+  {
+    "path": "posthoc_error_maps\\TW58_error_map.png",
+    "size_bytes": 167325,
+    "sha256": "95efc8b64cd3a43a969c03024e06aee1767bb61306d02860f3dc3ec1106e01af"
+  },
+  {
+    "path": "posthoc_error_maps\\TW59_error_map.png",
+    "size_bytes": 149926,
+    "sha256": "57c07b8b7b5c5e65ef8fdfa7b51479854f372396d0f1c338c708d3c8edd4edc8"
+  },
+  {
+    "path": "posthoc_error_maps\\TW766_error_map.png",
+    "size_bytes": 140136,
+    "sha256": "381d2121dbb9405a9846d5899769d9a4b01cd02c0372efd350017a2fda07d180"
+  },
+  {
+    "path": "posthoc_error_maps\\TW769_error_map.png",
+    "size_bytes": 148105,
+    "sha256": "2de2e2324985b414ac5cdb0f38f16b30721f776cbce265bd86ee9915ef165711"
+  },
+  {
+    "path": "treatment\\comparison_metrics.json",
+    "size_bytes": 531990,
+    "sha256": "01985485e272c54197a03dd9865c4fe3196db7a969ba408c1ddbcb87fecac291"
+  },
+  {
+    "path": "treatment\\real_comparison_metrics.json",
+    "size_bytes": 77238,
+    "sha256": "5e9ca9baa76403f5479959251e5e504a46323cf000ec4d7fa406823c92d9c213"
+  },
+  {
+    "path": "treatment\\run_provenance.json",
+    "size_bytes": 116788,
+    "sha256": "efafa5bfbcb691e75075ee530cf745a3da371a64cf1472a48837aaa519f5f00b"
+  },
+  {
+    "path": "treatment\\run_summary.json",
+    "size_bytes": 2639,
+    "sha256": "046ab2ac28145391c0003da1e6e91b4a7960a19fd8bb61ad36a46aaab2d1482e"
+  },
+  {
+    "path": "treatment\\routes\\route-38d068a645\\final_route.geojson",
+    "size_bytes": 92694,
+    "sha256": "420e4a3c0041516ac6ad04fb884e49713149ee563b730f6ee0eaded6c2722b72"
+  },
+  {
+    "path": "treatment\\routes\\route-8fbecc61d4\\final_route.geojson",
+    "size_bytes": 68840,
+    "sha256": "b8be4473c001a9dea421a48113b66aca50c3bdb65cf8c2ef242263d0ab3da47c"
+  },
+  {
+    "path": "treatment\\routes\\route-b64eac92e5\\final_route.geojson",
+    "size_bytes": 123461,
+    "sha256": "f5391c09d092df0b630c560bdbad5dda6ec2233b0ccfd1da39b593c87e7043a4"
+  },
+  {
+    "path": "treatment\\routes\\TW102-2090e70a51\\final_route.geojson",
+    "size_bytes": 70363,
+    "sha256": "8118047c1acdc7b1765ad7075dd9e70ad079999f9510d60f9d8a42de1ff274fa"
+  },
+  {
+    "path": "treatment\\routes\\TW173-06a5036e04\\final_route.geojson",
+    "size_bytes": 73286,
+    "sha256": "1b449ef676a698f70e6de4e443fde0bce1da530159541423f3e8b2a9cd796529"
+  },
+  {
+    "path": "treatment\\routes\\TW252-fc8f065bc8\\final_route.geojson",
+    "size_bytes": 45799,
+    "sha256": "b318e59d0639a0077d8dd3a016a8490c2f7ce4c6801e816bf2426d145af4cd93"
+  },
+  {
+    "path": "treatment\\routes\\TW311-2a5b3b57c1\\final_route.geojson",
+    "size_bytes": 89030,
+    "sha256": "c8f643e37fc6d2c6c9b56701054004e71bf1e1a72f601c1d0c6e51bda99aa0e3"
+  },
+  {
+    "path": "treatment\\routes\\TW345-34e5d646cb\\final_route.geojson",
+    "size_bytes": 42817,
+    "sha256": "f14d70c249a4892bdaadbe128041abb2b59a71bc4ab3d889f2bcd2da96ed7584"
+  },
+  {
+    "path": "treatment\\routes\\TW58-cc00e6e4c2\\final_route.geojson",
+    "size_bytes": 52245,
+    "sha256": "025f32dbf3db865c618ca0387564e41b5776e7fcd891cb4ab93afb0947b73b95"
+  },
+  {
+    "path": "treatment\\routes\\TW59-70c0b5c4d3\\final_route.geojson",
+    "size_bytes": 84973,
+    "sha256": "e8b43fdb50c6a609e5f11b50bbc8479dbf79f3e00b60fbfe09a5bd6aa8aeabe9"
+  },
+  {
+    "path": "treatment\\routes\\TW766-b3c8aa0607\\final_route.geojson",
+    "size_bytes": 45584,
+    "sha256": "6086218925ab7dbf1459490cae8b0af899eefbacf15bb621d47e0d88f5e9e2e1"
+  },
+  {
+    "path": "treatment\\routes\\TW769-f7d5758fc6\\final_route.geojson",
+    "size_bytes": 42112,
+    "sha256": "63bac47c71af94143d0ced6ce18c3e1ea55216e26968c0a122b8ad23dbbddd00"
+  }
+]

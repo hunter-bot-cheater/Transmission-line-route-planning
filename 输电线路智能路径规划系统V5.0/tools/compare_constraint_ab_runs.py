@@ -83,6 +83,49 @@ def _metric_similarity(metrics):
             "f1_1000m": f1.get("1000")}
 
 
+def _compare_effective_source(without_manifest, with_manifest):
+    baseline = without_manifest.get("source") or {}
+    treatment = with_manifest.get("source") or {}
+    baseline_files = {item["path"]: (item["size_bytes"], item["sha256"])
+                      for item in baseline.get("runtime_source_files", [])}
+    treatment_files = {item["path"]: (item["size_bytes"], item["sha256"])
+                       for item in treatment.get("runtime_source_files", [])}
+    if not baseline_files or baseline_files.keys() != treatment_files.keys():
+        raise ValueError("paired runs lack a comparable runtime source-file manifest")
+
+    changed_files = sorted(path for path in baseline_files
+                           if baseline_files[path] != treatment_files[path])
+    inactive_tower_module = (
+        "输电线路智能路径规划系统V5.0/transmission_path_planner/experimental_tower_graph.py"
+    )
+    tower_graph_disabled = all(
+        not manifest.get("configuration", {}).get("experimental_tower_graph")
+        and not manifest.get("configuration", {}).get("select_experimental_tower_graph")
+        for manifest in (without_manifest, with_manifest))
+    if changed_files and not (
+            changed_files == [inactive_tower_module] and tower_graph_disabled):
+        raise ValueError(
+            "paired runs use different active runtime source files: "
+            f"{changed_files}")
+
+    return {
+        "runtime_source_files_identical_except_inactive_tower_graph": True,
+        "excluded_source_file_differences": changed_files,
+        "excluded_source_file_hashes": {
+            path: {
+                "baseline": {"size_bytes": baseline_files[path][0],
+                             "sha256": baseline_files[path][1]},
+                "treatment": {"size_bytes": treatment_files[path][0],
+                              "sha256": treatment_files[path][1]},
+            }
+            for path in changed_files
+        },
+        "tower_graph_disabled_in_both_runs": tower_graph_disabled,
+        "baseline_commit": baseline.get("commit"),
+        "treatment_commit": treatment.get("commit"),
+    }
+
+
 def _projected_constraint_polygons(constraint_path, project):
     document = json.loads(Path(constraint_path).read_text(encoding="utf-8"))
     groups = {}
@@ -128,8 +171,9 @@ def compare(without_dir, with_dir, dem_path, constraint_path, output_dir):
         raise ValueError("expected an unconfigured baseline and a constraint-enabled treatment")
     if without_manifest.get("cases") != with_manifest.get("cases"):
         raise ValueError("paired runs use different case endpoints")
-    if (without_manifest.get("source") != with_manifest.get("source")
-            or without_manifest.get("effective_runtime")
+    source_comparison = _compare_effective_source(
+        without_manifest, with_manifest)
+    if (without_manifest.get("effective_runtime")
             != with_manifest.get("effective_runtime")):
         raise ValueError("paired runs use different code or runtime provenance")
 
@@ -213,6 +257,9 @@ def compare(without_dir, with_dir, dem_path, constraint_path, output_dir):
             record.update({
                 "length_delta_km": treatment_metrics.get("length_km", 0.0)
                 - base_metrics.get("length_km", 0.0),
+                "route_geometry_identical": base_route.equals(treatment_route),
+                "route_vertex_hausdorff_m": base_projected.hausdorff_distance(
+                    treatment_projected),
                 "raster_soft_cells_without": base_exposure[
                     "soft_affected_route_cell_count"],
                 "raster_soft_cells_with": with_exposure[
@@ -258,6 +305,7 @@ def compare(without_dir, with_dir, dem_path, constraint_path, output_dir):
             "soft_feature_count": sum(feature_counts.values()),
             "max_side": base_config["max_side"],
             "window_margin_deg": base_config["window_margin_deg"],
+            "source_comparison": source_comparison,
             "paired_runs": {
                 "without_constraints": _run_provenance_record(
                     without_dir, without_manifest, without_summary),
@@ -268,7 +316,9 @@ def compare(without_dir, with_dir, dem_path, constraint_path, output_dir):
         }, ensure_ascii=False, indent=2), encoding="utf-8")
     _write_csv(records, output_dir / "constraint_route_ab.csv")
     _write_report(records, output_dir / "constraint_route_ab.md",
-                  feature_counts, base_config, dem_path, constraint_path)
+                  feature_counts, base_config, dem_path, constraint_path,
+                  without_dir, with_dir, len(without_manifest["cases"]),
+                  source_comparison)
     return records
 
 
@@ -292,7 +342,11 @@ def _run_provenance_record(run_dir, manifest, summary):
 
 
 def _write_map(maps, category_polygons, output_path):
-    fig, axes = plt.subplots(4, 2, figsize=(14, 20), constrained_layout=True)
+    columns = min(3, max(1, len(maps)))
+    rows = max(1, int(np.ceil(len(maps) / columns)))
+    fig, axes = plt.subplots(rows, columns,
+                            figsize=(7 * columns, 5 * rows),
+                            constrained_layout=True, squeeze=False)
     axes = list(axes.flat)
     colors = {"drinking_water_protection": ("#69a9d1", "#2376a5"),
               "marine_wildlife_habitat": ("#73c6a3", "#14865d")}
@@ -340,13 +394,19 @@ def _write_csv(records, path):
         writer.writerows(records)
 
 
-def _write_report(records, path, feature_counts, config, dem_path, constraint_path):
+def _write_report(records, path, feature_counts, config, dem_path, constraint_path,
+                  without_dir, with_dir, expected_case_count,
+                  source_comparison):
     paired = [row for row in records if row.get("status_without") == "route"
               and row.get("status_with") == "route"]
     unsuccessful = [row for row in records if row.get("status_without") != "route"
                     or row.get("status_with") != "route"]
-    deltas = [row["length_delta_km"] for row in paired]
-    if deltas:
+    complete_pairing = (bool(records)
+                        and len(records) == expected_case_count
+                        and len(paired) == expected_case_count)
+    changed_routes = sum(not row["route_geometry_identical"] for row in paired)
+    if complete_pairing:
+        deltas = [row["length_delta_km"] for row in paired]
         median_delta = float(np.median(deltas))
         overlap_without = float(sum(
             [row["vector_overlap_km_without"] for row in paired]))
@@ -360,35 +420,52 @@ def _write_report(records, path, feature_counts, config, dem_path, constraint_pa
             [row["f1_100m_without"] for row in paired]))
         median_f1_with = float(np.median(
             [row["f1_100m_with"] for row in paired]))
+        pixel_sizes = [row["pixel_size_m"] for row in paired]
+        pixel_range = (min(pixel_sizes), max(pixel_sizes))
     else:
-        median_delta = overlap_without = overlap_with = float("nan")
-        median_p95_without = median_p95_with = float("nan")
-        median_f1_without = median_f1_with = float("nan")
+        median_delta = overlap_without = overlap_with = None
+        median_p95_without = median_p95_with = None
+        median_f1_without = median_f1_with = None
+        pixel_range = None
+    if complete_pairing:
+        summary = [
+            f"- Median paired length change: `{median_delta:+.3f} km` (treatment minus baseline).",
+            f"- Median symmetric P95 distance: `{median_p95_without/1000:.3f} km` to `{median_p95_with/1000:.3f} km`.",
+            f"- Median F1@100m: `{100*median_f1_without:.3f}%` to `{100*median_f1_with:.3f}%`.",
+            f"- Sum of per-route exact vector overlap with soft polygons: `{overlap_without:.3f} km` to `{overlap_with:.3f} km` (change `{overlap_with-overlap_without:+.3f} km`).",
+            f"- Routes with changed geometry: `{changed_routes}/{len(paired)}`; per-case exported-vertex Hausdorff is reported in the table (discrete, not a continuous engineering tolerance).",
+            f"- Actual planning pixel size range: `{pixel_range[0]:.1f} to {pixel_range[1]:.1f} m`.",
+        ]
+    else:
+        summary = [
+            "- Pooled medians withheld because at least one case lacks a successful route in both runs.",
+        "- Actual planning pixel size range is reported only for fully paired runs.",
+        ]
     lines = [
         "# Soft constraint paired route screening",
         "",
         f"- Cases: {len(records)} total; {len(paired)} paired routes; "
         f"{len(unsuccessful)} with at least one unsuccessful result.",
+        f"- Complete pairing: `{complete_pairing}`.",
         f"- Raster cap: `{config['max_side']}`; search margin: `{config['window_margin_deg']}` degrees.",
-        f"- Median paired length change: `{median_delta:+.3f} km` (treatment minus baseline).",
-        f"- Median symmetric P95 distance: `{median_p95_without/1000:.3f} km` to `{median_p95_with/1000:.3f} km`.",
-        f"- Median F1@100m: `{100*median_f1_without:.3f}%` to `{100*median_f1_with:.3f}%`.",
-        f"- Sum of per-route exact vector overlap with soft polygons: `{overlap_without:.3f} km` to `{overlap_with:.3f} km`.",
+        *summary,
         f"- Soft features: `{sum(feature_counts.values())}`; by category: `{json.dumps(feature_counts, ensure_ascii=False)}`; each feature weight is `1.0`.",
         f"- DEM SHA-256: `{_sha256(dem_path)}`",
         f"- Constraint GeoJSON SHA-256: `{_sha256(constraint_path)}`",
         "",
-        "| Case | Status base / treatment | Length base / treatment (km) | Δ length (km) | Raster soft cells base / treatment | Exact vector overlap base / treatment (km) | Symmetric P95 base / treatment (km) | F1@100m base / treatment | Failure detail |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| Case | Status base / treatment | Geometry changed | Vertex Hausdorff (m) | Length base / treatment (km) | Δ length (km) | Raster soft cells base / treatment | Exact vector overlap base / treatment (km) | Symmetric P95 base / treatment (km) | F1@100m base / treatment | Failure detail |",
+        "| --- | --- |:---:| ---:| ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in records:
         if row.get("status_without") != "route" or row.get("status_with") != "route":
             lines.append(
-                f"| {row['case']} | {row['status_without']} / {row['status_with']} | — | — | — | — | — | — | "
+                f"| {row['case']} | {row['status_without']} / {row['status_with']} | — | — | — | — | — | — | — | — | "
                 f"{row.get('failure_reason_without') or row.get('failure_reason_with') or '—'} |")
             continue
         lines.append(
             f"| {row['case']} | {row['status_without']} / {row['status_with']} | "
+            f"{'no' if row['route_geometry_identical'] else 'yes'} | "
+            f"{row['route_vertex_hausdorff_m']:.0f} | "
             f"{row['length_without_km']:.2f} / {row['length_with_km']:.2f} | "
             f"{row['length_delta_km']:+.2f} | "
             f"{row['raster_soft_cells_without']} / {row['raster_soft_cells_with']} | "
@@ -400,14 +477,19 @@ def _write_report(records, path, feature_counts, config, dem_path, constraint_pa
         "## Interpretation limits",
         "",
         "This is a sensitivity comparison, not a weight calibration. The reference line geometries were used only by the planner's post-hoc scorer; they did not enter route search or candidate selection. The CSV endpoints are still historical-line endpoints, not independently verified station terminals.",
-        "The 1024-cell cap produced roughly 102–134 m cells across these windows, so this comparison cannot support high-resolution engineering claims. OSM building and land-use coverage is observed-feature coverage, not proof of completeness. The official protection polygons are screening layers; overlap or avoidance does not establish legal status, risk reduction, or route feasibility.",
-        "The soft layer removed about 10.1 km of summed route-polygon overlap across the seven successful pairs, while median symmetric P95 distance worsened. That is an avoidance-versus-reference-fit tradeoff, not an overall accuracy gain; the weight is uncalibrated.",
+        "The official polygons are screening layers; overlap or avoidance does not establish current legal status, risk reduction, or route feasibility. OSM building and land-use coverage is observed-feature coverage, not proof of completeness. This remains corridor screening, not an engineering design or clearance certification.",
         "Vector overlap is measured after projecting the route and polygons to EPSG:3826. Raster exposure is all-touched cell contact on the exact planning grid; the two measures need not agree at coarse resolution.",
         "",
         "## Reproduction",
         "",
-        "The paired commands used identical DEM, OSM cache, endpoints, A* settings, official hazard MVT, and `--max-side 1024`. The treatment additionally supplied `--constraint-geojson`; the baseline omitted it. Outputs remain under the ignored `outputs/constraints_soft_ab_8cases_1024_20261025/` directory.",
-        "The adjacent `constraint_route_ab.json` preserves each run's exact command and working directory, planner source hashes, runtime flags, planning-input hashes, and run-summary hash. The run provenance reported a dirty source tree; compare its recorded source-file hashes before attempting to reproduce it from Git alone.",
+        f"- Baseline run: `{Path(without_dir)}`.",
+        f"- Treatment run: `{Path(with_dir)}`.",
+        "- The comparison gate verified identical cases, active runtime source hashes, runtime environment, and all non-treatment input hashes; output directory and user constraint configuration are the intended differences.",
+        "- The adjacent `constraint_route_ab.json` records both run provenances, source hashes, exact configuration, and input hashes.",
+        f"- Source commits: `{source_comparison['baseline_commit']}` (baseline) / `{source_comparison['treatment_commit']}` (treatment).",
+        (f"- Excluded source difference: `{source_comparison['excluded_source_file_differences']}` because tower-graph and tower-graph selection were disabled in both runs; exact old/new file hashes are in `constraint_route_ab.json`."
+         if source_comparison["excluded_source_file_differences"]
+         else "- All runtime source file hashes match."),
     ])
     Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
