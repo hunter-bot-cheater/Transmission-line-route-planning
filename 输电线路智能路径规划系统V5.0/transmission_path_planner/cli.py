@@ -34,7 +34,30 @@ ASTAR_8_EXACT_METHOD = "A*(8-neighbor exact experimental)"
 TOWER_GRAPH_METHOD = "Tower graph (experimental)"
 
 
-def _select_final_route(methods, case_metrics):
+def _select_final_route(methods, case_metrics, select_tower_graph=False):
+    if select_tower_graph:
+        metrics = case_metrics.get(TOWER_GRAPH_METHOD, {})
+        clearance_spans = metrics.get("clearance_profile_spans", [])
+        clearance_passed = (
+            metrics.get("clearance_profile_status") in {
+                "dem_only_profile_screening",
+                "station_elevation_anchored_profile_screening",
+            }
+            and bool(clearance_spans)
+            and all(span.get("status") == "sampled_clearance_ok"
+                    for span in clearance_spans)
+        )
+        if (methods.get(TOWER_GRAPH_METHOD)
+                and metrics.get("candidate_validation_status") == "survived_validation"
+                and metrics.get("hard_constraint_status") == "pass"
+                and metrics.get("hard_violations") == 0
+                and metrics.get("building_geometry_status") == "pass"
+                and metrics.get("tower_span_status") == "pass"
+                and metrics.get("tower_span_violation_count") == 0
+                and clearance_passed):
+            return TOWER_GRAPH_METHOD, None, "explicit_tower_graph_screen_passed"
+        return None, None, "no_hard_constraint_compliant_route"
+
     for method, rule in (
         ("A*(turn-aware)", "turn_penalized_screening_candidate"),
         ("A*(baseline)", "astar_min_cost_priority"),
@@ -139,12 +162,15 @@ def validate_tower_span_lengths(geo, min_span_m, max_span_m, tolerance_m=0.5):
     return (geo if not violations else None), report
 
 
-def tower_candidate_validation_status(geo, searched_path, clearance_status):
+def tower_candidate_validation_status(geo, searched_path, clearance_status,
+                                     building_geometry_status):
     if str(clearance_status).startswith("unknown_"):
         return "unknown_clearance_reference"
-    if geo:
-        return "survived_validation"
-    return "rejected_after_search" if searched_path else "no_path"
+    if not geo:
+        return "rejected_after_search" if searched_path else "no_path"
+    if building_geometry_status != "pass":
+        return "incomplete_building_geometry_check"
+    return "survived_validation"
 
 
 def overhead_span_grade_report():
@@ -634,7 +660,9 @@ def main():
     ap.add_argument("--experimental-sampled-pareto", action="store_true",
                     help="对同一地形/约束代价面采样生成 A* 多目标候选；只输出实验候选，不参与最终选路")
     ap.add_argument("--experimental-tower-graph", action="store_true",
-                    help="额外生成带候选塔位和档距约束的实验路线；仅作筛选对照，不参与最终选路")
+                    help="额外生成带候选塔位和档距约束的实验路线；默认仅作筛选对照")
+    ap.add_argument("--select-experimental-tower-graph", action="store_true",
+                    help="显式把通过档距、硬约束、建筑及逐跨 DEM 净空筛查的塔位图候选作为最终筛查方案")
     ap.add_argument("--tower-min-span-m", type=float, default=None,
                     help="实验塔位图最小水平档距；必须按具体线路工程参数提供")
     ap.add_argument("--tower-max-span-m", type=float, default=None,
@@ -690,6 +718,17 @@ def main():
     args = ap.parse_args()
     if bool(args.stations_csv) != bool(args.route_tasks_csv):
         ap.error("--stations-csv 和 --route-tasks-csv 必须同时提供")
+    if args.select_experimental_tower_graph:
+        if not args.experimental_tower_graph:
+            ap.error("--select-experimental-tower-graph 必须同时启用 --experimental-tower-graph")
+        if not args.stations_csv:
+            ap.error("选择塔位图方案必须使用站点 CSV 任务")
+        if any(value is None for value in (
+                args.tower_attachment_height_m,
+                args.tower_max_midspan_sag_m,
+                args.tower_min_clearance_m)) or not (
+                    args.dem_vertical_datum and args.dem_vertical_datum.strip()):
+            ap.error("选择塔位图方案必须提供完整的塔位净空参数和 --dem-vertical-datum")
     if args.allow_unverified_endpoints and not args.stations_csv:
         ap.error("--allow-unverified-endpoints 仅适用于站点 CSV 任务")
     if bool(args.start) != bool(args.end):
@@ -802,6 +841,11 @@ def main():
                 allow_unverified=args.allow_unverified_endpoints)
         except (OSError, ValueError) as exc:
             ap.error(str(exc))
+        if (args.select_experimental_tower_graph
+                and any(task["endpoint_qualification"]
+                        != "declared_verified_line_connection_points"
+                        for task in station_tasks)):
+            ap.error("选择塔位图方案要求所有端点声明为已核验线路接入点")
         cases = []
         for task in station_tasks:
             cases.append((task["route_id"], task["start"], task["end"]))
@@ -1537,7 +1581,8 @@ def main():
                         "clearance_profile_status"]
                     met.update({
                         "candidate_validation_status": tower_candidate_validation_status(
-                            geo, experimental_tower_graph_results["path"], clearance_status),
+                            geo, experimental_tower_graph_results["path"], clearance_status,
+                            met.get("building_geometry_status")),
                         "clearance_profile_screening": experimental_tower_graph_results[
                             "clearance_profile_screening"],
                         "clearance_profile_status": clearance_status,
@@ -1576,7 +1621,8 @@ def main():
                 case_metrics[TOWER_GRAPH_METHOD] = {
                     "candidate_validation_status": tower_candidate_validation_status(
                         None, experimental_tower_graph_results["path"],
-                        experimental_tower_graph_results["clearance_profile_status"]),
+                        experimental_tower_graph_results["clearance_profile_status"],
+                        None),
                     "clearance_profile_screening": experimental_tower_graph_results[
                         "clearance_profile_screening"],
                     "clearance_profile_status": experimental_tower_graph_results[
@@ -1589,7 +1635,9 @@ def main():
 
             # 按固定优先规则筛选硬约束可行路线；实验 Pareto 候选不在选择优先表中。
             # 真实线仍只在规划选路完成后读取，用于事后评分。
-            best_method, _, selection_rule = _select_final_route(methods, case_metrics)
+            best_method, _, selection_rule = _select_final_route(
+                methods, case_metrics,
+                select_tower_graph=args.select_experimental_tower_graph)
             final_geo = methods.get(best_method) if best_method else None
             final_is_ai = False if best_method else None
             for method, candidate in sampled_pareto_by_method.items():

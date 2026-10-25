@@ -11,6 +11,7 @@ from affine import Affine
 
 from transmission_path_planner.cost import build_route_cost
 from transmission_path_planner.cli import (
+    TOWER_GRAPH_METHOD,
     _select_final_route,
     attach_station_endpoints,
     build_tower_masks,
@@ -94,20 +95,72 @@ class StationPlanningTests(unittest.TestCase):
         self.assertIsNone(report["grade_limit_violation_count"])
         self.assertIsNone(report["grade_limit_unassessed_count"])
 
+    def test_explicit_tower_graph_selection_requires_all_screening_checks(self):
+        route = [(121.0, 25.0), (121.003, 25.0)]
+        accepted_metrics = {
+            "candidate_validation_status": "survived_validation",
+            "hard_constraint_status": "pass",
+            "hard_violations": 0,
+            "building_geometry_status": "pass",
+            "tower_span_status": "pass",
+            "tower_span_violation_count": 0,
+            "clearance_profile_status": "dem_only_profile_screening",
+            "clearance_profile_spans": [{"status": "sampled_clearance_ok"}],
+        }
+        selected = _select_final_route(
+            {TOWER_GRAPH_METHOD: route},
+            {TOWER_GRAPH_METHOD: accepted_metrics},
+            select_tower_graph=True)
+        self.assertEqual(selected,
+                         (TOWER_GRAPH_METHOD, None,
+                          "explicit_tower_graph_screen_passed"))
+
+        failed_metrics = {**accepted_metrics, "hard_violations": 1}
+        fallback = _select_final_route(
+            {TOWER_GRAPH_METHOD: route, "A*(baseline)": route},
+            {TOWER_GRAPH_METHOD: failed_metrics,
+             "A*(baseline)": {"hard_violations": 0}},
+            select_tower_graph=True)
+        self.assertEqual(fallback,
+                         (None, None, "no_hard_constraint_compliant_route"))
+
+        unknown_clearance = {
+            **accepted_metrics,
+            "clearance_profile_status": "not_requested",
+        }
+        self.assertIsNone(_select_final_route(
+            {TOWER_GRAPH_METHOD: route},
+            {TOWER_GRAPH_METHOD: unknown_clearance},
+            select_tower_graph=True)[0])
+
+        missing_building_check = {
+            **accepted_metrics,
+            "building_geometry_status": "not_checked",
+        }
+        self.assertIsNone(_select_final_route(
+            {TOWER_GRAPH_METHOD: route},
+            {TOWER_GRAPH_METHOD: missing_building_check},
+            select_tower_graph=True)[0])
+
     def test_tower_candidate_validation_status_tracks_post_search_result(self):
         route = [(121.0, 25.0), (121.003, 25.0)]
         self.assertEqual(
-            tower_candidate_validation_status(route, route, "not_requested"),
+            tower_candidate_validation_status(route, route, "not_requested", "pass"),
             "survived_validation")
         self.assertEqual(
-            tower_candidate_validation_status(None, route, "dem_only_profile_screening"),
+            tower_candidate_validation_status(
+                None, route, "dem_only_profile_screening", "pass"),
             "rejected_after_search")
         self.assertEqual(
-            tower_candidate_validation_status(None, None, "not_requested"),
+            tower_candidate_validation_status(None, None, "not_requested", None),
             "no_path")
         self.assertEqual(
-            tower_candidate_validation_status(None, None, "unknown_dem_vertical_datum_missing"),
+            tower_candidate_validation_status(
+                None, None, "unknown_dem_vertical_datum_missing", None),
             "unknown_clearance_reference")
+        self.assertEqual(
+            tower_candidate_validation_status(route, route, "dem_only_profile_screening", None),
+            "incomplete_building_geometry_check")
 
     def test_restored_tower_endpoints_are_rechecked_against_span_limits(self):
         invalid_route = [(121.0, 25.0), (121.001, 25.0), (121.02, 25.0)]
