@@ -1,0 +1,579 @@
+{
+  "scope": "finite_scalarization_samples_only",
+  "objective_vector_scope": "pre_smoothing_search_grid_paths",
+  "reference_geometry_used_for_planning": false,
+  "freeze_manifest": "sampled_pareto_freeze.json",
+  "freeze_manifest_sha256": "baf73d614b5a582b68cb15db681735c77326de0ecc6270ede2a2dbad8e39201a",
+  "candidates": [
+    {
+      "candidate_id": "Sampled Pareto 01",
+      "geojson": "planned_route_sampled_pareto_01.geojson",
+      "sampled_environmental_weights": [
+        1.0
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 60237.071898,
+        "grade_cost_meter": 2353.620537,
+        "turn_cost_meter": 0.0,
+        "length_m": 49242.175752315175,
+        "production_total_cost_meter": 62590.692435
+      },
+      "pareto_scope": "finite_scalarization_samples_only",
+      "search_hard_constraint_legal": true,
+      "search_hard_violation_count": 0,
+      "candidate_search_batch_time_s": 28.403400659561157,
+      "post_validation_path_sha256": "7529cce855200fa50292712be8c8d6d31a5ef0925e8effcc01c432b2f47b7176",
+      "candidate_frozen_before_reference_read": true,
+      "post_validation_status": "pass",
+      "hard_violations": 0,
+      "post_smoothing_path_cost_integral": {
+        "status": "measured",
+        "base_cost_meter": 60278.672,
+        "grade_cost_meter": 2514.043,
+        "turn_cost_meter": 0.0,
+        "total_cost_meter": 62792.716,
+        "base_cost_method": "piecewise_constant_grid_cell_exact",
+        "grade_cost_method": "one_pixel_sampled_segment_estimate",
+        "turn_cost_method": "disabled"
+      },
+      "route_similarity_version": 6,
+      "route_similarity": {
+        "comparison_crs": "+proj=aeqd +lat_0=23.52800648981802 +lon_0=121.36768341064452 +datum=WGS84 +units=m +no_defs +type=crs",
+        "sampling_interval_m": 20.0,
+        "planned_to_reference": {
+          "mean_m": 1884.9574709721855,
+          "median_m": 1927.7523572216846,
+          "p90_m": 2822.0422567586247,
+          "p95_m": 3049.4676005936076,
+          "p99_m": 3186.563364646939,
+          "sampled_max_m": 3245.0212683357204,
+          "sampled_length_m": 49127.628887927276,
+          "coverage_within_m": {
+            "100": 0.007326007326007328,
+            "500": 0.035409035409035415,
+            "1000": 0.06756206756206758,
+            "5000": 1.0
+          }
+        },
+        "reference_to_planned": {
+          "mean_m": 1878.0836129653796,
+          "median_m": 1852.6451305810795,
+          "p90_m": 2926.2972414717497,
+          "p95_m": 3054.034697204277,
+          "p99_m": 3239.687129561265,
+          "sampled_max_m": 3311.521455224041,
+          "sampled_length_m": 48089.04036443087,
+          "coverage_within_m": {
+            "100": 0.007484407484407484,
+            "500": 0.0395010395010395,
+            "1000": 0.07276507276507276,
+            "5000": 1.0
+          }
+        },
+        "symmetric": {
+          "mean_m": 1881.5205419687827,
+          "p95_m": 3054.034697204277,
+          "sampled_hausdorff_m": 3311.521455224041,
+          "coverage_f1_within_m": {
+            "100": 0.007404360345536817,
+            "500": 0.03734327346662149,
+            "1000": 0.07006711247520216,
+            "5000": 1.0
+          }
+        },
+        "length": {
+          "planned_km": 49.26377600413715,
+          "reference_km": 48.089040364430865,
+          "signed_difference_km": 1.1747356397062845,
+          "absolute_difference_km": 1.1747356397062845,
+          "absolute_difference_pct": 2.442834439622504
+        },
+        "planning_window_coverage": {
+          "reference_length_within_window_m": 48089.04036443087,
+          "reference_length_outside_window_m": 0.0,
+          "reference_length_coverage_ratio": 1.0,
+          "bounds_wgs84": [
+            121.00513458251952,
+            23.03465751481222,
+            121.73023223876952,
+            24.021355464823813
+          ]
+        },
+        "endpoint_offsets": {
+          "orientation": "forward",
+          "planned_start_to_reference_endpoint_m": 0.032559051195359505,
+          "planned_end_to_reference_endpoint_m": 0.06885328495714063
+        },
+        "discrete_frechet_approx": {
+          "distance_m": 3316.287384470252,
+          "target_max_sample_interval_m": 100.0,
+          "planned_sample_points": 493,
+          "reference_sample_points": 482,
+          "planned_max_sample_interval_m": 99.85290424375464,
+          "reference_max_sample_interval_m": 99.97721489486666
+        },
+        "buffer_iou": {
+          "100": 0.005251871803932962,
+          "1000": 0.10960648210595947
+        }
+      },
+      "length_km": 49.264
+    },
+    {
+      "candidate_id": "Sampled Pareto 02",
+      "geojson": "planned_route_sampled_pareto_02.geojson",
+      "sampled_environmental_weights": [
+        0.75
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 60785.849262,
+        "grade_cost_meter": 2091.548936,
+        "turn_cost_meter": 0.0,
+        "length_m": 49167.116835715715,
+        "production_total_cost_meter": 62877.398198
+      },
+      "pareto_scope": "finite_scalarization_samples_only",
+      "search_hard_constraint_legal": true,
+      "search_hard_violation_count": 0,
+      "candidate_search_batch_time_s": 28.403400659561157,
+      "post_validation_path_sha256": "e6c888b9124334499f37f4e7e721697c4835ac050e25588bee3934a09e69e5ba",
+      "candidate_frozen_before_reference_read": true,
+      "post_validation_status": "pass",
+      "hard_violations": 0,
+      "post_smoothing_path_cost_integral": {
+        "status": "measured",
+        "base_cost_meter": 60805.418,
+        "grade_cost_meter": 2296.944,
+        "turn_cost_meter": 0.0,
+        "total_cost_meter": 63102.363,
+        "base_cost_method": "piecewise_constant_grid_cell_exact",
+        "grade_cost_method": "one_pixel_sampled_segment_estimate",
+        "turn_cost_method": "disabled"
+      },
+      "route_similarity_version": 6,
+      "route_similarity": {
+        "comparison_crs": "+proj=aeqd +lat_0=23.52800648981802 +lon_0=121.36768341064452 +datum=WGS84 +units=m +no_defs +type=crs",
+        "sampling_interval_m": 20.0,
+        "planned_to_reference": {
+          "mean_m": 1836.097796540239,
+          "median_m": 1869.3022509790235,
+          "p90_m": 2711.235621725157,
+          "p95_m": 2982.0551509396028,
+          "p99_m": 3108.7280752709153,
+          "sampled_max_m": 3136.693455867354,
+          "sampled_length_m": 49044.70223069252,
+          "coverage_within_m": {
+            "100": 0.010191602119853241,
+            "500": 0.04484304932735427,
+            "1000": 0.07337953526294333,
+            "5000": 1.0
+          }
+        },
+        "reference_to_planned": {
+          "mean_m": 1848.207392870172,
+          "median_m": 1841.2141017186702,
+          "p90_m": 2905.8623151141132,
+          "p95_m": 3023.9774933883623,
+          "p99_m": 3330.0529316016773,
+          "sampled_max_m": 3409.737332343655,
+          "sampled_length_m": 48089.04036443087,
+          "coverage_within_m": {
+            "100": 0.010395010395010397,
+            "500": 0.047401247401247404,
+            "1000": 0.07775467775467776,
+            "5000": 1.0
+          }
+        },
+        "symmetric": {
+          "mean_m": 1842.1525947052055,
+          "p95_m": 3023.9774933883623,
+          "sampled_hausdorff_m": 3409.737332343655,
+          "coverage_f1_within_m": {
+            "100": 0.010292301358583781,
+            "500": 0.04608667529107375,
+            "1000": 0.07550377911443444,
+            "5000": 1.0
+          }
+        },
+        "length": {
+          "planned_km": 49.18157696720323,
+          "reference_km": 48.089040364430865,
+          "signed_difference_km": 1.0925366027723626,
+          "absolute_difference_km": 1.0925366027723626,
+          "absolute_difference_pct": 2.2719035241561176
+        },
+        "planning_window_coverage": {
+          "reference_length_within_window_m": 48089.04036443087,
+          "reference_length_outside_window_m": 0.0,
+          "reference_length_coverage_ratio": 1.0,
+          "bounds_wgs84": [
+            121.00513458251952,
+            23.03465751481222,
+            121.73023223876952,
+            24.021355464823813
+          ]
+        },
+        "endpoint_offsets": {
+          "orientation": "forward",
+          "planned_start_to_reference_endpoint_m": 0.032559051195359505,
+          "planned_end_to_reference_endpoint_m": 0.06885328495714063
+        },
+        "discrete_frechet_approx": {
+          "distance_m": 3420.687078683015,
+          "target_max_sample_interval_m": 100.0,
+          "planned_sample_points": 492,
+          "reference_sample_points": 482,
+          "planned_max_sample_interval_m": 99.8873772519196,
+          "reference_max_sample_interval_m": 99.97721489486666
+        },
+        "buffer_iou": {
+          "100": 0.006061307019169715,
+          "1000": 0.115012141001803
+        }
+      },
+      "length_km": 49.182
+    },
+    {
+      "candidate_id": "Sampled Pareto 03",
+      "geojson": "planned_route_sampled_pareto_03.geojson",
+      "sampled_environmental_weights": [
+        0.5
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 61146.579341,
+        "grade_cost_meter": 2287.75394,
+        "turn_cost_meter": 0.0,
+        "length_m": 48661.92400867232,
+        "production_total_cost_meter": 63434.333281
+      },
+      "pareto_scope": "finite_scalarization_samples_only",
+      "search_hard_constraint_legal": true,
+      "search_hard_violation_count": 0,
+      "candidate_search_batch_time_s": 28.403400659561157,
+      "post_validation_path_sha256": "66e557acf0f95d14cf114aa19c369f364625b4a037c05a7847d983d3bab8ba99",
+      "candidate_frozen_before_reference_read": true,
+      "post_validation_status": "pass",
+      "hard_violations": 0,
+      "post_smoothing_path_cost_integral": {
+        "status": "measured",
+        "base_cost_meter": 61188.18,
+        "grade_cost_meter": 2442.826,
+        "turn_cost_meter": 0.0,
+        "total_cost_meter": 63631.006,
+        "base_cost_method": "piecewise_constant_grid_cell_exact",
+        "grade_cost_method": "one_pixel_sampled_segment_estimate",
+        "turn_cost_method": "disabled"
+      },
+      "route_similarity_version": 6,
+      "route_similarity": {
+        "comparison_crs": "+proj=aeqd +lat_0=23.52800648981802 +lon_0=121.36768341064452 +datum=WGS84 +units=m +no_defs +type=crs",
+        "sampling_interval_m": 20.0,
+        "planned_to_reference": {
+          "mean_m": 1898.4780397618326,
+          "median_m": 1889.4029436430194,
+          "p90_m": 2707.317643486842,
+          "p95_m": 2984.5079154381256,
+          "p99_m": 3109.851858126305,
+          "sampled_max_m": 3135.8812720080923,
+          "sampled_length_m": 48544.211394944854,
+          "coverage_within_m": {
+            "100": 0.007413509060955519,
+            "500": 0.03459637561779242,
+            "1000": 0.07331136738056014,
+            "5000": 1.0
+          }
+        },
+        "reference_to_planned": {
+          "mean_m": 1919.3064318503327,
+          "median_m": 1872.6034654087366,
+          "p90_m": 2904.8141771391656,
+          "p95_m": 3022.5385474468135,
+          "p99_m": 3283.2523636642395,
+          "sampled_max_m": 3390.0922206064774,
+          "sampled_length_m": 48089.04036443087,
+          "coverage_within_m": {
+            "100": 0.007484407484407484,
+            "500": 0.03783783783783785,
+            "1000": 0.07775467775467776,
+            "5000": 1.0
+          }
+        },
+        "symmetric": {
+          "mean_m": 1908.8922358060827,
+          "p95_m": 3022.5385474468135,
+          "sampled_hausdorff_m": 3390.0922206064774,
+          "coverage_f1_within_m": {
+            "100": 0.0074487895716946,
+            "500": 0.03614457831325302,
+            "1000": 0.07546767695317902,
+            "5000": 1.0
+          }
+        },
+        "length": {
+          "planned_km": 48.68364049713371,
+          "reference_km": 48.089040364430865,
+          "signed_difference_km": 0.5946001327028441,
+          "absolute_difference_km": 0.5946001327028441,
+          "absolute_difference_pct": 1.2364566400094792
+        },
+        "planning_window_coverage": {
+          "reference_length_within_window_m": 48089.04036443087,
+          "reference_length_outside_window_m": 0.0,
+          "reference_length_coverage_ratio": 1.0,
+          "bounds_wgs84": [
+            121.00513458251952,
+            23.03465751481222,
+            121.73023223876952,
+            24.021355464823813
+          ]
+        },
+        "endpoint_offsets": {
+          "orientation": "forward",
+          "planned_start_to_reference_endpoint_m": 0.032559051195359505,
+          "planned_end_to_reference_endpoint_m": 0.06885328495714063
+        },
+        "discrete_frechet_approx": {
+          "distance_m": 3383.095977549898,
+          "target_max_sample_interval_m": 100.0,
+          "planned_sample_points": 487,
+          "reference_sample_points": 482,
+          "planned_max_sample_interval_m": 99.88520863157378,
+          "reference_max_sample_interval_m": 99.97721489486666
+        },
+        "buffer_iou": {
+          "100": 0.00528374138559239,
+          "1000": 0.09789739050846223
+        }
+      },
+      "length_km": 48.684
+    },
+    {
+      "candidate_id": "Sampled Pareto 04",
+      "geojson": "planned_route_sampled_pareto_04.geojson",
+      "sampled_environmental_weights": [
+        0.25
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 61555.684589,
+        "grade_cost_meter": 2662.444186,
+        "turn_cost_meter": 0.0,
+        "length_m": 48313.772962486604,
+        "production_total_cost_meter": 64218.128775
+      },
+      "pareto_scope": "finite_scalarization_samples_only",
+      "search_hard_constraint_legal": true,
+      "search_hard_violation_count": 0,
+      "candidate_search_batch_time_s": 28.403400659561157,
+      "post_validation_path_sha256": "7e56e915a0bebdf664d4aa2b484edc1b831761ca29c5dcb0abf7d04a2ff39af3",
+      "candidate_frozen_before_reference_read": true,
+      "post_validation_status": "pass",
+      "hard_violations": 0,
+      "post_smoothing_path_cost_integral": {
+        "status": "measured",
+        "base_cost_meter": 61597.285,
+        "grade_cost_meter": 2811.31,
+        "turn_cost_meter": 0.0,
+        "total_cost_meter": 64408.596,
+        "base_cost_method": "piecewise_constant_grid_cell_exact",
+        "grade_cost_method": "one_pixel_sampled_segment_estimate",
+        "turn_cost_method": "disabled"
+      },
+      "route_similarity_version": 6,
+      "route_similarity": {
+        "comparison_crs": "+proj=aeqd +lat_0=23.52800648981802 +lon_0=121.36768341064452 +datum=WGS84 +units=m +no_defs +type=crs",
+        "sampling_interval_m": 20.0,
+        "planned_to_reference": {
+          "mean_m": 1902.0147816658102,
+          "median_m": 1910.9180673378833,
+          "p90_m": 2708.565670601279,
+          "p95_m": 2985.1269528419402,
+          "p99_m": 3109.1585481000275,
+          "sampled_max_m": 3136.6547500118945,
+          "sampled_length_m": 48194.37572893851,
+          "coverage_within_m": {
+            "100": 0.007468879668049793,
+            "500": 0.03443983402489626,
+            "1000": 0.07344398340248962,
+            "5000": 1.0
+          }
+        },
+        "reference_to_planned": {
+          "mean_m": 1922.6825020762883,
+          "median_m": 1915.5750839935206,
+          "p90_m": 2858.932257755915,
+          "p95_m": 3003.999542640693,
+          "p99_m": 3090.1590336537793,
+          "sampled_max_m": 3179.996732609754,
+          "sampled_length_m": 48089.04036443087,
+          "coverage_within_m": {
+            "100": 0.007484407484407484,
+            "500": 0.03783783783783785,
+            "1000": 0.07817047817047816,
+            "5000": 1.0
+          }
+        },
+        "symmetric": {
+          "mean_m": 1912.3486418710493,
+          "p95_m": 3003.999542640693,
+          "sampled_hausdorff_m": 3179.996732609754,
+          "coverage_f1_within_m": {
+            "100": 0.007476635514018691,
+            "500": 0.03605896043444531,
+            "1000": 0.0757335578909037,
+            "5000": 1.0
+          }
+        },
+        "length": {
+          "planned_km": 48.33577297673645,
+          "reference_km": 48.089040364430865,
+          "signed_difference_km": 0.24673261230558552,
+          "absolute_difference_km": 0.24673261230558552,
+          "absolute_difference_pct": 0.513074518509381
+        },
+        "planning_window_coverage": {
+          "reference_length_within_window_m": 48089.04036443087,
+          "reference_length_outside_window_m": 0.0,
+          "reference_length_coverage_ratio": 1.0,
+          "bounds_wgs84": [
+            121.00513458251952,
+            23.03465751481222,
+            121.73023223876952,
+            24.021355464823813
+          ]
+        },
+        "endpoint_offsets": {
+          "orientation": "forward",
+          "planned_start_to_reference_endpoint_m": 0.032559051195359505,
+          "planned_end_to_reference_endpoint_m": 0.06885328495714063
+        },
+        "discrete_frechet_approx": {
+          "distance_m": 3172.6927586675147,
+          "target_max_sample_interval_m": 100.0,
+          "planned_sample_points": 483,
+          "reference_sample_points": 482,
+          "planned_max_sample_interval_m": 99.98833138783922,
+          "reference_max_sample_interval_m": 99.97721489486666
+        },
+        "buffer_iou": {
+          "100": 0.005301291115658846,
+          "1000": 0.09466415912932895
+        }
+      },
+      "length_km": 48.336
+    },
+    {
+      "candidate_id": "Sampled Pareto 05",
+      "geojson": "planned_route_sampled_pareto_05.geojson",
+      "sampled_environmental_weights": [
+        0.0
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 136102.719115,
+        "grade_cost_meter": 22775.631857,
+        "turn_cost_meter": 0.0,
+        "length_m": 48264.26465923991,
+        "production_total_cost_meter": 158878.350972
+      },
+      "pareto_scope": "finite_scalarization_samples_only",
+      "search_hard_constraint_legal": true,
+      "search_hard_violation_count": 0,
+      "candidate_search_batch_time_s": 28.403400659561157,
+      "post_validation_path_sha256": "03108393bc741fa5f894bef3dbaee223623f68035c8f09499603d6da7b9c7395",
+      "candidate_frozen_before_reference_read": true,
+      "post_validation_status": "pass",
+      "hard_violations": 0,
+      "post_smoothing_path_cost_integral": {
+        "status": "measured",
+        "base_cost_meter": 136144.32,
+        "grade_cost_meter": 21929.957,
+        "turn_cost_meter": 0.0,
+        "total_cost_meter": 158074.276,
+        "base_cost_method": "piecewise_constant_grid_cell_exact",
+        "grade_cost_method": "one_pixel_sampled_segment_estimate",
+        "turn_cost_method": "disabled"
+      },
+      "route_similarity_version": 6,
+      "route_similarity": {
+        "comparison_crs": "+proj=aeqd +lat_0=23.52800648981802 +lon_0=121.36768341064452 +datum=WGS84 +units=m +no_defs +type=crs",
+        "sampling_interval_m": 20.0,
+        "planned_to_reference": {
+          "mean_m": 1566.3986261699158,
+          "median_m": 1480.4735982226216,
+          "p90_m": 2624.94307791865,
+          "p95_m": 3140.4495176977894,
+          "p99_m": 3554.8333609987894,
+          "sampled_max_m": 3641.5884635061325,
+          "sampled_length_m": 48138.65823667628,
+          "coverage_within_m": {
+            "100": 0.023265475695886995,
+            "500": 0.1325301204819277,
+            "1000": 0.3132530120481928,
+            "5000": 1.0
+          }
+        },
+        "reference_to_planned": {
+          "mean_m": 1500.2249268433027,
+          "median_m": 1391.3861289782908,
+          "p90_m": 2618.5175087897333,
+          "p95_m": 2960.8738621160537,
+          "p99_m": 3347.6194179751083,
+          "sampled_max_m": 3404.4264096942566,
+          "sampled_length_m": 48089.04036443087,
+          "coverage_within_m": {
+            "100": 0.022869022869022867,
+            "500": 0.14095634095634094,
+            "1000": 0.33139293139293136,
+            "5000": 1.0
+          }
+        },
+        "symmetric": {
+          "mean_m": 1533.3117765066092,
+          "p95_m": 3140.4495176977894,
+          "sampled_hausdorff_m": 3641.5884635061325,
+          "coverage_f1_within_m": {
+            "100": 0.02306554584090015,
+            "500": 0.13661342321219225,
+            "1000": 0.3220677489295234,
+            "5000": 1.0
+          }
+        },
+        "length": {
+          "planned_km": 48.2802294913435,
+          "reference_km": 48.089040364430865,
+          "signed_difference_km": 0.1911891269126329,
+          "absolute_difference_km": 0.1911891269126329,
+          "absolute_difference_pct": 0.39757317980095574
+        },
+        "planning_window_coverage": {
+          "reference_length_within_window_m": 48089.04036443087,
+          "reference_length_outside_window_m": 0.0,
+          "reference_length_coverage_ratio": 1.0,
+          "bounds_wgs84": [
+            121.00513458251952,
+            23.03465751481222,
+            121.73023223876952,
+            24.021355464823813
+          ]
+        },
+        "endpoint_offsets": {
+          "orientation": "forward",
+          "planned_start_to_reference_endpoint_m": 0.032559051195359505,
+          "planned_end_to_reference_endpoint_m": 0.06885328495714063
+        },
+        "discrete_frechet_approx": {
+          "distance_m": 3632.251324049495,
+          "target_max_sample_interval_m": 100.0,
+          "planned_sample_points": 483,
+          "reference_sample_points": 482,
+          "planned_max_sample_interval_m": 99.87273493086366,
+          "reference_max_sample_interval_m": 99.97721489486666
+        },
+        "buffer_iou": {
+          "100": 0.012917364932877517,
+          "1000": 0.20427924147061743
+        }
+      },
+      "length_km": 48.28
+    }
+  ]
+}

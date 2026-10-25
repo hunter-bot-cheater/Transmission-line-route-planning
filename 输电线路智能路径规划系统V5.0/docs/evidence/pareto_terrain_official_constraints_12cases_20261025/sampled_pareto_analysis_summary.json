@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "run_complete": true,
+  "case_count": 12,
+  "candidate_scope": "finite_scalarization_samples_only; experimental and non-selectable",
+  "route_reference_scores": "post-hoc diagnostics only; not used for planning or candidate selection",
+  "near_duplicate_definition": "candidate pair symmetric route-distance P95 <= 100 m",
+  "astar_median_symmetric_p95_m": 8958.664061774769,
+  "astar_mean_symmetric_p95_m": 7791.966872731494,
+  "astar_median_f1_100m": 0.013717499886888392,
+  "astar_mean_f1_100m": 0.0206108281403034,
+  "candidate_median_case_median_p95_m_posthoc": 8528.779389734693,
+  "candidate_mean_case_median_p95_m_posthoc": 7588.870546086912,
+  "candidate_median_case_median_f1_100m_posthoc": 0.012465098661472728,
+  "candidate_mean_case_median_f1_100m_posthoc": 0.021243530373832063,
+  "cases_candidate_median_p95_lower_than_astar": 7,
+  "cases_candidate_median_f1_100m_higher_than_astar": 9,
+  "candidate_pairs_near_duplicate_p95_le_100m": 15,
+  "candidate_pairs_total": 180,
+  "candidate_candidate_pairs_near_duplicate_p95_le_100m": 3,
+  "candidate_candidate_pairs_total": 120,
+  "astar_candidate_pairs_near_duplicate_p95_le_100m": 12,
+  "astar_candidate_pairs_total": 60,
+  "cases_with_fewer_than_5_unique_candidate_hashes": 0,
+  "hard_violation_count_is_limited_to_configured_masks": true,
+  "files": [
+    "sampled_pareto_case_summary.csv",
+    "sampled_pareto_pairwise_geometry.csv",
+    "sampled_pareto_12case_summary.png"
+  ]
+}

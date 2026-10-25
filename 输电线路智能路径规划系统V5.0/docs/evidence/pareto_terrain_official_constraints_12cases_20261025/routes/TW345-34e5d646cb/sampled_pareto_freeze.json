@@ -1,0 +1,83 @@
+{
+  "scope": "finite_scalarization_samples_only",
+  "objective_vector_scope": "pre_smoothing_search_grid_paths",
+  "reference_geometry_used_for_planning": false,
+  "frozen_before_reference_read": true,
+  "candidates": [
+    {
+      "candidate_id": "Sampled Pareto 01",
+      "path_sha256": "a82cc2c37962161274b8351864a163f7050544519622678128fd312738e4db31",
+      "sampled_environmental_weights": [
+        1.0
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 66279.120538,
+        "grade_cost_meter": 5081.767155,
+        "turn_cost_meter": 0.0,
+        "length_m": 52503.87952054668,
+        "production_total_cost_meter": 71360.887694
+      },
+      "post_validation_status": "pass"
+    },
+    {
+      "candidate_id": "Sampled Pareto 02",
+      "path_sha256": "e734151a6a815626c39aa70babbc8beb8d593972047f27cbb7686483536d3dd0",
+      "sampled_environmental_weights": [
+        0.75
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 66749.048279,
+        "grade_cost_meter": 4886.964499,
+        "turn_cost_meter": 0.0,
+        "length_m": 52015.91110787801,
+        "production_total_cost_meter": 71636.012778
+      },
+      "post_validation_status": "pass"
+    },
+    {
+      "candidate_id": "Sampled Pareto 03",
+      "path_sha256": "0b578c7c78d1a0eafabfab1eee8b2dcd7d436b14bee94c01dc98fc9cd2bc184b",
+      "sampled_environmental_weights": [
+        0.5
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 67376.865693,
+        "grade_cost_meter": 5281.107975,
+        "turn_cost_meter": 0.0,
+        "length_m": 51219.403458673034,
+        "production_total_cost_meter": 72657.973667
+      },
+      "post_validation_status": "pass"
+    },
+    {
+      "candidate_id": "Sampled Pareto 04",
+      "path_sha256": "21576581ded3325454bbda0b1d5601b4c7732687ffdb447edd13549234eb30dc",
+      "sampled_environmental_weights": [
+        0.25
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 70918.629062,
+        "grade_cost_meter": 7873.174772,
+        "turn_cost_meter": 0.0,
+        "length_m": 49470.103253631954,
+        "production_total_cost_meter": 78791.803835
+      },
+      "post_validation_status": "pass"
+    },
+    {
+      "candidate_id": "Sampled Pareto 05",
+      "path_sha256": "db572fcb338848ae07bdd745426a43160a5a2b05b41de8476b2022b3ab8ac4fa",
+      "sampled_environmental_weights": [
+        0.0
+      ],
+      "objective_vector_on_search_grid": {
+        "base_cost_meter": 84848.874917,
+        "grade_cost_meter": 11414.184562,
+        "turn_cost_meter": 0.0,
+        "length_m": 49429.14227407531,
+        "production_total_cost_meter": 96263.059479
+      },
+      "post_validation_status": "pass"
+    }
+  ]
+}
