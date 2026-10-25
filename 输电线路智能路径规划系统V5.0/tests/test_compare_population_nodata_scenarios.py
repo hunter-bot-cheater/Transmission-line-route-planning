@@ -133,6 +133,16 @@ class PopulationNoDataTripletTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "duplicate planned-route case"):
                 comparator.validate_triplet(runs, expected_cases=1)
 
+    def test_compare_copies_run_manifests_and_route_geometries(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runs = {policy: self._write_run(root, policy) for policy in comparator.POLICIES}
+            output = root / "evidence"
+            report = comparator.compare(runs, output, expected_cases=1)
+            self.assertTrue((output / "runs/maximum/run_provenance.json").is_file())
+            self.assertTrue((output / "routes/median/case-1/planned_route_aastar.geojson").is_file())
+            self.assertEqual(len(report["copied_run_artifacts"]), 18)
+
 
 if __name__ == "__main__":
     unittest.main()

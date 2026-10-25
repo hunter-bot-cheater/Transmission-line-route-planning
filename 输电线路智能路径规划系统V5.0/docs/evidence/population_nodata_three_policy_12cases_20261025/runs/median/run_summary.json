@@ -1,0 +1,123 @@
+{
+  "scope": "per_case_planning_and_required_route_artifacts",
+  "expected_cases": 12,
+  "completed_cases": 12,
+  "recorded_cases": 12,
+  "failed_cases": [],
+  "no_route_cases": [],
+  "exploratory_cases": [],
+  "complete": true,
+  "real_evaluation_by_case": [
+    {
+      "case": "TW173",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW58",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "天輪~龍潭線",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW59",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "深美～冬山線",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW102",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW766",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW252",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW769",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW345",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "明潭-鳳林線",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    },
+    {
+      "case": "TW311",
+      "status": "comparison_completed",
+      "methods": [
+        "A*(baseline)"
+      ]
+    }
+  ],
+  "dem": "data\\taiwan_dem_35m_georef_fixed.tif",
+  "max_side": 4096,
+  "argv": [
+    "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\transmission_path_planner\\__main__.py",
+    "--dem",
+    "data\\taiwan_dem_35m_georef_fixed.tif",
+    "--osm-cache-dir",
+    "D:\\大创\\V5_final\\data\\downloaded",
+    "--real-cases-csv",
+    "D:\\大创\\data\\real_cases_tw\\real_cases.csv",
+    "--real-dir",
+    "D:\\大创\\data\\real_cases_tw",
+    "--constraint-geojson",
+    "data\\official_constraints_20261023.geojson",
+    "--population-raster",
+    "data\\external_sources\\worldpop_twn_2020_100m_r2025a\\twn_pop_2025_CN_100m_R2025A_v1.tif",
+    "--population-weight",
+    "1.0",
+    "--population-nodata-policy",
+    "median",
+    "--out-dir",
+    "outputs\\population_w1_median_12cases_20261025",
+    "--no-vin",
+    "--no-ppp",
+    "--max-side",
+    "4096"
+  ]
+}

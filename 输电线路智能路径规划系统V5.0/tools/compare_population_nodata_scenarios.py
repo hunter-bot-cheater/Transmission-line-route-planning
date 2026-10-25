@@ -6,6 +6,7 @@ import argparse
 import csv
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import matplotlib
@@ -253,6 +254,38 @@ def _write_csv(path: Path, rows):
         writer.writerows(rows)
 
 
+def _copy_run_evidence(audit, run_dirs, output_dir):
+    copied = []
+    for policy in POLICIES:
+        run_dir = run_dirs[policy]
+        run_evidence_dir = output_dir / "runs" / policy
+        run_evidence_dir.mkdir(parents=True, exist_ok=True)
+        for name in ("run_summary.json", "run_provenance.json", "comparison_metrics.json"):
+            source = run_dir / name
+            target = run_evidence_dir / name
+            shutil.copy2(source, target)
+            copied.append({
+                "path": str(target.relative_to(output_dir)).replace("\\", "/"),
+                "sha256": sha256(target),
+                "size_bytes": target.stat().st_size,
+            })
+        for case in audit["cases"]:
+            reference_path = audit["artifacts"][policy][2][case]
+            source_dir = reference_path.parent
+            target_dir = output_dir / "routes" / policy / source_dir.name
+            target_dir.mkdir(parents=True, exist_ok=True)
+            for name in ("planned_route_aastar.geojson", "final_route.geojson", "real_route.geojson"):
+                source = source_dir / name
+                target = target_dir / name
+                shutil.copy2(source, target)
+                copied.append({
+                    "path": str(target.relative_to(output_dir)).replace("\\", "/"),
+                    "sha256": sha256(target),
+                    "size_bytes": target.stat().st_size,
+                })
+    return copied
+
+
 def _save_route_map(audit, output: Path):
     for candidate in (Path("C:/Windows/Fonts/msyh.ttc"), Path("C:/Windows/Fonts/simhei.ttf")):
         if candidate.exists():
@@ -293,6 +326,7 @@ def compare(run_dirs: dict[str, Path], output_dir: Path, expected_cases: int = 1
     _write_csv(output_dir / "scenario_metrics.csv", rows)
     _write_csv(output_dir / "pairwise_geometry_metrics.csv", pair_rows)
     _save_route_map(audit, output_dir / "policy_routes_overview.png")
+    copied_artifacts = _copy_run_evidence(audit, run_dirs, output_dir)
     report = {
         "schema_version": 1,
         "scope": "NoData sensitivity and geometry stability; no policy selection",
@@ -333,6 +367,7 @@ def compare(run_dirs: dict[str, Path], output_dir: Path, expected_cases: int = 1
             name: sha256(output_dir / name)
             for name in ("scenario_metrics.csv", "pairwise_geometry_metrics.csv", "policy_routes_overview.png")
         },
+        "copied_run_artifacts": copied_artifacts,
     }
     (output_dir / "scenario_comparison.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
