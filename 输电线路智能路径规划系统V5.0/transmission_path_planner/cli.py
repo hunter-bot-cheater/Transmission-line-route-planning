@@ -490,6 +490,11 @@ def summarize_run_completion(expected_cases, results, failed_cases):
     }
 
 
+def format_case_error(exc):
+    message = str(exc).strip()
+    return f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+
+
 def method_visual_similarity_summary(results, method, expected_cases=None, failed_case_names=None):
     excluded = set(failed_case_names or ())
     eligible = [record for record in results
@@ -1885,14 +1890,6 @@ def main():
                     json.dump(_real_out, _f, ensure_ascii=False, indent=2)
             except Exception:
                 pass
-            # 每走廊结束释放 GPU 显存, 避免 RTX 4060(8GB) 在多走廊连续训练时累积 OOM
-            if HAS_TORCH:
-                try:
-                    import torch as _torch
-                    _torch.cuda.empty_cache()
-                except Exception:
-                    pass
-
             # 逐走廊绘制规划路线与参考线对比图并导出矢量。
             safe = route_output_name(cname)
             cdir = OUT / safe
@@ -1957,7 +1954,26 @@ def main():
             import traceback as _tb
             _tb.print_exc()
             print(f"[WARN] 用例 {cname} 处理失败, 跳过此用例: {_exc}")
-            failed_cases.append({"case": cname, "error": str(_exc)})
+            failed_cases.append({"case": cname, "error": format_case_error(_exc)})
+        finally:
+            # Drop per-case raster/vector references before loading the next window.
+            dem = population_density = population_proxy = population_valid_mask = None
+            population_unknown_mask = dem_valid_mask = None
+            osm = terrain = stack = model_cost = cost = None
+            slope = elev = building_mask = building_geometries = None
+            custom_constraints = endpoint_blockers = endpoint_building_exceptions = None
+            hard_mask = tower_span_mask = cost_grid = tower_span_cost_grid = None
+            official_hazard_masks = methods = experimental_neighbor_results = None
+            experimental_tower_graph_results = sampled_pareto_by_method = None
+            real_geo = None
+            import gc as _gc
+            _gc.collect()
+            if HAS_TORCH:
+                try:
+                    import torch as _torch
+                    _torch.cuda.empty_cache()
+                except Exception:
+                    pass
 
     run_summary = {
         "scope": "per_case_planning_and_required_route_artifacts",

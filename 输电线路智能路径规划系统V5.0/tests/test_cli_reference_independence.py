@@ -34,6 +34,7 @@ from transmission_path_planner.cli import (
     validate_real_shp_argument,
     validate_unique_case_names,
     configure_console_output,
+    format_case_error,
     summarize_run_completion,
     reject_osm_planning_layer_read_errors,
 )
@@ -45,6 +46,10 @@ from transmission_path_planner import metrics
 
 
 class ReferenceIndependentPlanningTests(unittest.TestCase):
+    def test_case_error_summary_keeps_exception_type_when_message_is_empty(self):
+        self.assertEqual(format_case_error(MemoryError()), "MemoryError")
+        self.assertEqual(format_case_error(ValueError("blocked")), "ValueError: blocked")
+
     def test_method_summary_ignores_methods_without_a_valid_route(self):
         results = [{"metrics": {
             "A*(baseline)": {"length_km": 10.0, "mean_cost": 1.5},
