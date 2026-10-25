@@ -12,7 +12,7 @@ from pyproj import Geod
 KML_NS = {"kml": "http://www.opengis.net/kml/2.2"}
 
 
-def audit(path):
+def audit(path, manholes_path=None):
     root = ET.parse(path).getroot()
     geod = Geod(ellps="WGS84")
     features = []
@@ -102,7 +102,7 @@ def audit(path):
     ]
     dates = [feature["date"] for feature in features if feature["date"]]
     ids = [feature["id"] for feature in features if feature["id"]]
-    return {
+    result = {
         "placemark_count": len(root.findall(".//kml:Placemark", KML_NS)),
         "valid_line_feature_count": len(features),
         "unique_feature_ids": len(set(ids)),
@@ -130,13 +130,86 @@ def audit(path):
         "station_pairing_ready": False,
         "planning_use": "forbidden_reference_only_after_route_generation",
     }
+    if manholes_path is not None:
+        result["manhole_geometry_join"] = audit_manhole_geometry(features, manholes_path)
+    return result
+
+
+def audit_manhole_geometry(line_features, manholes_path):
+    root = ET.parse(manholes_path).getroot()
+    points = []
+    for placemark in root.findall(".//kml:Placemark", KML_NS):
+        attrs = {
+            item.get("name", ""): item.text or ""
+            for item in placemark.findall(".//kml:SimpleData", KML_NS)
+        }
+        coordinates = placemark.find(".//kml:Point/kml:coordinates", KML_NS)
+        if coordinates is None or not coordinates.text:
+            continue
+        values = coordinates.text.split()[0].split(",")
+        if len(values) < 2:
+            continue
+        points.append({
+            "xy": (float(values[0]), float(values[1])),
+            "id": attrs.get("識別碼", ""),
+            "number": attrs.get("人手孔編號", ""),
+            "date": attrs.get("timePosition", ""),
+            "use_status": attrs.get("使用狀態", "<blank>"),
+        })
+
+    point_coordinates = {point["xy"] for point in points}
+    line_endpoint_numbers = {
+        endpoint
+        for feature in line_features
+        for endpoint in (feature["start_id"], feature["end_id"])
+        if endpoint
+    }
+    manhole_numbers = {point["number"] for point in points if point["number"]}
+    start_hits = sum(feature["points"][0] in point_coordinates for feature in line_features)
+    end_hits = sum(feature["points"][-1] in point_coordinates for feature in line_features)
+    both_hits = sum(
+        feature["points"][0] in point_coordinates
+        and feature["points"][-1] in point_coordinates
+        for feature in line_features
+    )
+    unique_endpoints = {
+        point
+        for feature in line_features
+        for point in (feature["points"][0], feature["points"][-1])
+    }
+    unique_vertices = {
+        point for feature in line_features for point in feature["points"]
+    }
+    dates = [point["date"] for point in points if point["date"]]
+    return {
+        "point_feature_count": len(points),
+        "unique_feature_ids": len({point["id"] for point in points if point["id"]}),
+        "unique_manhole_numbers": len(manhole_numbers),
+        "shared_line_endpoint_number_labels": len(line_endpoint_numbers & manhole_numbers),
+        "unique_point_coordinates": len(point_coordinates),
+        "line_feature_start_end_exact_coordinate_matches": {
+            "start_count": start_hits,
+            "end_count": end_hits,
+            "both_ends_count": both_hits,
+            "line_feature_count": len(line_features),
+            "unique_endpoint_coordinates": len(unique_endpoints),
+            "unique_endpoint_coordinates_matched": len(unique_endpoints & point_coordinates),
+            "unique_line_vertices": len(unique_vertices),
+            "unique_line_vertices_matched": len(unique_vertices & point_coordinates),
+        },
+        "time_position_min_max": [min(dates), max(dates)] if dates else [],
+        "use_status_counts": dict(Counter(point["use_status"] for point in points)),
+        "join_interpretation": "exact_geometry_only_not_station_or_network_topology",
+        "planning_use": "post_route_geometry_qa_only",
+    }
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("kml", type=Path)
+    parser.add_argument("--manholes-kml", type=Path)
     args = parser.parse_args()
-    print(json.dumps(audit(args.kml), ensure_ascii=False, indent=2))
+    print(json.dumps(audit(args.kml, args.manholes_kml), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
