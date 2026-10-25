@@ -24,7 +24,7 @@ from transmission_path_planner.cli import (
     validate_tower_span_lengths,
 )
 from transmission_path_planner.geometry import pixel_spacing_meters, rowcol_to_geo
-from transmission_path_planner.methods import astar_search
+from transmission_path_planner.methods import _astar_parent_index_dtype, astar_search
 from transmission_path_planner.metrics import compute_metrics, route_profile_metrics, write_elevation_profile_csv
 from transmission_path_planner.smoothing import (
     filter_path_by_ground_grade,
@@ -449,6 +449,12 @@ class StationPlanningTests(unittest.TestCase):
                             max_ground_grade=0.5)
         self.assertTrue(path)
         self.assertNotIn((4, 4), path)
+
+    def test_astar_parent_indices_use_smallest_safe_integer_type(self):
+        int32_max = np.iinfo(np.int32).max
+        self.assertIs(_astar_parent_index_dtype(4096 * 4096), np.int32)
+        self.assertIs(_astar_parent_index_dtype(int32_max + 1), np.int32)
+        self.assertIs(_astar_parent_index_dtype(int32_max + 2), np.int64)
 
     def test_astar_grade_cap_matches_final_validator_on_diagonal_edges(self):
         transform = Affine(0.0001, 0, 120.0, 0, -0.0001, 25.0)

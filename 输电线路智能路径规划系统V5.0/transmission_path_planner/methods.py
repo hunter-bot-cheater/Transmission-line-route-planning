@@ -13,6 +13,11 @@ def _clamp_raster_axis(value, size):
     return min(max(value, 0.5), size - 1.5) if size > 1 else 0.0
 
 
+def _astar_parent_index_dtype(cell_count):
+    return (np.int32 if cell_count - 1 <= np.iinfo(np.int32).max
+            else np.int64)
+
+
 if HAS_TORCH:
     class DifferentiableMinPool(nn.Module):
         def forward(self, value, cost, traversable, pixel_spacing):
@@ -927,7 +932,7 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
     # Large high-resolution corridors otherwise consume several GiB of Python objects.
     g = np.full((H, W), np.inf, dtype=np.float64)
     g_length = np.full((H, W), np.inf, dtype=np.float64)
-    parent = np.full((H, W), -1, dtype=np.int64)
+    parent = np.full((H, W), -1, dtype=_astar_parent_index_dtype(H * W))
     closed = np.zeros((H, W), dtype=bool)
     g[sr, sc] = 0.0
     g_length[sr, sc] = 0.0
