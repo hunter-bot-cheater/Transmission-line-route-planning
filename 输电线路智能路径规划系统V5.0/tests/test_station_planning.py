@@ -34,6 +34,7 @@ from transmission_path_planner.smoothing import (
 from transmission_path_planner.stations import (
     load_station_tasks,
     station_coordinate_crs_properties,
+    station_clearance_elevation_overrides,
     station_elevation_metrics,
 )
 from transmission_path_planner.experimental_tower_graph import tower_graph_route
@@ -182,6 +183,60 @@ class StationPlanningTests(unittest.TestCase):
         report = station_elevation_metrics(task)
         self.assertEqual(report["station_ground_elevation_status"], "elevation_source_missing")
         self.assertIsNone(report["station_ground_elevation_delta_m"])
+
+    def test_station_clearance_elevations_require_matching_declared_dem_datum(self):
+        task = {
+            "from_station": {"ground_elevation_m": 120.5,
+                             "ground_elevation_source": "survey A",
+                             "vertical_datum": "1985 National Height Datum"},
+            "to_station": {"ground_elevation_m": 143.0,
+                           "ground_elevation_source": "survey B",
+                           "vertical_datum": "1985 National Height Datum"},
+        }
+
+        overrides, status = station_clearance_elevation_overrides(
+            task, "1985 national height datum")
+        self.assertEqual(status, "station_and_dem_vertical_datums_declared_matching")
+        self.assertEqual(overrides, {
+            "start_ground_elevation_m": 120.5,
+            "goal_ground_elevation_m": 143.0,
+        })
+        self.assertEqual(
+            station_clearance_elevation_overrides(task, None),
+            (None, "dem_vertical_datum_missing"))
+        self.assertEqual(
+            station_clearance_elevation_overrides(task, "ellipsoid"),
+            (None, "incompatible_dem_vertical_datum"))
+
+    def test_station_clearance_elevation_statuses_fail_closed_on_incomplete_data(self):
+        task = {
+            "from_station": {"ground_elevation_m": None,
+                             "ground_elevation_source": "",
+                             "vertical_datum": ""},
+            "to_station": {"ground_elevation_m": None,
+                           "ground_elevation_source": "",
+                           "vertical_datum": ""},
+        }
+        self.assertEqual(station_clearance_elevation_overrides(task, "datum"),
+                         (None, "dem_only"))
+
+        task["from_station"].update({
+            "ground_elevation_m": 10.0,
+            "ground_elevation_source": "survey",
+            "vertical_datum": "datum",
+        })
+        self.assertEqual(
+            station_clearance_elevation_overrides(task, "datum"),
+            (None, "incomplete_station_measurements"))
+
+        task["to_station"].update({
+            "ground_elevation_m": 20.0,
+            "ground_elevation_source": "",
+            "vertical_datum": "datum",
+        })
+        self.assertEqual(
+            station_clearance_elevation_overrides(task, "datum"),
+            (None, "elevation_source_missing"))
 
     def test_rejects_nonfinite_station_ground_elevation(self):
         with tempfile.TemporaryDirectory() as folder:

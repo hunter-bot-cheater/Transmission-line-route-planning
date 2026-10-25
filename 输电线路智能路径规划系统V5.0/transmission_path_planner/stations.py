@@ -56,6 +56,29 @@ def station_elevation_metrics(station_task):
     }
 
 
+def station_clearance_elevation_overrides(station_task, dem_vertical_datum=None):
+    """Return surveyed terminal elevations only when their declared datum matches the DEM."""
+    if not station_task:
+        return None, "dem_only"
+    start = station_task["from_station"]
+    end = station_task["to_station"]
+    if start["ground_elevation_m"] is None and end["ground_elevation_m"] is None:
+        return None, "dem_only"
+
+    metrics = station_elevation_metrics(station_task)
+    if metrics["station_ground_elevation_status"] != "comparable":
+        return None, metrics["station_ground_elevation_status"]
+    if not dem_vertical_datum or not str(dem_vertical_datum).strip():
+        return None, "dem_vertical_datum_missing"
+    station_datum = start["vertical_datum"].strip()
+    if station_datum.casefold() != str(dem_vertical_datum).strip().casefold():
+        return None, "incompatible_dem_vertical_datum"
+    return {
+        "start_ground_elevation_m": start["ground_elevation_m"],
+        "goal_ground_elevation_m": end["ground_elevation_m"],
+    }, "station_and_dem_vertical_datums_declared_matching"
+
+
 def _dict_reader(file_obj, label, required_fields):
     reader = csv.DictReader(file_obj)
     fields = reader.fieldnames or []

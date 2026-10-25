@@ -533,6 +533,66 @@ def test_profile_clearance_is_direction_invariant_at_threshold():
         np.hypot(3.0 * 7.0, 5.0))
 
 
+def test_profile_uses_surveyed_terminal_elevations_and_is_direction_invariant():
+    dem = np.zeros((1, 2), dtype=np.float64)
+    start, end = (0, 0), (0, 1)
+    kwargs = {
+        "start_ground_elevation_m": 30.0,
+        "end_ground_elevation_m": -15.0,
+    }
+
+    surveyed = span_clearance_status(
+        start, end, dem, (1.0, 1.0), 20.0, 5.0, 18.0, **kwargs)
+    reverse = span_clearance_status(
+        end, start, dem, (1.0, 1.0), 20.0, 5.0, 18.0,
+        start_ground_elevation_m=kwargs["end_ground_elevation_m"],
+        end_ground_elevation_m=kwargs["start_ground_elevation_m"])
+    dem_only = span_clearance_status(
+        start, end, dem, (1.0, 1.0), 20.0, 5.0, 18.0)
+
+    assert surveyed["status"] == "sampled_clearance_ok"
+    assert dem_only["status"] == "fail"
+    assert surveyed["sampled_minimum_clearance_m"] != dem_only["sampled_minimum_clearance_m"]
+    assert reverse["sampled_minimum_clearance_m"] == surveyed["sampled_minimum_clearance_m"]
+    assert np.isclose(
+        surveyed["limiting_distance_m"] + reverse["limiting_distance_m"], 1.0)
+
+
+def test_terminal_elevation_override_does_not_hide_dem_nodata():
+    dem = np.ma.array([[0.0, 0.0]], mask=[[True, False]])
+    status = span_clearance_status(
+        (0, 0), (0, 1), dem, (1.0, 1.0), 20.0, 2.0, 3.0,
+        start_ground_elevation_m=30.0)
+
+    assert status["status"] == "unknown"
+    assert status["reason"] == "dem_nodata"
+
+
+def test_tower_graph_terminal_elevation_overrides_preserve_reverse_route():
+    cost = np.ones((1, 2), dtype=np.float64)
+    traversable = np.ones(cost.shape, dtype=bool)
+    allowed = np.zeros(cost.shape, dtype=bool)
+    dem = np.zeros(cost.shape, dtype=np.float64)
+    kwargs = {
+        "dem_raster": dem,
+        "attachment_height_m": 20.0,
+        "max_midspan_sag_m": 5.0,
+        "minimum_clearance_m": 18.0,
+        "start_ground_elevation_m": 30.0,
+        "goal_ground_elevation_m": -15.0,
+    }
+
+    forward = tower_graph_route(
+        cost, traversable, allowed, (0, 0), (0, 1), 0.0, 2.0, **kwargs)
+    reverse = tower_graph_route(
+        cost, traversable, allowed, (0, 1), (0, 0), 0.0, 2.0,
+        **{**kwargs, "start_ground_elevation_m": -15.0,
+           "goal_ground_elevation_m": 30.0})
+
+    assert forward == [(0, 0), (0, 1)]
+    assert reverse == forward[::-1]
+
+
 def test_profile_solves_interior_clearance_minimum_between_raster_cells():
     dem = np.array([[0.0, 20.0], [20.0, 0.0]])
     status = span_clearance_status(

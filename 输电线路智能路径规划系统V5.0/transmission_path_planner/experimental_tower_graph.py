@@ -69,6 +69,8 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                       dem_raster=None, attachment_height_m=None,
                       max_midspan_sag_m=None, minimum_clearance_m=None,
                       dem_valid_mask=None, dem_nodata_value=None,
+                      start_ground_elevation_m=None,
+                      goal_ground_elevation_m=None,
                       start_position_rc=None, goal_position_rc=None):
     """Find a route on a sparse graph of candidate tower cells.
 
@@ -129,11 +131,23 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                 or not math.isfinite(sag_limit) or sag_limit < 0.0
                 or not math.isfinite(clearance_limit) or clearance_limit < 0.0):
             raise ValueError("profile heights, sag, and clearance must be finite and non-negative")
+        terminal_ground_elevations = (start_ground_elevation_m,
+                                      goal_ground_elevation_m)
+        for value in terminal_ground_elevations:
+            if value is not None:
+                try:
+                    valid_elevation = math.isfinite(float(value))
+                except (TypeError, ValueError, OverflowError):
+                    valid_elevation = False
+                if not valid_elevation:
+                    raise ValueError("terminal ground elevations must be finite numbers")
     else:
         dem = None
         dem_valid = None
         attachment_height = None
         sag_limit = clearance_limit = None
+        if start_ground_elevation_m is not None or goal_ground_elevation_m is not None:
+            raise ValueError("terminal ground elevations require profile screening")
 
     height, width = cost.shape
     start = _checked_cell(start_rc, "start_rc")
@@ -170,6 +184,8 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
     if reversed_result:
         start, goal = goal, start
         start_node, goal_node = goal_node, start_node
+        start_ground_elevation_m, goal_ground_elevation_m = (
+            goal_ground_elevation_m, start_ground_elevation_m)
 
     cells = {start_node, goal_node}
     for row in range(0, height, stride):
@@ -224,9 +240,17 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                                                    traversable):
                     continue
                 if profile_enabled:
+                    first_ground = (start_ground_elevation_m if first == start_node
+                                    else goal_ground_elevation_m if first == goal_node
+                                    else None)
+                    second_ground = (start_ground_elevation_m if second == start_node
+                                     else goal_ground_elevation_m if second == goal_node
+                                     else None)
                     profile = span_clearance_status(
                         first, second, dem, spacing, attachment_height,
-                        sag_limit, clearance_limit, dem_valid_mask=dem_valid)
+                        sag_limit, clearance_limit, dem_valid_mask=dem_valid,
+                        start_ground_elevation_m=first_ground,
+                        end_ground_elevation_m=second_ground)
                     if profile["status"] != "sampled_clearance_ok":
                         continue
                 span_cost = _segment_cost_positions(
@@ -346,7 +370,9 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
 def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
                           attachment_height_m, max_midspan_sag_m,
                           minimum_clearance_m, dem_valid_mask=None,
-                          dem_nodata_value=None):
+                          dem_nodata_value=None,
+                          start_ground_elevation_m=None,
+                          end_ground_elevation_m=None):
     """Screen one cell-center span against a sampled DEM profile.
 
     Terrain is bilinearly interpolated between DEM cells. On each crossed
@@ -378,6 +404,17 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
     reversed_input = end < start
     if reversed_input:
         start, end = end, start
+        start_ground_elevation_m, end_ground_elevation_m = (
+            end_ground_elevation_m, start_ground_elevation_m)
+
+    for value in (start_ground_elevation_m, end_ground_elevation_m):
+        if value is not None:
+            try:
+                valid_elevation = math.isfinite(float(value))
+            except (TypeError, ValueError, OverflowError):
+                valid_elevation = False
+            if not valid_elevation:
+                raise ValueError("terminal ground elevations must be finite numbers")
 
     height, width = dem.shape
     if any(not (0 <= row <= height - 1 and 0 <= col <= width - 1)
@@ -392,7 +429,7 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
     minimum_clearance = math.inf
     limiting_distance = 0.0
 
-    def bilinear_elevation(row, col):
+    def dem_bilinear_elevation(row, col):
         row0, col0 = math.floor(row), math.floor(col)
         row1, col1 = min(row0 + 1, height - 1), min(col0 + 1, width - 1)
         row_fraction, col_fraction = row - row0, col - col0
@@ -411,6 +448,13 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
             elevation += weight * float(dem[sample_row, sample_col])
         return elevation
 
+    def bilinear_elevation(row, col):
+        if (row, col) == start and start_ground_elevation_m is not None:
+            return float(start_ground_elevation_m)
+        if (row, col) == end and end_ground_elevation_m is not None:
+            return float(end_ground_elevation_m)
+        return dem_bilinear_elevation(row, col)
+
     cuts = [0.0, 1.0]
     for first, last in ((start[0], end[0]), (start[1], end[1])):
         delta = last - first
@@ -423,10 +467,14 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
                 cuts.append(fraction)
     cuts = sorted(set(cuts))
 
-    start_ground = bilinear_elevation(*start)
-    end_ground = bilinear_elevation(*end)
-    if start_ground is None or end_ground is None:
+    start_dem_ground = dem_bilinear_elevation(*start)
+    end_dem_ground = dem_bilinear_elevation(*end)
+    if start_dem_ground is None or end_dem_ground is None:
         return {"status": "unknown", "reason": "dem_nodata"}
+    start_ground = (float(start_ground_elevation_m)
+                    if start_ground_elevation_m is not None else start_dem_ground)
+    end_ground = (float(end_ground_elevation_m)
+                  if end_ground_elevation_m is not None else end_dem_ground)
     start_attach = start_ground + attachment_height
     end_attach = end_ground + attachment_height
     if not math.isfinite(start_attach) or not math.isfinite(end_attach):

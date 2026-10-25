@@ -17,7 +17,7 @@ from .stations import *
 from .official_hazards import load_official_hazard_masks
 from .provenance import capture_run_provenance, write_run_provenance
 from .experimental_theta_star import theta_star_cost_path
-from .experimental_tower_graph import tower_graph_route
+from .experimental_tower_graph import span_clearance_status, tower_graph_route
 from .experimental_astar_16 import (
     NEIGHBORS_8,
     NEIGHBORS_16,
@@ -504,6 +504,8 @@ def main():
     t0 = time.time()
     ap = argparse.ArgumentParser(description="复杂山区输电线路启发式路径规划 (V5.0)")
     ap.add_argument("--dem", type=str, default=None)
+    ap.add_argument("--dem-vertical-datum", type=str, default=None,
+                    help="用于净空筛查的 DEM 垂直基准声明；须与站点实测高程基准一致才会使用实测端点高程")
     ap.add_argument("--start", type=str, default=None, help="起点 lat,lon")
     ap.add_argument("--end", type=str, default=None, help="终点 lat,lon")
     ap.add_argument("--stations-csv", type=str, default=None,
@@ -1176,29 +1178,77 @@ def main():
             if args.experimental_tower_graph:
                 started = time.time()
                 tower_profile_args = {}
+                clearance_profile_status = "not_requested"
+                clearance_profile_ready = True
                 if all(value is not None for value in tower_profile):
-                    tower_profile_args = {
-                        "dem_raster": dem,
-                        "attachment_height_m": args.tower_attachment_height_m,
-                        "max_midspan_sag_m": args.tower_max_midspan_sag_m,
-                        "minimum_clearance_m": args.tower_min_clearance_m,
-                    }
+                    endpoint_elevation_overrides = None
+                    if station_task:
+                        endpoint_elevation_overrides, elevation_status = (
+                            station_clearance_elevation_overrides(
+                                station_task, args.dem_vertical_datum))
+                    else:
+                        elevation_status = "dem_only"
+                    if elevation_status in (
+                            "dem_only",
+                            "station_and_dem_vertical_datums_declared_matching"):
+                        tower_profile_args = {
+                            "dem_raster": dem,
+                            "attachment_height_m": args.tower_attachment_height_m,
+                            "max_midspan_sag_m": args.tower_max_midspan_sag_m,
+                            "minimum_clearance_m": args.tower_min_clearance_m,
+                            **(endpoint_elevation_overrides or {}),
+                        }
+                        clearance_profile_status = (
+                            "dem_only_profile_screening" if elevation_status == "dem_only"
+                            else "station_elevation_anchored_profile_screening")
+                    else:
+                        clearance_profile_status = f"unknown_{elevation_status}"
+                        clearance_profile_ready = False
                 start_col_corner, start_row_corner = ~transform * (slon, slat)
                 goal_col_corner, goal_row_corner = ~transform * (elon, elat)
-                tower_path = tower_graph_route(
-                    tower_span_cost_grid, tower_span_mask.astype(bool), hard_mask.astype(bool),
-                    (sr, sc), (er, ec), args.tower_min_span_m,
-                    args.tower_max_span_m, pixel_spacing=route_pixel_spacing,
-                    candidate_stride=args.tower_candidate_stride,
-                    turn_penalty_weight=args.turn_penalty_weight,
-                    start_position_rc=(start_row_corner - 0.5,
-                                       start_col_corner - 0.5),
-                    goal_position_rc=(goal_row_corner - 0.5,
-                                      goal_col_corner - 0.5),
-                    **tower_profile_args,
-                )
+                start_tower_position_rc = (start_row_corner - 0.5,
+                                           start_col_corner - 0.5)
+                goal_tower_position_rc = (goal_row_corner - 0.5,
+                                          goal_col_corner - 0.5)
+                tower_path = None
+                if clearance_profile_ready:
+                    tower_path = tower_graph_route(
+                        tower_span_cost_grid, tower_span_mask.astype(bool), hard_mask.astype(bool),
+                        (sr, sc), (er, ec), args.tower_min_span_m,
+                        args.tower_max_span_m, pixel_spacing=route_pixel_spacing,
+                        candidate_stride=args.tower_candidate_stride,
+                        turn_penalty_weight=args.turn_penalty_weight,
+                        start_position_rc=start_tower_position_rc,
+                        goal_position_rc=goal_tower_position_rc,
+                        **tower_profile_args,
+                    )
                 tower_geo = ([rowcol_to_geo(row, col, transform)
                               for row, col in tower_path] if tower_path else None)
+                span_clearance_profiles = []
+                if tower_path and tower_profile_args:
+                    for span_index, (first, second) in enumerate(
+                            zip(tower_path, tower_path[1:])):
+                        overrides = {}
+                        for terminal, elevation_key in (
+                                (start_tower_position_rc, "start_ground_elevation_m"),
+                                (goal_tower_position_rc, "goal_ground_elevation_m")):
+                            elevation = tower_profile_args.get(elevation_key)
+                            if elevation is not None:
+                                if first == terminal:
+                                    overrides["start_ground_elevation_m"] = elevation
+                                elif second == terminal:
+                                    overrides["end_ground_elevation_m"] = elevation
+                        span_clearance_profiles.append({
+                            "span_index": span_index,
+                            "start_rc": list(first),
+                            "end_rc": list(second),
+                            **span_clearance_status(
+                                first, second, dem, route_pixel_spacing,
+                                args.tower_attachment_height_m,
+                                args.tower_max_midspan_sag_m,
+                                args.tower_min_clearance_m,
+                                **overrides),
+                        })
                 grade_reports[TOWER_GRAPH_METHOD] = overhead_span_grade_report()
                 methods[TOWER_GRAPH_METHOD] = tower_geo
                 t_tower_graph = time.time() - started
@@ -1211,6 +1261,9 @@ def main():
                     "turn_penalty_weight": args.turn_penalty_weight,
                     "tower_site_max_surface_slope_deg": args.max_surface_slope_deg,
                     "clearance_profile_screening": bool(tower_profile_args),
+                    "clearance_profile_status": clearance_profile_status,
+                    "clearance_profile_spans": span_clearance_profiles,
+                    "dem_vertical_datum": args.dem_vertical_datum,
                     "site_cost_model": "zero; no validated tower-construction cost supplied",
                 }
                 print(f"  [{TOWER_GRAPH_METHOD}] 路径 {len(tower_geo) if tower_geo else 0} 点, "
@@ -1394,6 +1447,24 @@ def main():
                 if m in grade_reports:
                     met.update(grade_reports[m])
                 met.update(hard_violation_reports.get(m, {}))
+                if m == TOWER_GRAPH_METHOD and experimental_tower_graph_results:
+                    clearance_status = experimental_tower_graph_results[
+                        "clearance_profile_status"]
+                    met.update({
+                        "candidate_validation_status": (
+                            "unknown_clearance_reference"
+                            if clearance_status.startswith("unknown_")
+                            else "rejected_after_search"
+                            if experimental_tower_graph_results["path"]
+                            else "no_path"),
+                        "clearance_profile_screening": experimental_tower_graph_results[
+                            "clearance_profile_screening"],
+                        "clearance_profile_status": clearance_status,
+                        "clearance_profile_spans": experimental_tower_graph_results[
+                            "clearance_profile_spans"],
+                        "dem_vertical_datum": experimental_tower_graph_results[
+                            "dem_vertical_datum"],
+                    })
                 if m in experimental_neighbor_results:
                     experiment = experimental_neighbor_results[m]
                     search_cost = experiment["search_cost"]
@@ -1418,6 +1489,23 @@ def main():
                         "pass" if met.get("hard_violations", 0) == 0 else "fail")
                 met.update(station_offsets_by_method.get(m, {}))
                 case_metrics[m] = met
+
+            if (experimental_tower_graph_results
+                    and TOWER_GRAPH_METHOD not in case_metrics):
+                case_metrics[TOWER_GRAPH_METHOD] = {
+                    "candidate_validation_status": (
+                        "unknown_clearance_reference"
+                        if experimental_tower_graph_results["clearance_profile_status"].startswith("unknown_")
+                        else "no_path"),
+                    "clearance_profile_screening": experimental_tower_graph_results[
+                        "clearance_profile_screening"],
+                    "clearance_profile_status": experimental_tower_graph_results[
+                        "clearance_profile_status"],
+                    "clearance_profile_spans": experimental_tower_graph_results[
+                        "clearance_profile_spans"],
+                    "dem_vertical_datum": experimental_tower_graph_results[
+                        "dem_vertical_datum"],
+                }
 
             # 按固定优先规则筛选硬约束可行路线；实验 Pareto 候选不在选择优先表中。
             # 真实线仍只在规划选路完成后读取，用于事后评分。
