@@ -17,6 +17,7 @@ from transmission_path_planner.cli import (
     overhead_span_grade_report,
     route_planning_status,
     screening_data_quality,
+    tower_candidate_validation_status,
     validate_endpoint_cells,
     validate_route_hard_constraints,
     validate_tower_span_lengths,
@@ -92,6 +93,21 @@ class StationPlanningTests(unittest.TestCase):
         self.assertFalse(report["grade_limit_assessed"])
         self.assertIsNone(report["grade_limit_violation_count"])
         self.assertIsNone(report["grade_limit_unassessed_count"])
+
+    def test_tower_candidate_validation_status_tracks_post_search_result(self):
+        route = [(121.0, 25.0), (121.003, 25.0)]
+        self.assertEqual(
+            tower_candidate_validation_status(route, route, "not_requested"),
+            "survived_validation")
+        self.assertEqual(
+            tower_candidate_validation_status(None, route, "dem_only_profile_screening"),
+            "rejected_after_search")
+        self.assertEqual(
+            tower_candidate_validation_status(None, None, "not_requested"),
+            "no_path")
+        self.assertEqual(
+            tower_candidate_validation_status(None, None, "unknown_dem_vertical_datum_missing"),
+            "unknown_clearance_reference")
 
     def test_restored_tower_endpoints_are_rechecked_against_span_limits(self):
         invalid_route = [(121.0, 25.0), (121.001, 25.0), (121.02, 25.0)]

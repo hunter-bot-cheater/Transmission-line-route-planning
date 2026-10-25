@@ -139,6 +139,14 @@ def validate_tower_span_lengths(geo, min_span_m, max_span_m, tolerance_m=0.5):
     return (geo if not violations else None), report
 
 
+def tower_candidate_validation_status(geo, searched_path, clearance_status):
+    if str(clearance_status).startswith("unknown_"):
+        return "unknown_clearance_reference"
+    if geo:
+        return "survived_validation"
+    return "rejected_after_search" if searched_path else "no_path"
+
+
 def overhead_span_grade_report():
     """Mark ground-grade as unassessed for overhead conductor spans."""
     return {
@@ -1528,12 +1536,8 @@ def main():
                     clearance_status = experimental_tower_graph_results[
                         "clearance_profile_status"]
                     met.update({
-                        "candidate_validation_status": (
-                            "unknown_clearance_reference"
-                            if clearance_status.startswith("unknown_")
-                            else "rejected_after_search"
-                            if experimental_tower_graph_results["path"]
-                            else "no_path"),
+                        "candidate_validation_status": tower_candidate_validation_status(
+                            geo, experimental_tower_graph_results["path"], clearance_status),
                         "clearance_profile_screening": experimental_tower_graph_results[
                             "clearance_profile_screening"],
                         "clearance_profile_status": clearance_status,
@@ -1570,10 +1574,9 @@ def main():
             if (experimental_tower_graph_results
                     and TOWER_GRAPH_METHOD not in case_metrics):
                 case_metrics[TOWER_GRAPH_METHOD] = {
-                    "candidate_validation_status": (
-                        "unknown_clearance_reference"
-                        if experimental_tower_graph_results["clearance_profile_status"].startswith("unknown_")
-                        else "no_path"),
+                    "candidate_validation_status": tower_candidate_validation_status(
+                        None, experimental_tower_graph_results["path"],
+                        experimental_tower_graph_results["clearance_profile_status"]),
                     "clearance_profile_screening": experimental_tower_graph_results[
                         "clearance_profile_screening"],
                     "clearance_profile_status": experimental_tower_graph_results[
