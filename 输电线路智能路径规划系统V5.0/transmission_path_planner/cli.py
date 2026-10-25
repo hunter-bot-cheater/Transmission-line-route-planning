@@ -619,7 +619,7 @@ def main():
     ap.add_argument("--allow-unverified-endpoints", action="store_true",
                     help="允许未核验端点仅作探索性规划；输出不得解释为正式站间候选")
     ap.add_argument("--constraint-geojson", type=str, default=None,
-                    help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight")
+                    help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight。选塔时硬约束另需核验声明和凭证")
     default_hazard_dir = PACKAGE_DIR / "data" / "official_sources" / "ardswc_115_mvt_z10_20261023"
     ap.add_argument("--official-hazards-dir", type=str, default=str(default_hazard_dir),
                     help="农业部 115 年土石流/大规模崩塌 MVT 数据目录；默认读取软件包内离线图层")
@@ -723,6 +723,8 @@ def main():
             ap.error("--select-experimental-tower-graph 必须同时启用 --experimental-tower-graph")
         if not args.stations_csv:
             ap.error("选择塔位图方案必须使用站点 CSV 任务")
+        if not args.constraint_geojson:
+            ap.error("选择塔位图方案必须提供含核验凭证的 --constraint-geojson 硬约束")
         if any(value is None for value in (
                 args.tower_attachment_height_m,
                 args.tower_max_midspan_sag_m,
@@ -1000,7 +1002,9 @@ def main():
                       f" status={official_hazard_metadata.get('status')}, "
                       f"coverage={official_hazard_metadata.get('coverage_status')}")
             custom_constraints = (
-                load_user_constraint_overlays(args.constraint_geojson, transform, dem.shape)
+                load_user_constraint_overlays(
+                    args.constraint_geojson, transform, dem.shape,
+                    require_verified_hard_constraints=args.select_experimental_tower_graph)
                 if args.constraint_geojson else None
             )
             custom_constraint_metadata = custom_constraints["metadata"] if custom_constraints else None

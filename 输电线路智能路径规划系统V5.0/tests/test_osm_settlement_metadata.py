@@ -471,6 +471,64 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "source"):
             osm.load_user_constraint_overlays(path, Affine.identity(), (2, 2))
 
+    def test_tower_selection_requires_declared_hard_constraint_evidence(self):
+        geometry = {"type": "Polygon", "coordinates":
+                    [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]]}
+        verified = {"type": "Feature", "properties": {
+            "mode": "hard", "source": "surveyed permit boundary",
+            "verification_status": "verified",
+            "verification_reference": "survey-register-2026-01",
+        }, "geometry": geometry}
+        path = Path(self.temp_dir.name) / "verified-constraints.geojson"
+        path.write_text(json.dumps({"type": "FeatureCollection", "features": [verified]}),
+                        encoding="utf-8")
+
+        result = osm.load_user_constraint_overlays(
+            path, Affine.identity(), (2, 2),
+            require_verified_hard_constraints=True)
+        self.assertTrue(result["metadata"]["hard_constraint_declarations_complete"])
+        self.assertEqual(result["metadata"]["hard_constraint_evidence_validation_scope"],
+                         "caller_declarations_only")
+        self.assertEqual(result["metadata"]["hard_constraint_evidence"][0][
+            "verification_reference"], "survey-register-2026-01")
+
+        unverified = {**verified, "properties": {
+            **verified["properties"], "verification_status": "unknown"}}
+        path.write_text(json.dumps({"type": "FeatureCollection", "features": [unverified]}),
+                        encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "verification_status=verified"):
+            osm.load_user_constraint_overlays(
+                path, Affine.identity(), (2, 2),
+                require_verified_hard_constraints=True)
+
+        missing_reference = {**verified, "properties": {
+            **verified["properties"], "verification_reference": ""}}
+        path.write_text(json.dumps({"type": "FeatureCollection", "features": [missing_reference]}),
+                        encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "verification_status=verified"):
+            osm.load_user_constraint_overlays(
+                path, Affine.identity(), (2, 2),
+                require_verified_hard_constraints=True)
+
+        soft_only = {"type": "Feature", "properties": {
+            "mode": "soft", "source": "survey", "weight": 1.0},
+            "geometry": geometry}
+        path.write_text(json.dumps({"type": "FeatureCollection", "features": [soft_only]}),
+                        encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "至少需要一个"):
+            osm.load_user_constraint_overlays(
+                path, Affine.identity(), (2, 2),
+                require_verified_hard_constraints=True)
+
+        outside = {**verified, "geometry": {"type": "Polygon", "coordinates":
+                   [[[10, 10], [10, 11], [11, 11], [11, 10], [10, 10]]]}}
+        path.write_text(json.dumps({"type": "FeatureCollection", "features": [outside]}),
+                        encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "没有覆盖当前规划网格"):
+            osm.load_user_constraint_overlays(
+                path, Affine.identity(), (2, 2),
+                require_verified_hard_constraints=True)
+
 
 if __name__ == "__main__":
     unittest.main()

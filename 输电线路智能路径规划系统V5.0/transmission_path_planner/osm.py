@@ -296,7 +296,8 @@ def compute_residential_landuse_mask(geoms, transform, shape):
     return rasterize_on(residential, transform, shape)
 
 
-def load_user_constraint_overlays(geojson_path, transform, shape):
+def load_user_constraint_overlays(geojson_path, transform, shape, *,
+                                  require_verified_hard_constraints=False):
     """Rasterize user-supplied WGS84 polygon constraints into hard and soft layers."""
     if not HAS_RASTERIO or not HAS_SHAPELY:
         raise RuntimeError("读取自定义约束图层需要 rasterio 和 shapely")
@@ -330,6 +331,7 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
     from shapely.geometry import shape as shapely_shape
 
     hard_shapes, soft_shapes = [], []
+    hard_constraint_evidence = []
     source_shapes = {}
     sources, categories = set(), set()
     for index, feature in enumerate(document["features"], start=1):
@@ -357,6 +359,21 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
         if min_lon < -180 or max_lon > 180 or min_lat < -90 or max_lat > 90:
             raise ValueError(f"约束要素 {index} 坐标超出 WGS84 经纬度范围")
         if mode == "hard":
+            verification_status = str(
+                properties.get("verification_status", "")).strip().casefold()
+            verification_reference = str(
+                properties.get("verification_reference", "")).strip()
+            hard_constraint_evidence.append({
+                "feature_index": index,
+                "source": source,
+                "verification_status": verification_status or "unknown",
+                "verification_reference": verification_reference or None,
+            })
+            if (require_verified_hard_constraints
+                    and (verification_status != "verified" or not verification_reference)):
+                raise ValueError(
+                    f"硬约束要素 {index} 必须声明 verification_status=verified "
+                    "并提供 verification_reference 才能选择塔位图方案")
             hard_shapes.append((geometry, 1))
         else:
             try:
@@ -373,11 +390,16 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
         if category:
             categories.add(category)
 
+    if require_verified_hard_constraints and not hard_shapes:
+        raise ValueError("选择塔位图方案至少需要一个带核验凭证的硬约束要素")
+
     height, width = shape
     hard_mask = rio_rasterize(
         hard_shapes, out_shape=(height, width), transform=transform,
         fill=0, all_touched=True, dtype=np.uint8,
     ) if hard_shapes else np.zeros((height, width), dtype=np.uint8)
+    if require_verified_hard_constraints and not np.any(hard_mask):
+        raise ValueError("核验硬约束要素没有覆盖当前规划网格")
     soft_cost = rio_rasterize(
         soft_shapes, out_shape=(height, width), transform=transform,
         fill=0, all_touched=True, dtype=np.float32,
@@ -421,6 +443,12 @@ def load_user_constraint_overlays(geojson_path, transform, shape):
         "feature_count": len(document["features"]),
         "hard_feature_count": len(hard_shapes),
         "soft_feature_count": len(soft_shapes),
+        "hard_constraint_evidence": hard_constraint_evidence,
+        "hard_constraint_declarations_complete": bool(hard_shapes) and all(
+            item["verification_status"] == "verified"
+            and item["verification_reference"]
+            for item in hard_constraint_evidence),
+        "hard_constraint_evidence_validation_scope": "caller_declarations_only",
         "sources": sorted(sources),
         "categories": sorted(categories),
         "hard_cell_count": int(hard_mask.sum()),
