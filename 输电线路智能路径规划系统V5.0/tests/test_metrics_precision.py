@@ -31,7 +31,20 @@ class MetricPrecisionTests(unittest.TestCase):
         self.assertAlmostEqual(score["symmetric"]["sampled_hausdorff_m"], score["planned_to_reference"]["sampled_max_m"])
         self.assertEqual(score["sampling_interval_m"], 20.0)
         self.assertLess(score["symmetric"]["coverage_f1_within_m"]["100"], 0.1)
-        self.assertEqual(metrics["route_similarity_version"], 5)
+        self.assertEqual(metrics["route_similarity_version"], 6)
+
+    def test_routes_share_projection_when_scored_against_same_planning_window(self):
+        reference = [(120.0, 24.0), (120.02, 24.0)]
+        planning_bounds = (119.9, 23.9, 120.1, 24.1)
+        first = [(120.0, 24.001), (120.02, 24.001)]
+        second = [(119.99, 24.0), (120.01, 24.001), (120.03, 24.0)]
+
+        first_score = similarity(compute_deviation(
+            first, reference, planning_bounds_wgs84=planning_bounds))
+        second_score = similarity(compute_deviation(
+            second, reference, planning_bounds_wgs84=planning_bounds))
+
+        self.assertEqual(first_score["comparison_crs"], second_score["comparison_crs"])
 
     def test_reference_line_coverage_in_planning_window_is_reported(self):
         route = [(120.0, 24.0), (120.01, 24.0)]
@@ -311,7 +324,7 @@ class MetricPrecisionTests(unittest.TestCase):
         dev = compute_deviation(route, route)
         error = eval_error(dev["route_similarity"]["length"]["reference_km"] * 1.2, dev)
 
-        self.assertEqual(error["route_similarity_version"], 5)
+        self.assertEqual(error["route_similarity_version"], 6)
         self.assertAlmostEqual(error["route_similarity"]["length"]["absolute_difference_pct"], 20.0)
         self.assertEqual(error["route_similarity"]["symmetric"]["sampled_hausdorff_m"], 0.0)
         self.assertNotIn("pass8", error)

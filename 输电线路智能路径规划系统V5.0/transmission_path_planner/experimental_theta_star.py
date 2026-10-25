@@ -1,6 +1,6 @@
 """Experimental cost-aware Theta* planner.
 
-This module is intentionally not wired into the production CLI. It searches
+The CLI can run this as an experimental comparison candidate. It searches
 cell-center vertices with 8-neighbor expansion while allowing parent-to-neighbor
 any-angle links. Segment costs are exact integrals of a piecewise-constant raster
 cost (cost per metre) under a fixed local row/column metric. Hard constraints use

@@ -46,6 +46,23 @@ def _select_final_route(methods, case_metrics):
     return None, None, "no_hard_constraint_compliant_route"
 
 
+def _metric_grade_penalty_weight(method, experimental_neighbor_methods,
+                                 configured_weight):
+    if (method in experimental_neighbor_methods
+            or method in (TOWER_GRAPH_METHOD, "Theta*(experimental)")):
+        return 0.0
+    return configured_weight
+
+
+def _method_route_metrics(results, method):
+    route_metrics = []
+    for result in results:
+        metrics = result.get("metrics", {}).get(method)
+        if isinstance(metrics, dict) and "length_km" in metrics and "mean_cost" in metrics:
+            route_metrics.append(metrics)
+    return route_metrics
+
+
 def attach_station_endpoints(geo, station_task):
     """Replace snapped raster-center endpoints with the supplied station coordinates."""
     if not station_task or not geo:
@@ -1371,9 +1388,8 @@ def main():
             case_metrics = {}
             for m, geo in methods.items():
                 if geo:
-                    method_grade_weight = (0.0 if m in experimental_neighbor_results
-                                           or m == TOWER_GRAPH_METHOD
-                                           else args.grade_penalty_weight)
+                    method_grade_weight = _metric_grade_penalty_weight(
+                        m, experimental_neighbor_results, args.grade_penalty_weight)
                     method_turn_weight = (args.turn_penalty_weight
                                           if m in ("A*(turn-aware)", TOWER_GRAPH_METHOD)
                                           or m in sampled_pareto_by_method
@@ -2076,8 +2092,9 @@ def main():
     for m in ["A*(baseline)", "A*(weighted)", "A*(turn-aware)",
               ASTAR_8_EXACT_METHOD, ASTAR_16_METHOD,
               "Theta*(experimental)", "VIN-Grad", "PPO"]:
-        lens = [r["metrics"][m]["length_km"] for r in all_results if m in r["metrics"]]
-        mc = [r["metrics"][m]["mean_cost"] for r in all_results if m in r["metrics"]]
+        method_metrics = _method_route_metrics(all_results, m)
+        lens = [metrics["length_km"] for metrics in method_metrics]
+        mc = [metrics["mean_cost"] for metrics in method_metrics]
         if lens:
             print(f"  {m:14s} 平均长度 {np.mean(lens):7.2f}km  平均代价 {np.mean(mc):.3f}")
     print(f"  总耗时: {time.time() - t0:.1f}s")

@@ -1,0 +1,500 @@
+{
+  "expected_cases": 8,
+  "recorded_cases": 7,
+  "complete": false,
+  "failed_cases": [
+    {
+      "case": "TW252",
+      "error": "起点位于不可通行像元（OSM建筑足迹）；请核对接入点坐标或约束"
+    }
+  ],
+  "common_case_count_all_methods": 6,
+  "common_cases_all_methods": [
+    "天輪~龍潭線",
+    "TW59",
+    "深美～冬山線",
+    "TW102",
+    "TW345",
+    "明潭-鳳林線"
+  ],
+  "method_results": {
+    "A*(baseline)": {
+      "measured_cases": 7,
+      "common_sample_medians": {
+        "route_generation_time_s": 9.315,
+        "symmetric_p95_km": 5.865487369469529,
+        "sampled_hausdorff_km": 6.2398079286508885,
+        "f1_100m_pct": 1.9749350355325395,
+        "f1_1km_pct": 14.058083144820003,
+        "length_absolute_difference_pct": 5.0204825450848904
+      },
+      "common_sample_by_case": [
+        {
+          "case": "天輪~龍潭線",
+          "route_generation_time_s": 18.41,
+          "symmetric_p95_km": 9.33995997886102,
+          "sampled_hausdorff_km": 9.736249525830278,
+          "f1_100m_pct": 1.4658570919982101,
+          "f1_1km_pct": 14.249006241907477,
+          "length_absolute_difference_pct": 8.385482340886147
+        },
+        {
+          "case": "TW59",
+          "route_generation_time_s": 13.36,
+          "symmetric_p95_km": 8.954299095156854,
+          "sampled_hausdorff_km": 9.142091876982558,
+          "f1_100m_pct": 2.374334573891742,
+          "f1_1km_pct": 13.867160047732527,
+          "length_absolute_difference_pct": 3.70076322624302
+        },
+        {
+          "case": "深美～冬山線",
+          "route_generation_time_s": 5.27,
+          "symmetric_p95_km": 6.48618592504215,
+          "sampled_hausdorff_km": 6.941506609883817,
+          "f1_100m_pct": 1.5755354971733373,
+          "f1_1km_pct": 11.38545571515174,
+          "length_absolute_difference_pct": 7.17890311901857
+        },
+        {
+          "case": "TW102",
+          "route_generation_time_s": 3.01,
+          "symmetric_p95_km": 3.033820071816468,
+          "sampled_hausdorff_km": 3.2336173705533255,
+          "f1_100m_pct": 2.6822964623405317,
+          "f1_1km_pct": 10.24917201429059,
+          "length_absolute_difference_pct": 1.7835055595442018
+        },
+        {
+          "case": "TW345",
+          "route_generation_time_s": 4.71,
+          "symmetric_p95_km": 5.244788813896907,
+          "sampled_hausdorff_km": 5.538109247417961,
+          "f1_100m_pct": 1.4936504736948197,
+          "f1_1km_pct": 17.572999539570194,
+          "length_absolute_difference_pct": 2.301311013914332
+        },
+        {
+          "case": "明潭-鳳林線",
+          "route_generation_time_s": 20.9,
+          "symmetric_p95_km": 2.908075745508824,
+          "sampled_hausdorff_km": 3.588174102815595,
+          "f1_100m_pct": 7.968283963474408,
+          "f1_1km_pct": 65.65821714640396,
+          "length_absolute_difference_pct": 6.340201863926762
+        }
+      ]
+    },
+    "A*(8-neighbor exact experimental)": {
+      "measured_cases": 7,
+      "common_sample_medians": {
+        "route_generation_time_s": 11.290000000000001,
+        "symmetric_p95_km": 5.915899284790101,
+        "sampled_hausdorff_km": 6.356397755462249,
+        "f1_100m_pct": 2.6848944920900113,
+        "f1_1km_pct": 15.030567493864726,
+        "length_absolute_difference_pct": 4.75845549817851
+      },
+      "common_sample_by_case": [
+        {
+          "case": "天輪~龍潭線",
+          "route_generation_time_s": 21.55,
+          "symmetric_p95_km": 9.32625907212824,
+          "sampled_hausdorff_km": 9.786001514760976,
+          "f1_100m_pct": 2.998179431744209,
+          "f1_1km_pct": 18.539269047000268,
+          "length_absolute_difference_pct": 6.042379698299767
+        },
+        {
+          "case": "TW59",
+          "route_generation_time_s": 16.14,
+          "symmetric_p95_km": 8.94725742112473,
+          "sampled_hausdorff_km": 9.13731659795426,
+          "f1_100m_pct": 3.4905241220149144,
+          "f1_1km_pct": 13.93182986815558,
+          "length_absolute_difference_pct": 3.4745312980572534
+        },
+        {
+          "case": "深美～冬山線",
+          "route_generation_time_s": 6.44,
+          "symmetric_p95_km": 6.635000699740798,
+          "sampled_hausdorff_km": 7.178651028477007,
+          "f1_100m_pct": 1.5801214872921594,
+          "f1_1km_pct": 11.17022418871079,
+          "length_absolute_difference_pct": 7.758152228835516
+        },
+        {
+          "case": "TW102",
+          "route_generation_time_s": 3.94,
+          "symmetric_p95_km": 2.9968861267903795,
+          "sampled_hausdorff_km": 3.233795426240106,
+          "f1_100m_pct": 2.371609552435813,
+          "f1_1km_pct": 10.199095120632533,
+          "length_absolute_difference_pct": 1.9083500015766048
+        },
+        {
+          "case": "TW345",
+          "route_generation_time_s": 6.38,
+          "symmetric_p95_km": 5.196797869839404,
+          "sampled_hausdorff_km": 5.53414448244749,
+          "f1_100m_pct": 1.4947954490438153,
+          "f1_1km_pct": 16.12930511957387,
+          "length_absolute_difference_pct": 2.1447886620679366
+        },
+        {
+          "case": "明潭-鳳林線",
+          "route_generation_time_s": 25.49,
+          "symmetric_p95_km": 2.875724724465789,
+          "sampled_hausdorff_km": 3.594223355140648,
+          "f1_100m_pct": 7.81051333432687,
+          "f1_1km_pct": 63.58872706367078,
+          "length_absolute_difference_pct": 7.490679261104841
+        }
+      ]
+    },
+    "A*(16-neighbor experimental)": {
+      "measured_cases": 7,
+      "common_sample_medians": {
+        "route_generation_time_s": 21.485,
+        "symmetric_p95_km": 6.01648191710283,
+        "sampled_hausdorff_km": 6.328309516171792,
+        "f1_100m_pct": 2.2430987769769946,
+        "f1_1km_pct": 13.252404421773441,
+        "length_absolute_difference_pct": 4.876647931373675
+      },
+      "common_sample_by_case": [
+        {
+          "case": "天輪~龍潭線",
+          "route_generation_time_s": 43.99,
+          "symmetric_p95_km": 9.34034456068482,
+          "sampled_hausdorff_km": 9.839501386857414,
+          "f1_100m_pct": 3.318178432592541,
+          "f1_1km_pct": 20.459046646125454,
+          "length_absolute_difference_pct": 4.185846605528024
+        },
+        {
+          "case": "TW59",
+          "route_generation_time_s": 30.5,
+          "symmetric_p95_km": 9.075055598555103,
+          "sampled_hausdorff_km": 9.210800358647749,
+          "f1_100m_pct": 2.059419311276165,
+          "f1_1km_pct": 13.831266954620874,
+          "length_absolute_difference_pct": 5.567449257219326
+        },
+        {
+          "case": "深美～冬山線",
+          "route_generation_time_s": 12.47,
+          "symmetric_p95_km": 6.820828811277012,
+          "sampled_hausdorff_km": 7.380064437201279,
+          "f1_100m_pct": 1.6648879402347918,
+          "f1_1km_pct": 12.673541888926007,
+          "length_absolute_difference_pct": 10.090211697355363
+        },
+        {
+          "case": "TW102",
+          "route_generation_time_s": 7.71,
+          "symmetric_p95_km": 3.058989624215317,
+          "sampled_hausdorff_km": 3.185216439228843,
+          "f1_100m_pct": 2.4267782426778246,
+          "f1_1km_pct": 10.555111275011498,
+          "length_absolute_difference_pct": 0.9696762860817159
+        },
+        {
+          "case": "TW345",
+          "route_generation_time_s": 12.0,
+          "symmetric_p95_km": 5.212135022928647,
+          "sampled_hausdorff_km": 5.276554595142306,
+          "f1_100m_pct": 1.025843361609785,
+          "f1_1km_pct": 10.514923284884537,
+          "length_absolute_difference_pct": 1.0608877305026918
+        },
+        {
+          "case": "明潭-鳳林線",
+          "route_generation_time_s": 51.58,
+          "symmetric_p95_km": 2.0835920851613343,
+          "sampled_hausdorff_km": 2.7462077375609444,
+          "f1_100m_pct": 6.693825800484293,
+          "f1_1km_pct": 76.54824803631396,
+          "length_absolute_difference_pct": 8.024217242557011
+        }
+      ]
+    },
+    "Theta*(experimental)": {
+      "measured_cases": 6,
+      "common_sample_medians": {
+        "route_generation_time_s": 55.58,
+        "symmetric_p95_km": 5.98168412086264,
+        "sampled_hausdorff_km": 6.351098686789679,
+        "f1_100m_pct": 2.4955607488913185,
+        "f1_1km_pct": 13.075347577527827,
+        "length_absolute_difference_pct": 5.196305219544842
+      },
+      "common_sample_by_case": [
+        {
+          "case": "天輪~龍潭線",
+          "route_generation_time_s": 71.0,
+          "symmetric_p95_km": 9.340332118437662,
+          "sampled_hausdorff_km": 9.837774233292517,
+          "f1_100m_pct": 2.684864078756013,
+          "f1_1km_pct": 20.32837084062206,
+          "length_absolute_difference_pct": 3.935467422456327
+        },
+        {
+          "case": "TW59",
+          "route_generation_time_s": 40.16,
+          "symmetric_p95_km": 9.092382080917156,
+          "sampled_hausdorff_km": 9.22175737511268,
+          "f1_100m_pct": 2.306257419026624,
+          "f1_1km_pct": 13.674089251638275,
+          "length_absolute_difference_pct": 6.457143016633355
+        },
+        {
+          "case": "深美～冬山線",
+          "route_generation_time_s": 73.03,
+          "symmetric_p95_km": 6.8086714140278435,
+          "sampled_hausdorff_km": 7.409767380958485,
+          "f1_100m_pct": 1.650793650793651,
+          "f1_1km_pct": 12.47660590341738,
+          "length_absolute_difference_pct": 11.096921575070679
+        },
+        {
+          "case": "TW102",
+          "route_generation_time_s": 10.05,
+          "symmetric_p95_km": 3.204007219130018,
+          "sampled_hausdorff_km": 3.463412351856149,
+          "f1_100m_pct": 3.4408547117906725,
+          "f1_1km_pct": 10.065428081592666,
+          "length_absolute_difference_pct": 1.5836611494284076
+        },
+        {
+          "case": "TW345",
+          "route_generation_time_s": 17.08,
+          "symmetric_p95_km": 5.154696827697437,
+          "sampled_hausdorff_km": 5.292429992620873,
+          "f1_100m_pct": 1.087707182320442,
+          "f1_1km_pct": 12.069647803719825,
+          "length_absolute_difference_pct": 1.6373146996406291
+        },
+        {
+          "case": "明潭-鳳林線",
+          "route_generation_time_s": 140.95,
+          "symmetric_p95_km": 1.570048522807361,
+          "sampled_hausdorff_km": 2.7574382233260692,
+          "f1_100m_pct": 8.799048751486325,
+          "f1_1km_pct": 80.79607223308282,
+          "length_absolute_difference_pct": 9.516292653489375
+        }
+      ]
+    }
+  },
+  "same_comparison_crs_per_case": {
+    "TW173": true,
+    "天輪~龍潭線": true,
+    "TW59": true,
+    "深美～冬山線": true,
+    "TW102": true,
+    "TW345": true,
+    "明潭-鳳林線": true
+  },
+  "provenance_source_commit": "1ee117dbabf58076b256794da79b87560a840a4e",
+  "provenance_source_dirty": true,
+  "evaluation_only_reference_files": [
+    {
+      "case": "TW173",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW173_real_path.dbf",
+      "size_bytes": 147,
+      "sha256": "1d1aee1b13267fb24f2833a8db23e05ec57bc5aac6171ec3c3d3c3bc58d4a948"
+    },
+    {
+      "case": "TW173",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW173_real_path.prj",
+      "size_bytes": 145,
+      "sha256": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    },
+    {
+      "case": "TW173",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW173_real_path.shp",
+      "size_bytes": 2476,
+      "sha256": "2da2f7c60add2614dcc3dc19dbbc0735facfe35afed331edea6b135a2cdba160"
+    },
+    {
+      "case": "TW173",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW173_real_path.shx",
+      "size_bytes": 108,
+      "sha256": "0cccc3ec9662fadb9b64609038574c481f0fd6b1c214864abf7566ff0927c999"
+    },
+    {
+      "case": "天輪~龍潭線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\天輪_龍潭線_real_path.dbf",
+      "size_bytes": 147,
+      "sha256": "42b31b4ae010a8333d19f896a24775cc198fe47e870a9caf5cb538a9fe785f88"
+    },
+    {
+      "case": "天輪~龍潭線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\天輪_龍潭線_real_path.prj",
+      "size_bytes": 145,
+      "sha256": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    },
+    {
+      "case": "天輪~龍潭線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\天輪_龍潭線_real_path.shp",
+      "size_bytes": 3612,
+      "sha256": "02e9f55eb2c969bb1f3a0e6423f7c5c0b9df036754ff77f94f1878e689e7002d"
+    },
+    {
+      "case": "天輪~龍潭線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\天輪_龍潭線_real_path.shx",
+      "size_bytes": 108,
+      "sha256": "acebbd2ac525d953be2f03846e462354bf495da3f1a37312839861e57f2bad9b"
+    },
+    {
+      "case": "TW59",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW59_real_path.dbf",
+      "size_bytes": 147,
+      "sha256": "b550b9949da884b7c778d9b620c1bc4ba363261dcafe3f9bf2a63d060d399805"
+    },
+    {
+      "case": "TW59",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW59_real_path.prj",
+      "size_bytes": 145,
+      "sha256": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    },
+    {
+      "case": "TW59",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW59_real_path.shp",
+      "size_bytes": 2572,
+      "sha256": "3c96e65e0f5c032b8b4cbec528a6d564a8711de22317adeb07a61d4be579eb11"
+    },
+    {
+      "case": "TW59",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW59_real_path.shx",
+      "size_bytes": 108,
+      "sha256": "72d69cb3b65959c8c6c2975f4d914577bf17c7b89c08065f59c95de26bc7bac2"
+    },
+    {
+      "case": "深美～冬山線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\深美_冬山線_real_path.dbf",
+      "size_bytes": 147,
+      "sha256": "46982df69fd5673c371c6f792cb76c83ceb9587d02e4f7701e79d8bd2316decb"
+    },
+    {
+      "case": "深美～冬山線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\深美_冬山線_real_path.prj",
+      "size_bytes": 145,
+      "sha256": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    },
+    {
+      "case": "深美～冬山線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\深美_冬山線_real_path.shp",
+      "size_bytes": 2444,
+      "sha256": "b2590c6f0eba823393384d32958b04d292afbcbbc2987853309e8715a69ca7bc"
+    },
+    {
+      "case": "深美～冬山線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\深美_冬山線_real_path.shx",
+      "size_bytes": 108,
+      "sha256": "36bcc3eb1a9478f37bb245024ec0b0b4064da1b393c08f42ca42f55ea84d2b00"
+    },
+    {
+      "case": "TW102",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW102_real_path.dbf",
+      "size_bytes": 147,
+      "sha256": "850c10891d6549d475bd4089dab615ea17561eeb79ae5fc09b5f22f44f3e124f"
+    },
+    {
+      "case": "TW102",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW102_real_path.prj",
+      "size_bytes": 145,
+      "sha256": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    },
+    {
+      "case": "TW102",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW102_real_path.shp",
+      "size_bytes": 2444,
+      "sha256": "d38807bb2d1010fd42f661feaa907c68d5cb0b8ac1ef0c15a57b4be8a0ef1500"
+    },
+    {
+      "case": "TW102",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW102_real_path.shx",
+      "size_bytes": 108,
+      "sha256": "2cd9380d0d638795e672b8c7287f21144afd0e6e0016c6112179f35fd39b6cab"
+    },
+    {
+      "case": "TW345",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW345_real_path.dbf",
+      "size_bytes": 147,
+      "sha256": "0892931e7510768b3067d583e4126d08f24ca02d5e5d11ea2501fd09b4def504"
+    },
+    {
+      "case": "TW345",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW345_real_path.prj",
+      "size_bytes": 145,
+      "sha256": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    },
+    {
+      "case": "TW345",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW345_real_path.shp",
+      "size_bytes": 2364,
+      "sha256": "2e6a53db911cd8292f103ccad6253c917acb88e68df14148d448d3d2e87b978c"
+    },
+    {
+      "case": "TW345",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\TW345_real_path.shx",
+      "size_bytes": 108,
+      "sha256": "f0e521286cf3e0884f6303f1394862e98effa45d1bb8533dd39c88adaa082f6d"
+    },
+    {
+      "case": "明潭-鳳林線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\明潭-鳳林線_real_path.dbf",
+      "size_bytes": 147,
+      "sha256": "dc16d40bcb57263d3809a1b34f4685af266304b3c26e4f9bbbb746b5a38865a6"
+    },
+    {
+      "case": "明潭-鳳林線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\明潭-鳳林線_real_path.prj",
+      "size_bytes": 145,
+      "sha256": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    },
+    {
+      "case": "明潭-鳳林線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\明潭-鳳林線_real_path.shp",
+      "size_bytes": 3148,
+      "sha256": "72b85bf5d99ab8336d2138629092400fab9f6d6161ae451202aacf42d8918c44"
+    },
+    {
+      "case": "明潭-鳳林線",
+      "status": "hashed",
+      "path": "D:\\大创\\data\\real_cases_tw\\明潭-鳳林線_real_path.shx",
+      "size_bytes": 108,
+      "sha256": "fb9cdb932390e96c5b6addec93c51a9994bcbfd00837af89129a72bd6a6d0a2a"
+    }
+  ],
+  "run_directory": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\heuristic_control_ab_8cases_exact_1024_20261025"
+}

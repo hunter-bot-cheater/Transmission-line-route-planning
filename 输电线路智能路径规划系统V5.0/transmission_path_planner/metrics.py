@@ -514,10 +514,16 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
         real_polys = [poly for poly in real_polys if len(poly) >= 2]
         if not real_polys:
             return None
-        coords = list(planned_geo) + [point for poly in real_polys for point in poly]
-        lons = np.radians([point[0] for point in coords])
-        lon0 = math.degrees(math.atan2(float(np.sin(lons).mean()), float(np.cos(lons).mean())))
-        lat0 = float(np.mean([point[1] for point in coords]))
+        if planning_bounds_wgs84 is not None:
+            left, bottom, right, top = map(float, planning_bounds_wgs84)
+            lon0 = (left + right) / 2.0
+            lat0 = (bottom + top) / 2.0
+        else:
+            coords = list(planned_geo) + [point for poly in real_polys for point in poly]
+            lons = np.radians([point[0] for point in coords])
+            lon0 = math.degrees(
+                math.atan2(float(np.sin(lons).mean()), float(np.cos(lons).mean())))
+            lat0 = float(np.mean([point[1] for point in coords]))
         local_crs = CRS.from_proj4(
             f"+proj=aeqd +lat_0={lat0} +lon_0={lon0} +datum=WGS84 +units=m +no_defs"
         )
@@ -720,7 +726,7 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
             route_similarity["buffer_iou"] = {}
 
         return {
-            "route_similarity_version": 5,
+            "route_similarity_version": 6,
             "route_similarity": route_similarity,
         }
     except Exception as ex:
@@ -749,7 +755,7 @@ def eval_error(plan_len_km, dev):
     similarity = dict(similarity)
     similarity["length"] = length
     return {
-        "route_similarity_version": 5,
+        "route_similarity_version": 6,
         "route_similarity": similarity,
     }
 

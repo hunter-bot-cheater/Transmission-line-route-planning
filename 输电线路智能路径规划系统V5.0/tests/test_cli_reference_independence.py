@@ -12,6 +12,8 @@ from shapely.geometry import LineString, MultiLineString, Polygon, box
 
 from transmission_path_planner.cli import (
     _select_final_route,
+    _metric_grade_penalty_weight,
+    _method_route_metrics,
     annotate_route_validation_context,
     attach_input_endpoints,
     expand_single_cell_route,
@@ -43,6 +45,45 @@ from transmission_path_planner import metrics
 
 
 class ReferenceIndependentPlanningTests(unittest.TestCase):
+    def test_method_summary_ignores_methods_without_a_valid_route(self):
+        results = [{"metrics": {
+            "A*(baseline)": {"length_km": 10.0, "mean_cost": 1.5},
+            "Theta*(experimental)": {"hard_violations": 1},
+        }}]
+
+        self.assertEqual(
+            _method_route_metrics(results, "A*(baseline)"),
+            [{"length_km": 10.0, "mean_cost": 1.5}],
+        )
+        self.assertEqual(_method_route_metrics(results, "Theta*(experimental)"), [])
+
+    def test_metric_grade_penalty_matches_each_search_objective(self):
+        exact_integral_methods = {"A*(8-neighbor exact experimental)"}
+        configured_weight = 2.5
+
+        for method in (
+            "A*(8-neighbor exact experimental)",
+            "Theta*(experimental)",
+            "Tower graph (experimental)",
+        ):
+            with self.subTest(method=method):
+                self.assertEqual(
+                    _metric_grade_penalty_weight(
+                        method, exact_integral_methods, configured_weight),
+                    0.0,
+                )
+
+        self.assertEqual(
+            _metric_grade_penalty_weight(
+                "A*(baseline)", exact_integral_methods, configured_weight),
+            configured_weight,
+        )
+        self.assertEqual(
+            _metric_grade_penalty_weight(
+                "A*(turn-aware)", exact_integral_methods, configured_weight),
+            configured_weight,
+        )
+
     def test_custom_constraint_exposure_reports_soft_route_contact(self):
         soft_cost = np.zeros((3, 3), dtype=np.float32)
         soft_cost[1, 1] = 2.0
