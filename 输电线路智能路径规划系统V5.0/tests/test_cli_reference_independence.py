@@ -24,6 +24,7 @@ from transmission_path_planner.cli import (
     route_search_window_clearance_m,
     run_method_or_skip_on_oom,
     train_vin_or_skip_on_oom,
+    route_custom_constraint_exposure,
     validate_endpoint_cells,
     validate_route_against_buildings,
     validate_route_hard_constraints,
@@ -42,6 +43,29 @@ from transmission_path_planner import metrics
 
 
 class ReferenceIndependentPlanningTests(unittest.TestCase):
+    def test_custom_constraint_exposure_reports_soft_route_contact(self):
+        soft_cost = np.zeros((3, 3), dtype=np.float32)
+        soft_cost[1, 1] = 2.0
+        constraints = {"soft_cost": soft_cost}
+
+        result = route_custom_constraint_exposure(
+            [(0.5, 1.5), (2.5, 1.5)], constraints,
+            Affine.identity(), (3, 3))
+
+        self.assertEqual(result["status"], "measured")
+        self.assertEqual(result["route_cell_count"], 3)
+        self.assertEqual(result["soft_affected_route_cell_count"], 1)
+        self.assertAlmostEqual(result["soft_affected_route_cell_fraction"], 1 / 3)
+        self.assertAlmostEqual(result["summed_soft_weight_cells"], 2.0)
+
+    def test_custom_constraint_exposure_marks_absent_layer_disabled(self):
+        result = route_custom_constraint_exposure(
+            [(0.5, 1.5), (2.5, 1.5)], None,
+            Affine.identity(), (3, 3))
+
+        self.assertEqual(result["status"], "disabled")
+        self.assertIsNone(result["summed_soft_weight_cells"])
+
     def test_planning_rejects_osm_cache_read_errors_instead_of_using_empty_layers(self):
         with self.assertRaisesRegex(RuntimeError, r"buildings \(MemoryError\)"):
             reject_osm_planning_layer_read_errors({

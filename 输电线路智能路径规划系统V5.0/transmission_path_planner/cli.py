@@ -198,6 +198,36 @@ def route_hazard_exposure(geo, hazard_masks, transform, shape):
     }
 
 
+def route_custom_constraint_exposure(geo, constraints, transform, shape):
+    """Measure rasterized route contact with configured soft constraint costs."""
+    if constraints is None:
+        return {"status": "disabled", "route_cell_count": 0,
+                "soft_affected_route_cell_count": 0,
+                "soft_affected_route_cell_fraction": None,
+                "summed_soft_weight_cells": None}
+    if not geo or len(geo) < 2:
+        return {"status": "route_too_short", "route_cell_count": 0,
+                "soft_affected_route_cell_count": 0,
+                "soft_affected_route_cell_fraction": None,
+                "summed_soft_weight_cells": 0.0}
+    soft_cost = np.asarray(constraints["soft_cost"], dtype=np.float64)
+    if soft_cost.shape != tuple(shape):
+        raise ValueError("custom constraint raster does not match route grid")
+    route_mask = rasterize_on([(LineString(geo), {})], transform, shape) > 0
+    route_cell_count = int(np.count_nonzero(route_mask))
+    touched_soft_cost = soft_cost[route_mask]
+    affected_count = int(np.count_nonzero(touched_soft_cost > 0.0))
+    return {
+        "status": "measured" if route_cell_count else "route_not_rasterized",
+        "route_cell_count": route_cell_count,
+        "soft_affected_route_cell_count": affected_count,
+        "soft_affected_route_cell_fraction": (
+            affected_count / route_cell_count if route_cell_count else None),
+        "summed_soft_weight_cells": float(touched_soft_cost.sum()),
+        "fraction_denominator": "all_touched_route_cells; approximate, not length weighted",
+    }
+
+
 def route_population_coverage(geo, valid_population_mask, transform, shape):
     """Report whether a route crosses cells with unknown population values."""
     if valid_population_mask is None:
@@ -1363,6 +1393,8 @@ def main():
                         official_hazard_masks, osm_layer_metadata,
                         official_hazard_metadata.get("coverage_status", "unknown"),
                         official_hazard_metadata.get("layers", {}))
+                    met["custom_constraint_route_exposure"] = route_custom_constraint_exposure(
+                        geo, custom_constraints, transform, dem.shape)
                     met["population_data_coverage"] = route_population_coverage(
                         geo, population_valid_mask, transform, dem.shape)
                     met["search_window_margin_deg"] = args.window_margin_deg
