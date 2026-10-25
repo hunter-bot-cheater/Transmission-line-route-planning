@@ -1,0 +1,551 @@
+{
+  "schema_version": 1,
+  "pairing": {
+    "valid": true,
+    "baseline_commit": "7d57d4ced4593288d6584f24100ee895e4e825a1",
+    "treatment_commit": "e8864dece1de75fc9775661a386a6b7fed6c1e70",
+    "baseline_worktree_dirty": true,
+    "treatment_worktree_dirty": false,
+    "config_differences": [
+      "out_dir",
+      "population_raster",
+      "population_weight"
+    ],
+    "shared_planning_input_count": 153,
+    "treatment_only_inputs": [
+      {
+        "role": "population_raster",
+        "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\external_sources\\worldpop_twn_2020_100m_r2025a\\twn_pop_2025_CN_100m_R2025A_v1.tif",
+        "sha256": "e963266859c6aa03c4e015e79bd62cceb1800a894a1d84e6bfe4748eb2cd7e75"
+      }
+    ],
+    "runtime_source_hashes_equal": true,
+    "reference_geometry_sha256": {
+      "TW173": {
+        "baseline": "29963a8c0e3c27904a8fa9a34e72f39aea12e02eec20b762a6406b6512168460",
+        "treatment": "29963a8c0e3c27904a8fa9a34e72f39aea12e02eec20b762a6406b6512168460"
+      },
+      "TW58": {
+        "baseline": "8471e7f9fc2f0aa9938f0edc5fa918c9832de6dbc13fc574733cb2c522f1fde8",
+        "treatment": "8471e7f9fc2f0aa9938f0edc5fa918c9832de6dbc13fc574733cb2c522f1fde8"
+      },
+      "天輪~龍潭線": {
+        "baseline": "c30f039a5bd8b4cde71a32692998e6fab3e82f9afdd4d05317d3951c720e01b1",
+        "treatment": "c30f039a5bd8b4cde71a32692998e6fab3e82f9afdd4d05317d3951c720e01b1"
+      },
+      "TW59": {
+        "baseline": "45c462ea33e1259c7cc353a6eae717d010ef34f01e19b25f5614e3c379113ddc",
+        "treatment": "45c462ea33e1259c7cc353a6eae717d010ef34f01e19b25f5614e3c379113ddc"
+      },
+      "深美～冬山線": {
+        "baseline": "951ab3cc205489ffbf232e9593dae399457715dde5b5141009557ef1680ffa09",
+        "treatment": "951ab3cc205489ffbf232e9593dae399457715dde5b5141009557ef1680ffa09"
+      },
+      "TW102": {
+        "baseline": "de839cd4086315757b6319b17de23fc93bf12993dd33a40a4ed6426d7c438d27",
+        "treatment": "de839cd4086315757b6319b17de23fc93bf12993dd33a40a4ed6426d7c438d27"
+      },
+      "TW766": {
+        "baseline": "a8b75767e69a64289ee98988f65094909d41433b2499dd3da5de2a24d5e0d3e0",
+        "treatment": "a8b75767e69a64289ee98988f65094909d41433b2499dd3da5de2a24d5e0d3e0"
+      },
+      "TW252": {
+        "baseline": "7877b8465ee4f226d5a743c8061a74ac5d7da3364437841b5410b3ffe84c2f83",
+        "treatment": "7877b8465ee4f226d5a743c8061a74ac5d7da3364437841b5410b3ffe84c2f83"
+      },
+      "TW769": {
+        "baseline": "1592ef766ace7f69eddae3214630ec3076769822044a0bd52ccf6450bf158ba9",
+        "treatment": "1592ef766ace7f69eddae3214630ec3076769822044a0bd52ccf6450bf158ba9"
+      },
+      "TW345": {
+        "baseline": "4542b0015a4c1ee22ebff02c8e3ec1db54a9fd96161ba656fb8af9132c39d5ec",
+        "treatment": "4542b0015a4c1ee22ebff02c8e3ec1db54a9fd96161ba656fb8af9132c39d5ec"
+      },
+      "明潭-鳳林線": {
+        "baseline": "2ad2bc2b624444055a01a076fc68d22f847ebc5a294a450e28daf2a04ce71167",
+        "treatment": "2ad2bc2b624444055a01a076fc68d22f847ebc5a294a450e28daf2a04ce71167"
+      },
+      "TW311": {
+        "baseline": "3e33baf3141676e0d06e92b6588e96a998fe2b430850a3a981d968ff13dd6949",
+        "treatment": "3e33baf3141676e0d06e92b6588e96a998fe2b430850a3a981d968ff13dd6949"
+      }
+    }
+  },
+  "summary": {
+    "case_count": 12,
+    "geometry_changed_count": 12,
+    "p95_improved_count": 10,
+    "f1_100_improved_count": 9,
+    "baseline_median_p95_m": 8958.664061774769,
+    "treatment_median_p95_m": 4730.419883901122,
+    "baseline_median_f1_100": 0.013717499886888392,
+    "treatment_median_f1_100": 0.030165850314194644,
+    "treatment_mean_population_coverage_ratio": 0.8223330778787482,
+    "population_weight": 1.0,
+    "population_nodata_policy": "maximum"
+  },
+  "cases": [
+    {
+      "case": "TW173",
+      "geometry_changed": true,
+      "baseline_length_km": 54.575,
+      "population_length_km": 54.067,
+      "length_delta_km": -0.5080000000000027,
+      "length_delta_pct": -0.9308291342189696,
+      "baseline_p95_m": 7691.0304539476965,
+      "population_p95_m": 6050.526360419742,
+      "p95_delta_m": -1640.5040935279549,
+      "baseline_f1_100": 0.005455032511019653,
+      "population_f1_100": 0.0047442884979243755,
+      "f1_100_delta": -0.0007107440130952776,
+      "baseline_f1_1000": 0.04653560331619868,
+      "population_f1_1000": 0.04145267791636097,
+      "baseline_max_ground_grade_pct": 73.17,
+      "population_max_ground_grade_pct": 91.52,
+      "population_coverage_ratio": 0.9410548086866598,
+      "population_unknown_route_cell_count": 114,
+      "baseline_mean_slope_deg": 5.39982913091002,
+      "population_mean_slope_deg": 8.729790258033523,
+      "baseline_mean_roughness_27_m": 28.783379281812273,
+      "population_mean_roughness_27_m": 33.86031031263405,
+      "baseline_building_density_mean": 0.014200435020029545,
+      "population_building_density_mean": 0.01448950543999672,
+      "baseline_residential_cell_fraction": 0.0015511892450879006,
+      "population_residential_cell_fraction": 0.000517063081695967,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "TW58",
+      "geometry_changed": true,
+      "baseline_length_km": 32.404,
+      "population_length_km": 33.734,
+      "length_delta_km": 1.3299999999999983,
+      "length_delta_pct": 4.104431551660284,
+      "baseline_p95_m": 4573.238681151976,
+      "population_p95_m": 1941.9189725006065,
+      "p95_delta_m": -2631.31970865137,
+      "baseline_f1_100": 0.007836045810729355,
+      "population_f1_100": 0.13618973770722925,
+      "f1_100_delta": 0.1283536918964999,
+      "baseline_f1_1000": 0.07789791884664576,
+      "population_f1_1000": 0.8920230761709201,
+      "baseline_max_ground_grade_pct": 49.15,
+      "population_max_ground_grade_pct": 63.85,
+      "population_coverage_ratio": 0.9371282922684792,
+      "population_unknown_route_cell_count": 74,
+      "baseline_mean_slope_deg": 3.2249679900229435,
+      "population_mean_slope_deg": 4.905545357836311,
+      "baseline_mean_roughness_27_m": 12.281065400604092,
+      "population_mean_roughness_27_m": 25.647897432695128,
+      "baseline_building_density_mean": 0.07668928056955338,
+      "population_building_density_mean": 0.060337044298648834,
+      "baseline_residential_cell_fraction": 0.0017050298380221654,
+      "population_residential_cell_fraction": 0.0033984706881903144,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "天輪~龍潭線",
+      "geometry_changed": true,
+      "baseline_length_km": 104.044,
+      "population_length_km": 102.738,
+      "length_delta_km": -1.3059999999999974,
+      "length_delta_pct": -1.2552381684671845,
+      "baseline_p95_m": 11404.13055403656,
+      "population_p95_m": 10797.265479391011,
+      "p95_delta_m": -606.8650746455478,
+      "baseline_f1_100": 0.0021954554073068747,
+      "population_f1_100": 0.0023089355806972978,
+      "f1_100_delta": 0.00011348017339042312,
+      "baseline_f1_1000": 0.052490093868451874,
+      "population_f1_1000": 0.04576203278421991,
+      "baseline_max_ground_grade_pct": 187.79,
+      "population_max_ground_grade_pct": 173.64,
+      "population_coverage_ratio": 0.926731078904992,
+      "population_unknown_route_cell_count": 273,
+      "baseline_mean_slope_deg": 6.550399296403376,
+      "population_mean_slope_deg": 9.719461410207913,
+      "baseline_mean_roughness_27_m": 35.52886183213057,
+      "population_mean_roughness_27_m": 40.29360523060068,
+      "baseline_building_density_mean": 0.009182523004710674,
+      "population_building_density_mean": 0.007538483943790197,
+      "baseline_residential_cell_fraction": 0.0,
+      "population_residential_cell_fraction": 0.0,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "TW59",
+      "geometry_changed": true,
+      "baseline_length_km": 61.12,
+      "population_length_km": 60.522,
+      "length_delta_km": -0.597999999999999,
+      "length_delta_pct": -0.978403141361255,
+      "baseline_p95_m": 9156.527053759153,
+      "population_p95_m": 9066.553617443331,
+      "p95_delta_m": -89.97343631582225,
+      "baseline_f1_100": 0.017202797639296784,
+      "population_f1_100": 0.029634698100400852,
+      "f1_100_delta": 0.012431900461104067,
+      "baseline_f1_1000": 0.16083020852661747,
+      "population_f1_1000": 0.13956226556945048,
+      "baseline_max_ground_grade_pct": 85.21,
+      "population_max_ground_grade_pct": 88.53,
+      "population_coverage_ratio": 0.9122211445198836,
+      "population_unknown_route_cell_count": 181,
+      "baseline_mean_slope_deg": 7.219125101220037,
+      "population_mean_slope_deg": 10.614748023019434,
+      "baseline_mean_roughness_27_m": 50.68494208909889,
+      "population_mean_roughness_27_m": 61.006672049817475,
+      "baseline_building_density_mean": 0.03325554355978966,
+      "population_building_density_mean": 0.028850236907601357,
+      "baseline_residential_cell_fraction": 0.0037914691943127963,
+      "population_residential_cell_fraction": 0.0,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "深美～冬山線",
+      "geometry_changed": true,
+      "baseline_length_km": 47.471,
+      "population_length_km": 46.312,
+      "length_delta_km": -1.158999999999999,
+      "length_delta_pct": -2.4414905942575444,
+      "baseline_p95_m": 8760.801069790383,
+      "population_p95_m": 3176.6637251030056,
+      "p95_delta_m": -5584.137344687377,
+      "baseline_f1_100": 0.009921455146754857,
+      "population_f1_100": 0.06778242677824269,
+      "f1_100_delta": 0.05786097163148783,
+      "baseline_f1_1000": 0.09153331741103414,
+      "population_f1_1000": 0.5523901790378496,
+      "baseline_max_ground_grade_pct": 147.71,
+      "population_max_ground_grade_pct": 140.74,
+      "population_coverage_ratio": 0.6995544239338001,
+      "population_unknown_route_cell_count": 472,
+      "baseline_mean_slope_deg": 7.928887203146798,
+      "population_mean_slope_deg": 10.258364629767536,
+      "baseline_mean_roughness_27_m": 63.12252438030832,
+      "population_mean_roughness_27_m": 61.20966688984143,
+      "baseline_building_density_mean": 0.00815585907548666,
+      "population_building_density_mean": 0.009328780695796013,
+      "baseline_residential_cell_fraction": 0.000630119722747322,
+      "population_residential_cell_fraction": 0.0,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.000630119722747322,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0019096117122851686,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "TW102",
+      "geometry_changed": true,
+      "baseline_length_km": 49.264,
+      "population_length_km": 51.168,
+      "length_delta_km": 1.9039999999999964,
+      "length_delta_pct": 3.864891198441045,
+      "baseline_p95_m": 3054.034697204277,
+      "population_p95_m": 3246.1215398613567,
+      "p95_delta_m": 192.08684265707961,
+      "baseline_f1_100": 0.007404360345536817,
+      "population_f1_100": 0.05609137203212189,
+      "f1_100_delta": 0.04868701168658507,
+      "baseline_f1_1000": 0.07006711247520216,
+      "population_f1_1000": 0.29745844182347025,
+      "baseline_max_ground_grade_pct": 55.06,
+      "population_max_ground_grade_pct": 55.06,
+      "population_coverage_ratio": 0.8283582089552239,
+      "population_unknown_route_cell_count": 299,
+      "baseline_mean_slope_deg": 1.76783250600446,
+      "population_mean_slope_deg": 2.4445121968517896,
+      "baseline_mean_roughness_27_m": 10.339070802567953,
+      "population_mean_roughness_27_m": 17.147046133927173,
+      "baseline_building_density_mean": 0.012015198357403278,
+      "population_building_density_mean": 0.012380847707390785,
+      "baseline_residential_cell_fraction": 0.0,
+      "population_residential_cell_fraction": 0.0,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "TW766",
+      "geometry_changed": true,
+      "baseline_length_km": 58.022,
+      "population_length_km": 57.71,
+      "length_delta_km": -0.3119999999999976,
+      "length_delta_pct": -0.5377270690427728,
+      "baseline_p95_m": 10007.627385318601,
+      "population_p95_m": 4533.814766533703,
+      "p95_delta_m": -5473.812618784898,
+      "baseline_f1_100": 0.018946038874464947,
+      "population_f1_100": 0.022291588357384495,
+      "f1_100_delta": 0.003345549482919548,
+      "baseline_f1_1000": 0.06865886030939086,
+      "population_f1_1000": 0.2896363269495939,
+      "baseline_max_ground_grade_pct": 23.06,
+      "population_max_ground_grade_pct": 29.44,
+      "population_coverage_ratio": 0.8365840801265155,
+      "population_unknown_route_cell_count": 310,
+      "baseline_mean_slope_deg": 0.6165560628111972,
+      "population_mean_slope_deg": 3.336403263694497,
+      "baseline_mean_roughness_27_m": 3.30165781045736,
+      "population_mean_roughness_27_m": 34.70960512246719,
+      "baseline_building_density_mean": 0.006132043432444334,
+      "population_building_density_mean": 0.016333121806383133,
+      "baseline_residential_cell_fraction": 0.0,
+      "population_residential_cell_fraction": 0.006852925672113864,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "TW252",
+      "geometry_changed": true,
+      "baseline_length_km": 54.284,
+      "population_length_km": 56.937,
+      "length_delta_km": 2.6529999999999987,
+      "length_delta_pct": 4.887259597671504,
+      "baseline_p95_m": 10430.218245512004,
+      "population_p95_m": 6221.949068761498,
+      "p95_delta_m": -4208.269176750506,
+      "baseline_f1_100": 0.013852916364497458,
+      "population_f1_100": 0.03069700252798844,
+      "f1_100_delta": 0.01684408616349098,
+      "baseline_f1_1000": 0.10264575240792673,
+      "population_f1_1000": 0.16775376074387108,
+      "baseline_max_ground_grade_pct": 136.97,
+      "population_max_ground_grade_pct": 123.05,
+      "population_coverage_ratio": 0.9242268041237114,
+      "population_unknown_route_cell_count": 147,
+      "baseline_mean_slope_deg": 2.0631335862666913,
+      "population_mean_slope_deg": 3.3313183190782323,
+      "baseline_mean_roughness_27_m": 9.11407217608616,
+      "population_mean_roughness_27_m": 13.289537919550828,
+      "baseline_building_density_mean": 0.003163635963574052,
+      "population_building_density_mean": 0.005405651871114969,
+      "baseline_residential_cell_fraction": 0.0,
+      "population_residential_cell_fraction": 0.0,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "TW769",
+      "geometry_changed": true,
+      "baseline_length_km": 50.412,
+      "population_length_km": 51.116,
+      "length_delta_km": 0.7040000000000006,
+      "length_delta_pct": 1.3964928985162277,
+      "baseline_p95_m": 10507.526050564831,
+      "population_p95_m": 5414.1572823957085,
+      "p95_delta_m": -5093.368768169123,
+      "baseline_f1_100": 0.013582083409279326,
+      "population_f1_100": 0.011510220281801944,
+      "f1_100_delta": -0.0020718631274773813,
+      "baseline_f1_1000": 0.06255971144365029,
+      "population_f1_1000": 0.07441659619640513,
+      "baseline_max_ground_grade_pct": 65.03,
+      "population_max_ground_grade_pct": 50.87,
+      "population_coverage_ratio": 0.7787507297139521,
+      "population_unknown_route_cell_count": 379,
+      "baseline_mean_slope_deg": 1.046631144028135,
+      "population_mean_slope_deg": 4.154639251004569,
+      "baseline_mean_roughness_27_m": 6.891848324256477,
+      "population_mean_roughness_27_m": 43.134727929255035,
+      "baseline_building_density_mean": 0.004085065796971321,
+      "population_building_density_mean": 0.010220496915280819,
+      "baseline_residential_cell_fraction": 0.0017678255745433118,
+      "population_residential_cell_fraction": 0.00642148277875073,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "TW345",
+      "geometry_changed": true,
+      "baseline_length_km": 51.182,
+      "population_length_km": 54.414,
+      "length_delta_km": 3.2319999999999993,
+      "length_delta_pct": 6.314720018756592,
+      "baseline_p95_m": 5089.808977039332,
+      "population_p95_m": 4437.020345622887,
+      "p95_delta_m": -652.7886314164443,
+      "baseline_f1_100": 0.037021682351477965,
+      "population_f1_100": 0.027142834387295114,
+      "f1_100_delta": -0.009878847964182851,
+      "baseline_f1_1000": 0.19274099791371374,
+      "population_f1_1000": 0.1309758898323969,
+      "baseline_max_ground_grade_pct": 75.94,
+      "population_max_ground_grade_pct": 72.49,
+      "population_coverage_ratio": 0.9150360453141092,
+      "population_unknown_route_cell_count": 165,
+      "baseline_mean_slope_deg": 3.0560948046107836,
+      "population_mean_slope_deg": 3.6301948793527856,
+      "baseline_mean_roughness_27_m": 10.992137960417965,
+      "population_mean_roughness_27_m": 12.831587620670346,
+      "baseline_building_density_mean": 0.009952261112630367,
+      "population_building_density_mean": 0.012648888863623142,
+      "baseline_residential_cell_fraction": 0.0,
+      "population_residential_cell_fraction": 0.0010298661174047373,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "明潭-鳳林線",
+      "geometry_changed": true,
+      "baseline_length_km": 67.98,
+      "population_length_km": 65.95,
+      "length_delta_km": -2.030000000000001,
+      "length_delta_pct": -2.9861724036481334,
+      "baseline_p95_m": 3055.721716811054,
+      "population_p95_m": 3088.9657956611677,
+      "p95_delta_m": 33.24407885011351,
+      "baseline_f1_100": 0.08146104269031972,
+      "population_f1_100": 0.10767474511553449,
+      "f1_100_delta": 0.02621370242521477,
+      "baseline_f1_1000": 0.5863674209059044,
+      "population_f1_1000": 0.5663820734553208,
+      "baseline_max_ground_grade_pct": 125.44,
+      "population_max_ground_grade_pct": 177.04,
+      "population_coverage_ratio": 0.2653155228005527,
+      "population_unknown_route_cell_count": 1595,
+      "baseline_mean_slope_deg": 15.03470877673817,
+      "population_mean_slope_deg": 17.40349555334041,
+      "baseline_mean_roughness_27_m": 147.3617548893714,
+      "population_mean_roughness_27_m": 146.44335591348292,
+      "baseline_building_density_mean": 0.0027255609165877104,
+      "population_building_density_mean": 0.0030244798399508,
+      "baseline_residential_cell_fraction": 0.00044543429844097997,
+      "population_residential_cell_fraction": 0.00046061722708429296,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    },
+    {
+      "case": "TW311",
+      "geometry_changed": true,
+      "baseline_length_km": 65.53,
+      "population_length_km": 66.829,
+      "length_delta_km": 1.2989999999999924,
+      "length_delta_pct": 1.9822981840378335,
+      "baseline_p95_m": 9772.937587642056,
+      "population_p95_m": 4927.025001268541,
+      "p95_delta_m": -4845.912586373515,
+      "baseline_f1_100": 0.03245102713295703,
+      "population_f1_100": 0.2604364948548621,
+      "f1_100_delta": 0.22798546772190506,
+      "baseline_f1_1000": 0.1885697382809636,
+      "population_f1_1000": 0.561513981660607,
+      "baseline_max_ground_grade_pct": 44.8,
+      "population_max_ground_grade_pct": 39.79,
+      "population_coverage_ratio": 0.9030357951971001,
+      "population_unknown_route_cell_count": 214,
+      "baseline_mean_slope_deg": 2.146839570470769,
+      "population_mean_slope_deg": 3.0255947085266226,
+      "baseline_mean_roughness_27_m": 11.096819603960963,
+      "population_mean_roughness_27_m": 13.231086090889029,
+      "baseline_building_density_mean": 0.009799579158425331,
+      "population_building_density_mean": 0.014651370234787464,
+      "baseline_residential_cell_fraction": 0.0,
+      "population_residential_cell_fraction": 0.0,
+      "baseline_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      },
+      "population_hazard_cell_fractions": {
+        "debris_flow_impact": 0.0,
+        "landslide_potential": 0.0,
+        "landslide_impact": 0.0
+      }
+    }
+  ],
+  "notes": [
+    "Historical route geometry was used only after planning for evaluation.",
+    "This is an exploratory sensitivity check, not an independent holdout: three routes overlap an earlier population sensitivity study.",
+    "WorldPop population values are modeled raster estimates; coverage gaps were penalized with a fixed maximum proxy, not interpreted as population counts.",
+    "Route similarity metrics are diagnostics and were not used to choose the route or population weight."
+  ]
+}

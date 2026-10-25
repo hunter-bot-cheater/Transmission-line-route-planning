@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "files": [
+    {
+      "path": "12_route_paired_overview.png",
+      "size_bytes": 516710,
+      "sha256": "ed1a51978516674b47a88dafd0bc2cebde85af371aba8d3f1c6416795865afc7"
+    },
+    {
+      "path": "baseline/comparison_metrics.json",
+      "size_bytes": 531990,
+      "sha256": "01985485e272c54197a03dd9865c4fe3196db7a969ba408c1ddbcb87fecac291"
+    },
+    {
+      "path": "baseline/run_provenance.json",
+      "size_bytes": 116788,
+      "sha256": "efafa5bfbcb691e75075ee530cf745a3da371a64cf1472a48837aaa519f5f00b"
+    },
+    {
+      "path": "baseline/run_summary.json",
+      "size_bytes": 2639,
+      "sha256": "046ab2ac28145391c0003da1e6e91b4a7960a19fd8bb61ad36a46aaab2d1482e"
+    },
+    {
+      "path": "baseline/TW102/planned_route.geojson",
+      "size_bytes": 112977,
+      "sha256": "ffd18e332817e489b636e3cbbc2f6d35e1d2e0a6619c97bfed288601e9fe2b6b"
+    },
+    {
+      "path": "baseline/TW102/reference_route.geojson",
+      "size_bytes": 13420,
+      "sha256": "de839cd4086315757b6319b17de23fc93bf12993dd33a40a4ed6426d7c438d27"
+    },
+    {
+      "path": "baseline/TW173/planned_route.geojson",
+      "size_bytes": 119740,
+      "sha256": "2396aa018be94e36f394c25953954c1f83723dbd39eacfc1f622d45e3de16ff1"
+    },
+    {
+      "path": "baseline/TW173/reference_route.geojson",
+      "size_bytes": 13597,
+      "sha256": "29963a8c0e3c27904a8fa9a34e72f39aea12e02eec20b762a6406b6512168460"
+    },
+    {
+      "path": "baseline/TW252/planned_route.geojson",
+      "size_bytes": 55553,
+      "sha256": "72d718e5fe54977955e529bc7046b4a3d9f6992e06805071fe75a0696565e2bd"
+    },
+    {
+      "path": "baseline/TW252/reference_route.geojson",
+      "size_bytes": 14168,
+      "sha256": "7877b8465ee4f226d5a743c8061a74ac5d7da3364437841b5410b3ffe84c2f83"
+    },
+    {
+      "path": "baseline/TW311/planned_route.geojson",
+      "size_bytes": 154657,
+      "sha256": "cfb604099a85bb0349f757efee723c853d180466581a7490d7cd3fb7fa49102f"
+    },
+    {
+      "path": "baseline/TW311/reference_route.geojson",
+      "size_bytes": 20085,
+      "sha256": "3e33baf3141676e0d06e92b6588e96a998fe2b430850a3a981d968ff13dd6949"
+    },
+    {
+      "path": "baseline/TW345/planned_route.geojson",
+      "size_bytes": 52338,
+      "sha256": "ef6d5b958c30d125a0393fecc5d2e9f9c93b64f5b454b4964c0806e8c404717c"
+    },
+    {
+      "path": "baseline/TW345/reference_route.geojson",
+      "size_bytes": 12961,
+      "sha256": "4542b0015a4c1ee22ebff02c8e3ec1db54a9fd96161ba656fb8af9132c39d5ec"
+    },
+    {
+      "path": "baseline/TW58/planned_route.geojson",
+      "size_bytes": 69796,
+      "sha256": "aa2da8f70a94bcf2c23ce628c691bd8a3364cb8c2ab97ca715b27fe92db278c9"
+    },
+    {
+      "path": "baseline/TW58/reference_route.geojson",
+      "size_bytes": 10412,
+      "sha256": "8471e7f9fc2f0aa9938f0edc5fa918c9832de6dbc13fc574733cb2c522f1fde8"
+    },
+    {
+      "path": "baseline/TW59/planned_route.geojson",
+      "size_bytes": 138815,
+      "sha256": "62a24b9bc1d27f9b83ef914c6f319f06c37a017efd2ffd37b6ffc393d70e8ed4"
+    },
+    {
+      "path": "baseline/TW59/reference_route.geojson",
+      "size_bytes": 14146,
+      "sha256": "45c462ea33e1259c7cc353a6eae717d010ef34f01e19b25f5614e3c379113ddc"
+    },
+    {
+      "path": "baseline/TW766/planned_route.geojson",
+      "size_bytes": 59112,
+      "sha256": "cc4a90ea681c6e6c8a8f7d2267f055b0e097ad21c488ee34de3fdc1a7bd1ebde"
+    },
+    {
+      "path": "baseline/TW766/reference_route.geojson",
+      "size_bytes": 14806,
+      "sha256": "a8b75767e69a64289ee98988f65094909d41433b2499dd3da5de2a24d5e0d3e0"
+    },
+    {
+      "path": "baseline/TW769/planned_route.geojson",
+      "size_bytes": 51429,
+      "sha256": "be7d66ce0abbd2ec059e8b76331752d66ff2c1ae23203d0e73999a34626f2d46"
+    },
+    {
+      "path": "baseline/TW769/reference_route.geojson",
+      "size_bytes": 12228,
+      "sha256": "1592ef766ace7f69eddae3214630ec3076769822044a0bd52ccf6450bf158ba9"
+    },
+    {
+      "path": "baseline/天輪~龍潭線/planned_route.geojson",
+      "size_bytes": 226355,
+      "sha256": "391e0598634424850cc8d4a30025b6c99bbdb67c385db09b404109a8a5c614d2"
+    },
+    {
+      "path": "baseline/天輪~龍潭線/reference_route.geojson",
+      "size_bytes": 20118,
+      "sha256": "c30f039a5bd8b4cde71a32692998e6fab3e82f9afdd4d05317d3951c720e01b1"
+    },
+    {
+      "path": "baseline/明潭-鳳林線/planned_route.geojson",
+      "size_bytes": 159020,
+      "sha256": "01470182a371a916c409b6f8e0588e3a18eff5413224cc4f109beca43fdda817"
+    },
+    {
+      "path": "baseline/明潭-鳳林線/reference_route.geojson",
+      "size_bytes": 17445,
+      "sha256": "2ad2bc2b624444055a01a076fc68d22f847ebc5a294a450e28daf2a04ce71167"
+    },
+    {
+      "path": "baseline/深美～冬山線/planned_route.geojson",
+      "size_bytes": 110316,
+      "sha256": "6920bfc9670a9b481f86023ec5d3daf97d5f84b3f4965752e6320adc2169f7b7"
+    },
+    {
+      "path": "baseline/深美～冬山線/reference_route.geojson",
+      "size_bytes": 13421,
+      "sha256": "951ab3cc205489ffbf232e9593dae399457715dde5b5141009557ef1680ffa09"
+    },
+    {
+      "path": "paired_metric_comparison.png",
+      "size_bytes": 179218,
+      "sha256": "6bc66099a3c8ac374815954cab9ee4750a6f04b9848de761bc6245bdaf71a9ae"
+    },
+    {
+      "path": "population_ab_metrics.csv",
+      "size_bytes": 7497,
+      "sha256": "434a813e9ccfd3281fde0f467a4d54aa1840d526dbed326e3e20b0425edf6a16"
+    },
+    {
+      "path": "population_ab_metrics.json",
+      "size_bytes": 23845,
+      "sha256": "0e77323c45a72ce9a8c828cbb5dca6e7f3409c191040fcf43181c4ddcee23fa3"
+    },
+    {
+      "path": "posthoc_error_maps/12_route_error_overview.png",
+      "size_bytes": 623003,
+      "sha256": "fae511c8144d6aae96a92a46dbb60c0a29a29eadf0ae8ef4ffe9d3ba280d3af3"
+    },
+    {
+      "path": "posthoc_error_maps/TW102_error_map.png",
+      "size_bytes": 146676,
+      "sha256": "ec295a16799950e74c55b0146bca97b87de936fd908714f31b6f16e205eb8dbc"
+    },
+    {
+      "path": "posthoc_error_maps/TW173_error_map.png",
+      "size_bytes": 160756,
+      "sha256": "12ef4418e8b118028db23af79973be1244b78e8175e209e0de5c6f41b138782f"
+    },
+    {
+      "path": "posthoc_error_maps/TW252_error_map.png",
+      "size_bytes": 149361,
+      "sha256": "1ffcf2ef6feab55e73dbda9c19af32a5abb851b93ef497a1f157da87cde02804"
+    },
+    {
+      "path": "posthoc_error_maps/TW311_error_map.png",
+      "size_bytes": 139443,
+      "sha256": "d2a2eeafedf3adb659bad5542a903258b05aaf78aaff1aebb1c10719735a0afe"
+    },
+    {
+      "path": "posthoc_error_maps/TW345_error_map.png",
+      "size_bytes": 168726,
+      "sha256": "1c7d1eb7a386af27df8cb7474591631e163f5cc9650354e77c565fc8e1c63898"
+    },
+    {
+      "path": "posthoc_error_maps/TW58_error_map.png",
+      "size_bytes": 168124,
+      "sha256": "c4b5403f899afc97e807addbde91f2d21e17d1bede461da0d213e8b2d60dcab9"
+    },
+    {
+      "path": "posthoc_error_maps/TW59_error_map.png",
+      "size_bytes": 147797,
+      "sha256": "6cd27fbb0ab5f60a50dae7da7efac4495db19e76c361bf1367f6850e435b31e1"
+    },
+    {
+      "path": "posthoc_error_maps/TW766_error_map.png",
+      "size_bytes": 147722,
+      "sha256": "07659370f0cc6d9a6c2f9cdedc1f86dbec1daf4f0b354fc392bf421a45e954e9"
+    },
+    {
+      "path": "posthoc_error_maps/TW769_error_map.png",
+      "size_bytes": 152062,
+      "sha256": "127a06db04d7b0cba4340a920bd9a62ba80b73c6c43e525783eb4b4f4d89aba8"
+    },
+    {
+      "path": "posthoc_error_maps/天輪_龍潭線_error_map.png",
+      "size_bytes": 173786,
+      "sha256": "676d25d4c5a6bce4f89f5fb8df6866dbf8bc97361e3c33d325e9d94d19b2c46a"
+    },
+    {
+      "path": "posthoc_error_maps/明潭-鳳林線_error_map.png",
+      "size_bytes": 148605,
+      "sha256": "8fd9571f14ff8987111dc56c802d45dc75309936b92a56514a98e2e81e91e5eb"
+    },
+    {
+      "path": "posthoc_error_maps/深美_冬山線_error_map.png",
+      "size_bytes": 157319,
+      "sha256": "5bc680090df1f7d74b0e9968962ca65ac7bf52a289b13f12f5c92dcda51ce6e3"
+    },
+    {
+      "path": "treatment/comparison_metrics.json",
+      "size_bytes": 559547,
+      "sha256": "4f65172d95f6847a0676e4f3878d05d8e59b61868a7875f47869182d084e54a8"
+    },
+    {
+      "path": "treatment/run_provenance.json",
+      "size_bytes": 117034,
+      "sha256": "51468fd4f04deac636dff80dc1e994f8bc1c9a9b0b3609dcdea67fe0c59e550f"
+    },
+    {
+      "path": "treatment/run_summary.json",
+      "size_bytes": 2849,
+      "sha256": "9a8a6bb0f3aafae2da2ee0b54913ea82afa4bcf1cb8b1c68314ec02fa7f8d32f"
+    },
+    {
+      "path": "treatment/TW102/planned_route.geojson",
+      "size_bytes": 116053,
+      "sha256": "46b8cd162ec22426d72a7a2383368b6af5d887026acb01c270ca31c0bba1deaf"
+    },
+    {
+      "path": "treatment/TW173/planned_route.geojson",
+      "size_bytes": 117388,
+      "sha256": "3a0787579390b9d09a95f297acdcd643ea46d73f92ef9e7c32c382e333d7a187"
+    },
+    {
+      "path": "treatment/TW252/planned_route.geojson",
+      "size_bytes": 128618,
+      "sha256": "b020bb7925320e77acfc6e16d8a70d83282327f9d725a4392a38d91a6149f733"
+    },
+    {
+      "path": "treatment/TW311/planned_route.geojson",
+      "size_bytes": 156422,
+      "sha256": "4479ad054d84bf27ff59fc746637b1c433347d96b5887fd0220b4caf7a997de5"
+    },
+    {
+      "path": "treatment/TW345/planned_route.geojson",
+      "size_bytes": 117885,
+      "sha256": "6462da7cc4ed9282ec315f5c7c364c3b7bb31a8900b902095f594abbee13b9ff"
+    },
+    {
+      "path": "treatment/TW58/planned_route.geojson",
+      "size_bytes": 75510,
+      "sha256": "efb70cce788edb0b74a46d598b5f817f9794951461ea71d51aefc905cf72ad6b"
+    },
+    {
+      "path": "treatment/TW59/planned_route.geojson",
+      "size_bytes": 139298,
+      "sha256": "8bc0eb9ddbeec9d7450bf74d1326bcd47c43b2c3f1bb513d05eb15c1ecbd8abf"
+    },
+    {
+      "path": "treatment/TW766/planned_route.geojson",
+      "size_bytes": 134942,
+      "sha256": "fd57ff5fed08b753044ce0081ac43aac70b38f62101c311c4dc9116ad1da44ee"
+    },
+    {
+      "path": "treatment/TW769/planned_route.geojson",
+      "size_bytes": 117361,
+      "sha256": "3415c247a0d2c1d8dfd32aab16c4a476ec781d03001bbd956e9b440fc7d96dae"
+    },
+    {
+      "path": "treatment/天輪~龍潭線/planned_route.geojson",
+      "size_bytes": 219506,
+      "sha256": "a247e8e80cb3a7cd78b224d6c9ef0fb1dbcaab1ec20b3b9db677d1bef4c9fc6c"
+    },
+    {
+      "path": "treatment/明潭-鳳林線/planned_route.geojson",
+      "size_bytes": 154547,
+      "sha256": "a424c7a0101184e7bcb4ea1b0686c419462dcfb1b711f385d4971741ef252d2a"
+    },
+    {
+      "path": "treatment/深美～冬山線/planned_route.geojson",
+      "size_bytes": 106257,
+      "sha256": "721499539ed3f172bb67ccaa9626b106d87be0cf02e8ef5635f54031ae6fb606"
+    }
+  ]
+}
