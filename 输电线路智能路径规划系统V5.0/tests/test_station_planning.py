@@ -15,7 +15,9 @@ from transmission_path_planner.cli import (
     attach_station_endpoints,
     build_tower_masks,
     overhead_span_grade_report,
+    route_planning_status,
     screening_data_quality,
+    validate_endpoint_cells,
     validate_route_hard_constraints,
     validate_tower_span_lengths,
 )
@@ -34,6 +36,7 @@ from transmission_path_planner.smoothing import (
 from transmission_path_planner.stations import (
     load_station_tasks,
     station_coordinate_crs_properties,
+    station_endpoint_properties,
     station_clearance_elevation_overrides,
     station_elevation_metrics,
 )
@@ -109,10 +112,13 @@ class StationPlanningTests(unittest.TestCase):
     def test_loads_station_pair_and_route_voltage(self):
         with tempfile.TemporaryDirectory() as folder:
             stations = self._csv(folder, "stations.csv",
-                                 ["station_id", "name", "lat", "lon", "coordinate_crs", "voltage_kv", "ground_elevation_m",
-                                  "ground_elevation_source", "vertical_datum"],
-                                 [["S1", "North", 24.1, 120.1, "EPSG:4326", 220, 120.5, "survey A", "datum A"],
-                                  ["S2", "South", 24.2, 120.2, "EPSG:4326", 220, 143.0, "survey B", "datum A"]])
+                                 ["station_id", "name", "lat", "lon", "coordinate_crs", "voltage_kv",
+                                  "source", "point_role", "verification_status", "verification_reference",
+                                  "ground_elevation_m", "ground_elevation_source", "vertical_datum"],
+                                 [["S1", "North", 24.1, 120.1, "EPSG:4326", 220, "survey A",
+                                   "line_connection_point", "verified", "record-A", 120.5, "survey A", "datum A"],
+                                  ["S2", "South", 24.2, 120.2, "EPSG:4326", 220, "survey B",
+                                   "line_connection_point", "verified", "record-B", 143.0, "survey B", "datum A"]])
             tasks = self._csv(folder, "routes.csv",
                               ["route_id", "from_station_id", "to_station_id"], [["R1", "S1", "S2"]])
             result = load_station_tasks(stations, tasks)
@@ -126,6 +132,58 @@ class StationPlanningTests(unittest.TestCase):
         )
         self.assertEqual(result[0]["voltage_kv"], "220")
         self.assertEqual(result[0]["from_station"]["ground_elevation_m"], 120.5)
+        self.assertEqual(result[0]["endpoint_qualification"], "declared_verified_line_connection_points")
+        self.assertEqual(station_endpoint_properties(result[0])["from_station_point_role"],
+                         "line_connection_point")
+
+    def test_unverified_or_non_connection_endpoints_are_rejected_by_default(self):
+        headers = ["station_id", "lat", "lon", "coordinate_crs", "source", "point_role",
+                   "verification_status", "verification_reference"]
+        cases = [
+            (["S1", 24.1, 120.1, "EPSG:4326", "survey", "line_connection_point", "unknown", ""],
+             "声明为已核验线路接入点"),
+            (["S1", 24.1, 120.1, "EPSG:4326", "survey", "station_centroid", "verified", "record-A"],
+             "声明为已核验线路接入点"),
+            (["S1", 24.1, 120.1, "EPSG:4326", "", "line_connection_point", "verified", "record-A"],
+             "声明为已核验线路接入点"),
+            (["S1", 24.1, 120.1, "EPSG:4326", "survey", "line_connection_point", "verified", ""],
+             "声明为已核验线路接入点"),
+        ]
+        for first_station, message in cases:
+            with self.subTest(first_station=first_station), tempfile.TemporaryDirectory() as folder:
+                stations = self._csv(folder, "stations.csv", headers,
+                                     [first_station,
+                                      ["S2", 24.2, 120.2, "EPSG:4326", "survey", "line_connection_point",
+                                       "verified", "record-B"]])
+                tasks = self._csv(folder, "routes.csv", ["route_id", "from_station_id", "to_station_id"],
+                                  [["R1", "S1", "S2"]])
+                with self.assertRaisesRegex(ValueError, message):
+                    load_station_tasks(stations, tasks)
+
+    def test_exploratory_endpoints_are_explicitly_qualified_and_never_screening_candidates(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stations = self._csv(folder, "stations.csv",
+                                 ["station_id", "lat", "lon", "coordinate_crs"],
+                                 [["S1", 24.1, 120.1, "EPSG:4326"], ["S2", 24.2, 120.2, "EPSG:4326"]])
+            tasks = self._csv(folder, "routes.csv", ["route_id", "from_station_id", "to_station_id"],
+                              [["R1", "S1", "S2"]])
+            result = load_station_tasks(stations, tasks, allow_unverified=True)[0]
+
+        self.assertEqual(result["endpoint_qualification"], "exploratory_only_unverified_endpoints")
+        self.assertEqual(route_planning_status([(1.0, 1.0), (2.0, 2.0)], result, []),
+                         "exploratory_only_unverified_endpoints")
+        self.assertEqual(route_planning_status(None, result, []), "no_hard_constraint_compliant_route")
+        self.assertEqual(route_planning_status([(1.0, 1.0), (2.0, 2.0)], None, ["buildings"]),
+                         "screening_candidate_data_incomplete")
+
+    def test_declared_verified_endpoint_does_not_open_blocked_dem_or_building_cell(self):
+        hard_mask = np.ones((3, 3), dtype=np.uint8)
+        hard_mask[0, 0] = 0
+        blocks = {"DEM NoData": np.zeros((3, 3), dtype=bool),
+                  "OSM建筑足迹": np.zeros((3, 3), dtype=bool)}
+        blocks["OSM建筑足迹"][0, 0] = True
+        with self.assertRaisesRegex(ValueError, "OSM建筑足迹"):
+            validate_endpoint_cells((0, 0), (2, 2), hard_mask.shape, hard_mask, blocks)
 
     def test_rejects_duplicate_station_csv_headers(self):
         with tempfile.TemporaryDirectory() as folder:

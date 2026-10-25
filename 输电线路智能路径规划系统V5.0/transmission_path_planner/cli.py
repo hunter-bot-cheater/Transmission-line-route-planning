@@ -479,15 +479,33 @@ def summarize_run_completion(expected_cases, results, failed_cases):
         record["case"] for record in results
         if record["case"] not in failed_names and record["case"] not in no_route_names
     }
+    exploratory_cases = [
+        record["case"] for record in results
+        if record["case"] in completed
+        and record["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
+        == "exploratory_only_unverified_endpoints"
+    ]
     return {
         "expected_cases": expected_cases,
         "completed_cases": len(completed),
         "recorded_cases": len(results),
         "failed_cases": failed_cases,
         "no_route_cases": no_route_cases,
+        "exploratory_cases": exploratory_cases,
         "complete": expected_cases > 0 and len(completed) == expected_cases
         and not failed_cases and not no_route_cases,
     }
+
+
+def route_planning_status(final_geo, station_task, missing_screening_layers):
+    if not final_geo:
+        return "no_hard_constraint_compliant_route"
+    if station_task and station_task["endpoint_qualification"] != \
+            "declared_verified_line_connection_points":
+        return "exploratory_only_unverified_endpoints"
+    if missing_screening_layers:
+        return "screening_candidate_data_incomplete"
+    return "screening_candidate"
 
 
 def format_case_error(exc):
@@ -561,9 +579,11 @@ def main():
     ap.add_argument("--start", type=str, default=None, help="起点 lat,lon")
     ap.add_argument("--end", type=str, default=None, help="终点 lat,lon")
     ap.add_argument("--stations-csv", type=str, default=None,
-                    help="站点表需含 station_id,lat,lon,coordinate_crs；坐标为 EPSG:4326 线路接入点")
+                    help="站点表需含 station_id,lat,lon,coordinate_crs；正式任务还需声明核验过的线路接入点")
     ap.add_argument("--route-tasks-csv", type=str, default=None,
                     help="站间任务表: route_id,from_station_id,to_station_id")
+    ap.add_argument("--allow-unverified-endpoints", action="store_true",
+                    help="允许未核验端点仅作探索性规划；输出不得解释为正式站间候选")
     ap.add_argument("--constraint-geojson", type=str, default=None,
                     help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight")
     default_hazard_dir = PACKAGE_DIR / "data" / "official_sources" / "ardswc_115_mvt_z10_20261023"
@@ -662,6 +682,8 @@ def main():
     args = ap.parse_args()
     if bool(args.stations_csv) != bool(args.route_tasks_csv):
         ap.error("--stations-csv 和 --route-tasks-csv 必须同时提供")
+    if args.allow_unverified_endpoints and not args.stations_csv:
+        ap.error("--allow-unverified-endpoints 仅适用于站点 CSV 任务")
     if bool(args.start) != bool(args.end):
         ap.error("--start 和 --end 必须同时提供")
     task_sources = sum((
@@ -767,7 +789,9 @@ def main():
     station_task_by_route = {}
     if args.stations_csv:
         try:
-            station_tasks = load_station_tasks(args.stations_csv, args.route_tasks_csv)
+            station_tasks = load_station_tasks(
+                args.stations_csv, args.route_tasks_csv,
+                allow_unverified=args.allow_unverified_endpoints)
         except (OSError, ValueError) as exc:
             ap.error(str(exc))
         cases = []
@@ -1675,10 +1699,8 @@ def main():
                         else "reference_loaded_no_comparable_route")
 
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
-            planning_status = (
-                "no_hard_constraint_compliant_route" if not final_geo else
-                "screening_candidate_data_incomplete" if missing_screening_layers else
-                "screening_candidate")
+            planning_status = route_planning_status(
+                final_geo, station_task, missing_screening_layers)
             case_metrics[FINAL_ROUTE_LABEL] = {
                 "method": best_method,
                 "selection_rule": selection_rule,
@@ -1688,6 +1710,7 @@ def main():
                 "real_evaluation_status": real_evaluation_status,
                 "real_evaluation_methods": real_evaluation_methods,
                 "planning_status": planning_status,
+                **station_endpoint_properties(station_task),
                 "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
                 "hard_violations": selected_metrics.get("hard_violations"),
                 "osm_data_quality": osm_data_quality,
@@ -1745,6 +1768,7 @@ def main():
                             "to_station_type": end_station["station_type"] or None,
                             "to_station_source": end_station["source"] or None,
                             "to_station_verified": end_station["verified"] or None,
+                            **station_endpoint_properties(station_task),
                             "voltage_kv": station_task["voltage_kv"] or None,
                             **station_coordinate_crs_properties(station_task),
                             **station_measurements,
@@ -1777,6 +1801,7 @@ def main():
                                             "route_similarity": selected_metrics.get("route_similarity"),
                                            "selection_rule": selection_rule,
                                            "planning_status": planning_status,
+                                           **station_endpoint_properties(station_task),
                                            "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
                                            "hard_violations": selected_metrics.get("hard_violations"),
                                            "osm_data_quality": osm_data_quality,
@@ -1804,6 +1829,7 @@ def main():
                                            "from_station_verified": station_task["from_station"]["verified"] or None if station_task else None,
                                            "to_station_source": station_task["to_station"]["source"] or None if station_task else None,
                                            "to_station_verified": station_task["to_station"]["verified"] or None if station_task else None,
+                                           **station_endpoint_properties(station_task),
                                            "voltage_kv": station_task["voltage_kv"] or None if station_task else None,
                                            **station_measurements,
                                            "voltage_rules_applied": False,

@@ -1,1 +1,1 @@
-station_id,name,station_type,lat,lon,coordinate_crs,voltage_kv,source,verified,ground_elevation_m,ground_elevation_source,vertical_datum
+station_id,name,station_type,lat,lon,coordinate_crs,voltage_kv,source,point_role,verification_status,verification_reference,ground_elevation_m,ground_elevation_source,vertical_datum

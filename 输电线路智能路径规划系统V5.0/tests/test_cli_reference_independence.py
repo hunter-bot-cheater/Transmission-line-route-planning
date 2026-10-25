@@ -720,6 +720,14 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         self.assertEqual(summary["completed_cases"], 0)
         self.assertEqual(summary["no_route_cases"], ["blocked"])
 
+    def test_exploratory_route_is_reported_separately_from_batch_completion(self):
+        results = [{"case": "exploratory", "metrics": {"最终路线": {
+            "planning_status": "exploratory_only_unverified_endpoints"}}}]
+        summary = summarize_run_completion(1, results, [])
+        self.assertTrue(summary["complete"])
+        self.assertEqual(summary["completed_cases"], 1)
+        self.assertEqual(summary["exploratory_cases"], ["exploratory"])
+
     def test_no_route_and_failed_cases_are_unmeasured(self):
         records = [
             {"case": "blocked", "metrics": {
