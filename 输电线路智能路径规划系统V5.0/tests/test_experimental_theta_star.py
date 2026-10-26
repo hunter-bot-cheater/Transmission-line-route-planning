@@ -41,6 +41,30 @@ class ExperimentalThetaStarTests(unittest.TestCase):
         self.assertAlmostEqual(theta_cost, expected, places=9)
         self.assertLess(theta_cost, astar_cost)
 
+    def test_zero_cost_plateau_tie_prefers_shorter_visible_route(self):
+        rng = np.random.default_rng(1)
+        cost = np.zeros((10, 10), dtype=np.float64)
+        traversable = rng.random(cost.shape) > 0.18
+        start, goal = (0, 0), (9, 9)
+        traversable[start] = traversable[goal] = True
+        shorter_visible_route = [start, (5, 7), goal]
+
+        route = theta_star_cost_path(cost, traversable, start, goal)
+        route_length = sum(
+            math.hypot(b[0] - a[0], b[1] - a[1])
+            for a, b in zip(route, route[1:]))
+        shorter_length = sum(
+            math.hypot(b[0] - a[0], b[1] - a[1])
+            for a, b in zip(shorter_visible_route, shorter_visible_route[1:]))
+
+        self.assertEqual(
+            integrate_polyline_cost(
+                shorter_visible_route, cost, traversable),
+            0.0,
+        )
+        self.assertEqual(integrate_polyline_cost(route, cost, traversable), 0.0)
+        self.assertLessEqual(route_length, shorter_length + 1e-12)
+
     def test_segment_integral_matches_production_piecewise_constant_integral(self):
         cost = np.array([
             [1.0, 2.0, 5.0, 4.0],

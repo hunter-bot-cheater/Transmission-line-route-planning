@@ -3,8 +3,9 @@
 The CLI can run this as an experimental comparison candidate. It searches
 cell-center vertices with 8-neighbor expansion while allowing parent-to-neighbor
 any-angle links. Segment costs are exact integrals of a piecewise-constant raster
-cost (cost per metre) under a fixed local row/column metric. Hard constraints use
-the planner's shared conservative supercover raster test.
+cost (cost per metre) under a fixed local row/column metric. Equal-cost labels
+prefer the shorter route. Hard constraints use the planner's shared conservative
+supercover raster test.
 
 Scope: non-negative isotropic terrain costs and a traversability mask, with an
 optional sampled ground-grade edge limit. There is no turn/curvature term,
@@ -212,29 +213,43 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
     finite_costs = cost[traversable]
     minimum_cost = float(finite_costs.min())
 
-    def heuristic(row, col):
+    def cost_heuristic(row, col):
         dr = (goal[0] - row) * row_m
         dc = (goal[1] - col) * col_m
         return minimum_cost * math.hypot(dr, dc)
+
+    def length_heuristic(row, col):
+        dr = (goal[0] - row) * row_m
+        dc = (goal[1] - col) * col_m
+        return math.hypot(dr, dc)
+
+    def segment_length(first, second):
+        dr = (second[0] - first[0]) * row_m
+        dc = (second[1] - first[1]) * col_m
+        return math.hypot(dr, dc)
 
     def grade_passes(first, second):
         return (max_ground_grade is None or _ground_grade_grid_edge_passes(
             first, second, elevation, spacing, max_ground_grade))
 
     g_score = np.full((height, width), np.inf, dtype=np.float64)
+    length_score = np.full((height, width), np.inf, dtype=np.float64)
     parent_row = np.full((height, width), -1, dtype=np.int32)
     parent_col = np.full((height, width), -1, dtype=np.int32)
     closed = np.zeros((height, width), dtype=bool)
     g_score[start] = 0.0
+    length_score[start] = 0.0
     parent_row[start], parent_col[start] = start
 
     sequence = count()
-    open_set = [(heuristic(*start), heuristic(*start), next(sequence),
-                 start[0], start[1], 0.0)]
+    open_set = [(cost_heuristic(*start), length_heuristic(*start),
+                 next(sequence), start[0], start[1], 0.0, 0.0)]
 
     while open_set:
-        _, _, _, row, col, popped_g = heapq.heappop(open_set)
-        if popped_g > g_score[row, col] + 1e-12 or closed[row, col]:
+        _, _, _, row, col, popped_g, popped_length = heapq.heappop(open_set)
+        if (popped_g != g_score[row, col]
+                or popped_length != length_score[row, col]
+                or closed[row, col]):
             continue
         if (row, col) == goal:
             route = []
@@ -260,6 +275,7 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
 
             candidate_parent = None
             candidate_g = math.inf
+            candidate_length = math.inf
 
             # Unlike geometric Theta*, a visible long chord can cross expensive
             # cells. Compare it with the adjacent predecessor edge every time.
@@ -267,21 +283,36 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
                     and grade_passes(parent, neighbor)):
                 direct_g = (g_score[parent]
                             + _segment_cost(parent, neighbor, cost, spacing))
-                candidate_parent, candidate_g = parent, direct_g
+                direct_length = (length_score[parent]
+                                 + segment_length(parent, neighbor))
+                candidate_parent = parent
+                candidate_g = direct_g
+                candidate_length = direct_length
 
             current = (row, col)
             if (_segment_is_clear(current, neighbor, traversable)
                     and grade_passes(current, neighbor)):
                 via_g = (g_score[row, col]
                          + _segment_cost(current, neighbor, cost, spacing))
-                if via_g < candidate_g:
-                    candidate_parent, candidate_g = current, via_g
+                via_length = (length_score[row, col]
+                              + segment_length(current, neighbor))
+                if (via_g, via_length) < (candidate_g, candidate_length):
+                    candidate_parent = current
+                    candidate_g = via_g
+                    candidate_length = via_length
 
-            if candidate_parent is None or candidate_g + 1e-12 >= g_score[nr, nc]:
+            if (candidate_parent is None
+                    or (candidate_g, candidate_length)
+                    >= (g_score[nr, nc], length_score[nr, nc])):
                 continue
             g_score[nr, nc] = candidate_g
+            length_score[nr, nc] = candidate_length
             parent_row[nr, nc], parent_col[nr, nc] = candidate_parent
-            h = heuristic(nr, nc)
-            heapq.heappush(open_set, (candidate_g + h, h, next(sequence),
-                                      nr, nc, candidate_g))
+            h_cost = cost_heuristic(nr, nc)
+            h_length = length_heuristic(nr, nc)
+            heapq.heappush(
+                open_set,
+                (candidate_g + h_cost, candidate_length + h_length,
+                 next(sequence), nr, nc, candidate_g, candidate_length),
+            )
     return None

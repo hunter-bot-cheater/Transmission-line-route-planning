@@ -46,6 +46,35 @@ def _dijkstra_oracle(cost, traversable, start, goal, spacing,
     return math.inf
 
 
+def _lexicographic_dijkstra_oracle(cost, traversable, start, goal, spacing,
+                                   neighbors=NEIGHBORS_16):
+    queue = [(0.0, 0.0, start)]
+    best = {start: (0.0, 0.0)}
+    while queue:
+        score, length, cell = heapq.heappop(queue)
+        if (score, length) != best[cell]:
+            continue
+        if cell == goal:
+            return score, length
+        for dr, dc in neighbors:
+            neighbor = cell[0] + dr, cell[1] + dc
+            if not (0 <= neighbor[0] < cost.shape[0]
+                    and 0 <= neighbor[1] < cost.shape[1]):
+                continue
+            edge_cost = integrate_path_cost(
+                [cell, neighbor], cost, traversable, spacing, neighbors)
+            if not math.isfinite(edge_cost):
+                continue
+            candidate = (
+                score + edge_cost,
+                length + math.hypot(dr * spacing[0], dc * spacing[1]),
+            )
+            if candidate < best.get(neighbor, (math.inf, math.inf)):
+                best[neighbor] = candidate
+                heapq.heappush(queue, (*candidate, neighbor))
+    return math.inf, math.inf
+
+
 class ExperimentalAstar16Tests(unittest.TestCase):
     def test_matches_dijkstra_oracle_and_is_direction_invariant(self):
         rng = np.random.default_rng(20261024)
@@ -61,12 +90,36 @@ class ExperimentalAstar16Tests(unittest.TestCase):
         reverse = astar_16_neighbor_path(
             cost, traversable, goal, start, pixel_spacing=spacing)
         route_cost = integrate_path_cost(route, cost, traversable, spacing)
-        oracle_cost = _dijkstra_oracle(cost, traversable, start, goal, spacing)
+        oracle_cost, oracle_length = _lexicographic_dijkstra_oracle(
+            cost, traversable, start, goal, spacing)
+        route_length = sum(
+            math.hypot((b[0] - a[0]) * spacing[0],
+                       (b[1] - a[1]) * spacing[1])
+            for a, b in zip(route, route[1:]))
 
         self.assertEqual(route[0], start)
         self.assertEqual(route[-1], goal)
         self.assertEqual(route, reverse[::-1])
         self.assertAlmostEqual(route_cost, oracle_cost, places=7)
+        self.assertAlmostEqual(route_length, oracle_length, places=7)
+
+    def test_zero_cost_plateau_uses_shortest_route_as_secondary_objective(self):
+        rng = np.random.default_rng(1)
+        cost = np.zeros((10, 10), dtype=np.float64)
+        traversable = rng.random(cost.shape) > 0.18
+        start, goal = (0, 0), (9, 9)
+        traversable[start] = traversable[goal] = True
+
+        route = astar_16_neighbor_path(cost, traversable, start, goal)
+        route_cost = integrate_path_cost(route, cost, traversable)
+        route_length = sum(
+            math.hypot(b[0] - a[0], b[1] - a[1])
+            for a, b in zip(route, route[1:]))
+        oracle_cost, oracle_length = _lexicographic_dijkstra_oracle(
+            cost, traversable, start, goal, (1.0, 1.0))
+
+        self.assertEqual(route_cost, oracle_cost)
+        self.assertAlmostEqual(route_length, oracle_length, places=12)
 
     def test_eight_neighbor_exact_integral_matches_dijkstra(self):
         rng = np.random.default_rng(20261025)

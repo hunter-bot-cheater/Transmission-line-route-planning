@@ -132,8 +132,9 @@ def astar_exact_integral_path(cost_raster, traversable_mask, start_rc, goal_rc,
                               elevation=None, max_ground_grade=None):
     """Search selected raster offsets using exact segment-integral cost.
 
-    The Euclidean lower bound is consistent for every edge because each edge
-    costs at least the minimum traversable raster cost times its metric length.
+    The search minimizes (integrated cost, then length) lexicographically.
+    The Euclidean lower bounds for both objectives are consistent because each
+    edge costs at least the minimum traversable raster cost times its length.
     """
     cost, traversable, spacing, elevation = _validated_inputs(
         cost_raster, traversable_mask, pixel_spacing, elevation, max_ground_grade)
@@ -154,10 +155,15 @@ def astar_exact_integral_path(cost_raster, traversable_mask, start_rc, goal_rc,
 
     minimum_cost = float(cost[traversable].min())
 
-    def heuristic(row, col):
+    def cost_heuristic(row, col):
         dr = (goal[0] - row) * spacing[0]
         dc = (goal[1] - col) * spacing[1]
         return minimum_cost * math.hypot(dr, dc)
+
+    def length_heuristic(row, col):
+        dr = (goal[0] - row) * spacing[0]
+        dc = (goal[1] - col) * spacing[1]
+        return math.hypot(dr, dc)
 
     def edge_cost(first, second):
         if not _segment_is_clear(first, second, traversable):
@@ -171,16 +177,21 @@ def astar_exact_integral_path(cost_raster, traversable_mask, start_rc, goal_rc,
     start_index = start[0] * width + start[1]
     goal_index = goal[0] * width + goal[1]
     scores = np.full((height, width), np.inf, dtype=np.float64)
+    lengths = np.full((height, width), np.inf, dtype=np.float64)
     parents = np.full((height, width), -1, dtype=np.int64)
     closed = np.zeros((height, width), dtype=bool)
     scores[start] = 0.0
+    lengths[start] = 0.0
     sequence = count()
-    open_set = [(heuristic(*start), heuristic(*start), next(sequence), start_index)]
+    open_set = [(cost_heuristic(*start), length_heuristic(*start),
+                 next(sequence), start_index, 0.0, 0.0)]
 
     while open_set:
-        _, _, _, index = heapq.heappop(open_set)
+        _, _, _, index, popped_cost, popped_length = heapq.heappop(open_set)
         row, col = divmod(index, width)
-        if closed[row, col]:
+        if (popped_cost != scores[row, col]
+                or popped_length != lengths[row, col]
+                or closed[row, col]):
             continue
         if index == goal_index:
             path = []
@@ -204,12 +215,22 @@ def astar_exact_integral_path(cost_raster, traversable_mask, start_rc, goal_rc,
             if not math.isfinite(segment_cost):
                 continue
             candidate = scores[row, col] + segment_cost
-            if candidate >= scores[nr, nc]:
+            step_length = math.hypot(dr * spacing[0], dc * spacing[1])
+            candidate_length = lengths[row, col] + step_length
+            if (candidate > scores[nr, nc]
+                    or (candidate == scores[nr, nc]
+                        and candidate_length >= lengths[nr, nc])):
                 continue
             scores[nr, nc] = candidate
+            lengths[nr, nc] = candidate_length
             parents[nr, nc] = row * width + col
-            h = heuristic(nr, nc)
-            heapq.heappush(open_set, (candidate + h, h, next(sequence), nr * width + nc))
+            h_cost = cost_heuristic(nr, nc)
+            h_length = length_heuristic(nr, nc)
+            heapq.heappush(
+                open_set,
+                (candidate + h_cost, candidate_length + h_length,
+                 next(sequence), nr * width + nc, candidate, candidate_length),
+            )
     return None
 
 
