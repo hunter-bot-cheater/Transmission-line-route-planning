@@ -68,6 +68,34 @@ class LandMaskTests(unittest.TestCase):
             load_land_mask_geojson(
                 self.path, Affine(1, 0, 0, 0, -1, 4), (4, 4))
 
+    def test_crs_validation_accepts_crs84_and_rejects_epsg_substring_match(self):
+        feature = {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [0, 0], [4, 0], [4, 4], [0, 4], [0, 0],
+            ]]},
+        }
+        for crs_name in (
+                "OGC:CRS84",
+                "urn:ogc:def:crs:OGC:1.3:CRS84",
+                "http://www.opengis.net/def/crs/OGC/1.3/CRS84"):
+            self.write_geojson(
+                feature,
+                {"type": "name", "properties": {"name": crs_name}},
+            )
+            result = load_land_mask_geojson(
+                self.path, Affine(1, 0, 0, 0, -1, 4), (4, 4))
+            self.assertTrue(np.all(result["land_mask"]), crs_name)
+
+        self.write_geojson(
+            feature,
+            {"type": "name", "properties": {"name": "EPSG:43260"}},
+        )
+        with self.assertRaisesRegex(ValueError, "WGS84"):
+            load_land_mask_geojson(
+                self.path, Affine(1, 0, 0, 0, -1, 4), (4, 4))
+
     def test_nested_multipolygon_components_are_dissolved_for_land_coverage(self):
         feature = {
             "type": "Feature",

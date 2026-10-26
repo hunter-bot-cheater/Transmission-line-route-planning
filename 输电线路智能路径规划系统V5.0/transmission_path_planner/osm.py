@@ -317,8 +317,13 @@ def load_land_mask_geojson(geojson_path, transform, shape):
         crs_properties = declared_crs.get("properties") or {}
         if not isinstance(crs_properties, dict):
             raise ValueError("陆域 GeoJSON 的 crs 声明无效")
-        crs_name = str(crs_properties.get("name", "")).upper()
-        if "4326" not in crs_name and "CRS84" not in crs_name:
+        crs_name = str(crs_properties.get("name", "")).strip()
+        try:
+            parsed_crs = rasterio.crs.CRS.from_user_input(crs_name)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("陆域 GeoJSON 必须使用 WGS84 经纬度坐标") from exc
+        if (parsed_crs.to_epsg() != 4326
+                and parsed_crs.to_string().upper() != "OGC:CRS84"):
             raise ValueError("陆域 GeoJSON 必须使用 WGS84 经纬度坐标")
 
     from shapely.geometry import shape as shapely_shape

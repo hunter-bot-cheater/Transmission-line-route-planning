@@ -63,8 +63,13 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         self.assertEqual(_method_route_metrics(results, "Theta*(experimental)"), [])
 
     def test_metric_grade_penalty_matches_each_search_objective(self):
-        exact_integral_methods = {"A*(8-neighbor exact experimental)"}
         configured_weight = 2.5
+        experimental_neighbor_methods = {
+            "A*(8-neighbor exact experimental)": {"grade_penalty_weight": 0.0},
+            "A*(8-neighbor shared objective experimental)": {
+                "grade_penalty_weight": configured_weight,
+            },
+        }
 
         for method in (
             "A*(8-neighbor exact experimental)",
@@ -74,18 +79,24 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
             with self.subTest(method=method):
                 self.assertEqual(
                     _metric_grade_penalty_weight(
-                        method, exact_integral_methods, configured_weight),
+                        method, experimental_neighbor_methods, configured_weight),
                     0.0,
                 )
 
         self.assertEqual(
             _metric_grade_penalty_weight(
-                "A*(baseline)", exact_integral_methods, configured_weight),
+                "A*(8-neighbor shared objective experimental)",
+                experimental_neighbor_methods, configured_weight),
             configured_weight,
         )
         self.assertEqual(
             _metric_grade_penalty_weight(
-                "A*(turn-aware)", exact_integral_methods, configured_weight),
+                "A*(baseline)", experimental_neighbor_methods, configured_weight),
+            configured_weight,
+        )
+        self.assertEqual(
+            _metric_grade_penalty_weight(
+                "A*(turn-aware)", experimental_neighbor_methods, configured_weight),
             configured_weight,
         )
 
