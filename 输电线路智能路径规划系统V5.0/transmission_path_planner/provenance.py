@@ -82,6 +82,7 @@ def _planning_input_records(args, dem_path, default_osm_cache_dir, model_weights
         ("route_tasks_csv", "route_tasks"),
         ("real_cases_csv", "case_tasks"),
         ("constraint_geojson", "user_constraints"),
+        ("land_mask_geojson", "land_mask"),
         ("population_raster", "population_raster"),
     ):
         path = _arg(args, name)

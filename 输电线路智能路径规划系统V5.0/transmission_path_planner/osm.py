@@ -296,6 +296,85 @@ def compute_residential_landuse_mask(geoms, transform, shape):
     return rasterize_on(residential, transform, shape)
 
 
+def load_land_mask_geojson(geojson_path, transform, shape):
+    """Rasterize WGS84 land polygons as an optional hard traversability mask."""
+    if not HAS_RASTERIO or not HAS_SHAPELY:
+        raise RuntimeError("读取陆域 GeoJSON 需要 rasterio 和 shapely")
+    path = Path(geojson_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"陆域 GeoJSON 不存在: {path}")
+    with path.open(encoding="utf-8-sig") as source_file:
+        document = json.load(source_file)
+    if (not isinstance(document, dict)
+            or document.get("type") != "FeatureCollection"
+            or not isinstance(document.get("features"), list)
+            or not document["features"]):
+        raise ValueError("陆域文件必须是包含要素的 WGS84 GeoJSON FeatureCollection")
+    declared_crs = document.get("crs")
+    if declared_crs:
+        if not isinstance(declared_crs, dict):
+            raise ValueError("陆域 GeoJSON 的 crs 声明无效")
+        crs_properties = declared_crs.get("properties") or {}
+        if not isinstance(crs_properties, dict):
+            raise ValueError("陆域 GeoJSON 的 crs 声明无效")
+        crs_name = str(crs_properties.get("name", "")).upper()
+        if "4326" not in crs_name and "CRS84" not in crs_name:
+            raise ValueError("陆域 GeoJSON 必须使用 WGS84 经纬度坐标")
+
+    from shapely.geometry import shape as shapely_shape
+
+    land_shapes = []
+    repaired_feature_indices = []
+    for index, feature in enumerate(document["features"], start=1):
+        if not isinstance(feature, dict) or not feature.get("geometry"):
+            raise ValueError(f"陆域要素 {index} 缺少有效 geometry")
+        try:
+            geometry = shapely_shape(feature["geometry"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"陆域要素 {index} 的 geometry 格式无效") from exc
+        if (geometry.is_empty
+                or geometry.geom_type not in {"Polygon", "MultiPolygon"}):
+            raise ValueError(f"陆域要素 {index} 必须是有效的 Polygon 或 MultiPolygon")
+        if not geometry.is_valid:
+            if (geometry.geom_type != "MultiPolygon"
+                    or not all(part.is_valid for part in geometry.geoms)):
+                raise ValueError(f"陆域要素 {index} 必须是有效的 Polygon 或 MultiPolygon")
+            geometry = unary_union(list(geometry.geoms))
+            if (geometry.is_empty or not geometry.is_valid
+                    or geometry.geom_type not in {"Polygon", "MultiPolygon"}):
+                raise ValueError(f"陆域要素 {index} 的重叠多边形无法安全合并")
+            repaired_feature_indices.append(index)
+        min_lon, min_lat, max_lon, max_lat = geometry.bounds
+        if (not all(math.isfinite(value) for value in geometry.bounds)
+                or min_lon < -180 or max_lon > 180
+                or min_lat < -90 or max_lat > 90):
+            raise ValueError(f"陆域要素 {index} 坐标超出 WGS84 经纬度范围")
+        land_shapes.append((geometry, 1))
+
+    land_mask = rio_rasterize(
+        land_shapes, out_shape=shape, transform=transform,
+        fill=0, all_touched=False, dtype=np.uint8,
+    )
+    land_cell_count = int(np.count_nonzero(land_mask))
+    if land_cell_count == 0:
+        raise ValueError("陆域多边形没有覆盖当前规划网格")
+    metadata = {
+        "path": str(path.resolve()),
+        "status": "loaded",
+        "feature_count": len(land_shapes),
+        "repaired_feature_count": len(repaired_feature_indices),
+        "repaired_feature_indices": repaired_feature_indices,
+        "land_cell_count": land_cell_count,
+        "rasterization": "pixel_center_inside",
+        "boundary_semantics": "administrative_land_polygon_screen_not_surveyed_shoreline",
+    }
+    if isinstance(document.get("metadata"), dict):
+        metadata["dataset_metadata"] = document["metadata"]
+    if isinstance(document.get("data_sources"), list):
+        metadata["data_sources"] = document["data_sources"]
+    return {"land_mask": land_mask, "metadata": metadata}
+
+
 def load_user_constraint_overlays(geojson_path, transform, shape, *,
                                   require_verified_hard_constraints=False):
     """Rasterize user-supplied WGS84 polygon constraints into hard and soft layers."""

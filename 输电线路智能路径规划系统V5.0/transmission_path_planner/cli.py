@@ -623,6 +623,8 @@ def main():
                     help="允许未核验端点仅作探索性规划；输出不得解释为正式站间候选")
     ap.add_argument("--constraint-geojson", type=str, default=None,
                     help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight。选塔时硬约束另需核验声明和凭证")
+    ap.add_argument("--land-mask-geojson", type=str, default=None,
+                    help="可选 WGS84 陆域 Polygon/MultiPolygon；多边形外区域作为硬不可通行区")
     default_hazard_dir = PACKAGE_DIR / "data" / "official_sources" / "ardswc_115_mvt_z10_20261023"
     ap.add_argument("--official-hazards-dir", type=str, default=str(default_hazard_dir),
                     help="农业部 115 年土石流/大规模崩塌 MVT 数据目录；默认读取软件包内离线图层")
@@ -1017,6 +1019,10 @@ def main():
                 if args.constraint_geojson else None
             )
             custom_constraint_metadata = custom_constraints["metadata"] if custom_constraints else None
+            land_mask_layer = (load_land_mask_geojson(
+                args.land_mask_geojson, transform, dem.shape)
+                if args.land_mask_geojson else None)
+            land_mask_metadata = land_mask_layer["metadata"] if land_mask_layer else None
             for layer_name in ("buildings", "landuse"):
                 layer = osm_layer_metadata.get(layer_name, {})
                 if layer.get("status") != "available":
@@ -1045,13 +1051,19 @@ def main():
 
             slope = terrain["slope"]; elev = terrain["elevation"]
             building_mask = osm.get("building_mask")
+            combined_hard_mask = (
+                np.asarray(custom_constraints["hard_mask"], dtype=np.uint8).copy()
+                if custom_constraints else np.zeros(dem.shape, dtype=np.uint8))
+            if land_mask_layer:
+                combined_hard_mask = np.maximum(
+                    combined_hard_mask,
+                    (land_mask_layer["land_mask"] == 0).astype(np.uint8))
             if args.max_surface_slope_deg is not None:
                 if not 0 < args.max_surface_slope_deg <= 90:
                     raise ValueError("--max-surface-slope-deg 必须在(0,90]内")
             tower_span_mask, hard_mask = build_tower_masks(
                 dem, slope,
-                custom_hard_mask=(custom_constraints["hard_mask"]
-                                  if custom_constraints else None),
+                custom_hard_mask=combined_hard_mask,
                 max_surface_slope_deg=args.max_surface_slope_deg,
                 max_terrain_elevation_m=args.max_terrain_elevation_m,
                 building_mask=building_mask,
@@ -1061,6 +1073,8 @@ def main():
             endpoint_blockers = {"DEM NoData": ~np.isfinite(dem)}
             if custom_constraints:
                 endpoint_blockers["用户硬约束"] = custom_constraints["hard_mask"] > 0
+            if land_mask_layer:
+                endpoint_blockers["陆域范围外"] = land_mask_layer["land_mask"] == 0
             if args.max_surface_slope_deg is not None:
                 endpoint_blockers["地表坡度阈值"] = slope > args.max_surface_slope_deg
             if args.max_terrain_elevation_m is not None:
@@ -1835,6 +1849,7 @@ def main():
                 "official_hazard_metadata": official_hazard_metadata,
                 "official_hazard_route_exposure": hazard_route_exposure,
                 "constraint_layer_metadata": custom_constraint_metadata,
+                "land_mask_metadata": land_mask_metadata,
                 "length_km": round(path_length_km(final_geo), 3) if final_geo else None}
             case_metrics[FINAL_ROUTE_LABEL].update(selected_metrics)
             if final_geo:
@@ -1863,7 +1878,7 @@ def main():
                 "voltage_rules_applied": False,
                 "route_constraints_limitations": (
                     "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area boundaries, "
-                    "conductor clearance, tower siting or span feasibility checked"),
+                    "conductor clearance, tower siting or span feasibility checked; administrative land polygons, when enabled, are a coarse land-area screen, not a surveyed shoreline"),
             })
             if station_task:
                 start_station = station_task["from_station"]
