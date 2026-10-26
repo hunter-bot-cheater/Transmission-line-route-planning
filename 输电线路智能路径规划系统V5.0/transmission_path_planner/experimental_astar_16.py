@@ -50,14 +50,25 @@ def _validated_inputs(cost_raster, traversable_mask, pixel_spacing,
     if (len(spacing) != 2
             or any(not math.isfinite(value) or value <= 0.0 for value in spacing)):
         raise ValueError("pixel_spacing must contain positive finite row/column metres")
+    if elevation is not None:
+        elevation = np.asarray(elevation, dtype=np.float64)
+        if elevation.shape != cost.shape:
+            raise ValueError("elevation must have the same shape as cost_raster")
     if max_ground_grade is not None:
         if (not math.isfinite(float(max_ground_grade)) or max_ground_grade <= 0.0
                 or elevation is None):
             raise ValueError("max_ground_grade requires a positive finite limit and elevation")
-        elevation = np.asarray(elevation, dtype=np.float64)
-        if elevation.shape != cost.shape:
-            raise ValueError("elevation must have the same shape as cost_raster")
     return cost, mask, spacing, elevation
+
+
+def _validated_grade_weight(value):
+    try:
+        weight = float(value)
+    except (TypeError, ValueError):
+        raise ValueError("grade_penalty_weight must be finite and non-negative") from None
+    if not math.isfinite(weight) or weight < 0.0:
+        raise ValueError("grade_penalty_weight must be finite and non-negative")
+    return weight
 
 
 def _cell_center(row_col):
@@ -106,11 +117,30 @@ def _segment_cost(start_rc, end_rc, cost, spacing):
     return total
 
 
+def _segment_grade_penalty(start_rc, end_rc, elevation, spacing, weight):
+    """Apply the production endpoint-grade formula to one search edge."""
+    if weight == 0.0 or elevation is None:
+        return 0.0
+    start_elevation = float(elevation[start_rc])
+    end_elevation = float(elevation[end_rc])
+    if not math.isfinite(start_elevation) or not math.isfinite(end_elevation):
+        return 0.0
+    dr = (end_rc[0] - start_rc[0]) * spacing[0]
+    dc = (end_rc[1] - start_rc[1]) * spacing[1]
+    length = math.hypot(dr, dc)
+    if length == 0.0:
+        return 0.0
+    grade = abs(end_elevation - start_elevation) / length
+    return weight * min(grade / 0.30, 1.0) * length
+
+
 def integrate_path_cost(path, cost_raster, traversable_mask, pixel_spacing=(1.0, 1.0),
-                        neighbor_offsets=NEIGHBORS_16):
-    """Return exact cost-meter integral for a path from the chosen neighbor set."""
+                        neighbor_offsets=NEIGHBORS_16, elevation=None,
+                        grade_penalty_weight=0.0):
+    """Return exact raster integral plus an optional endpoint-grade penalty."""
+    grade_penalty_weight = _validated_grade_weight(grade_penalty_weight)
     cost, traversable, spacing, _ = _validated_inputs(
-        cost_raster, traversable_mask, pixel_spacing, None, None)
+        cost_raster, traversable_mask, pixel_spacing, elevation, None)
     points = [_grid_point(point) for point in path]
     if not points:
         return math.inf
@@ -123,20 +153,26 @@ def integrate_path_cost(path, cost_raster, traversable_mask, pixel_spacing=(1.0,
         delta = (end[0] - start[0], end[1] - start[1])
         if delta not in neighbor_offsets or not _segment_is_clear(start, end, traversable):
             return math.inf
-        total += _segment_cost(start, end, cost, spacing)
+        total += (_segment_cost(start, end, cost, spacing)
+                  + _segment_grade_penalty(
+                      start, end, elevation, spacing, grade_penalty_weight))
     return total
 
 
 def astar_exact_integral_path(cost_raster, traversable_mask, start_rc, goal_rc,
                               neighbor_offsets, pixel_spacing=(1.0, 1.0),
-                              elevation=None, max_ground_grade=None):
+                              elevation=None, max_ground_grade=None,
+                              grade_penalty_weight=0.0):
     """Search selected raster offsets using exact segment-integral cost.
 
-    The search minimizes (integrated cost, then length) lexicographically.
+    The search minimizes (integrated cost plus optional grade penalty, then
+    length) lexicographically.
     The cost lower bound is consistent because each edge costs at least the
-    minimum traversable raster cost times its length. The Euclidean length
-    lower bound is consistent because edge length bounds endpoint displacement.
+    minimum traversable raster cost times its length and the optional grade
+    penalty is non-negative. The Euclidean length lower bound is consistent
+    because edge length bounds endpoint displacement.
     """
+    grade_penalty_weight = _validated_grade_weight(grade_penalty_weight)
     cost, traversable, spacing, elevation = _validated_inputs(
         cost_raster, traversable_mask, pixel_spacing, elevation, max_ground_grade)
     height, width = cost.shape
@@ -173,7 +209,9 @@ def astar_exact_integral_path(cost_raster, traversable_mask, start_rc, goal_rc,
                 and not _ground_grade_grid_edge_passes(
                     first, second, elevation, spacing, max_ground_grade)):
             return math.inf
-        return _segment_cost(first, second, cost, spacing)
+        return (_segment_cost(first, second, cost, spacing)
+                + _segment_grade_penalty(
+                    first, second, elevation, spacing, grade_penalty_weight))
 
     start_index = start[0] * width + start[1]
     goal_index = goal[0] * width + goal[1]

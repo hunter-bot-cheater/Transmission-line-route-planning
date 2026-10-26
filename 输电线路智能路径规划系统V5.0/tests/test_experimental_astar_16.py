@@ -13,6 +13,7 @@ from transmission_path_planner.experimental_astar_16 import (
     integrate_path_cost,
 )
 from transmission_path_planner.metrics import path_cost_integral
+from transmission_path_planner.methods import astar_search
 from transmission_path_planner.smoothing import path_hard_violations
 
 
@@ -47,7 +48,8 @@ def _dijkstra_oracle(cost, traversable, start, goal, spacing,
 
 
 def _lexicographic_dijkstra_oracle(cost, traversable, start, goal, spacing,
-                                   neighbors=NEIGHBORS_16):
+                                   neighbors=NEIGHBORS_16, elevation=None,
+                                   grade_penalty_weight=0.0):
     queue = [(0.0, 0.0, start)]
     best = {start: (0.0, 0.0)}
     while queue:
@@ -62,7 +64,9 @@ def _lexicographic_dijkstra_oracle(cost, traversable, start, goal, spacing,
                     and 0 <= neighbor[1] < cost.shape[1]):
                 continue
             edge_cost = integrate_path_cost(
-                [cell, neighbor], cost, traversable, spacing, neighbors)
+                [cell, neighbor], cost, traversable, spacing, neighbors,
+                elevation=elevation,
+                grade_penalty_weight=grade_penalty_weight)
             if not math.isfinite(edge_cost):
                 continue
             candidate = (
@@ -138,6 +142,101 @@ class ExperimentalAstar16Tests(unittest.TestCase):
             oracle_cost,
             places=7,
         )
+
+    def test_shared_eight_neighbor_cost_matches_production_astar(self):
+        rng = np.random.default_rng(20261027)
+        cost = rng.uniform(0.5, 8.0, size=(8, 10))
+        elevation = rng.uniform(0.0, 1200.0, size=cost.shape)
+        traversable = rng.random(cost.shape) > 0.12
+        traversable[0, :] = traversable[-1, :] = True
+        traversable[:, 0] = traversable[:, -1] = True
+        start, goal = (0, 0), (7, 9)
+        spacing = (230.0, 90.0)
+        grade_weight = 0.8
+
+        production_path = astar_search(
+            np.where(traversable, cost, np.nan), start, goal,
+            elevation=elevation, pixel_spacing=spacing,
+            grade_penalty_weight=grade_weight)
+        shared_path = astar_exact_integral_path(
+            cost, traversable, start, goal, NEIGHBORS_8,
+            pixel_spacing=spacing, elevation=elevation,
+            grade_penalty_weight=grade_weight)
+        production_cost = integrate_path_cost(
+            production_path, cost, traversable, spacing, NEIGHBORS_8,
+            elevation=elevation, grade_penalty_weight=grade_weight)
+        shared_cost = integrate_path_cost(
+            shared_path, cost, traversable, spacing, NEIGHBORS_8,
+            elevation=elevation, grade_penalty_weight=grade_weight)
+        route_length = lambda path: sum(
+            math.hypot((b[0] - a[0]) * spacing[0],
+                       (b[1] - a[1]) * spacing[1])
+            for a, b in zip(path, path[1:]))
+
+        self.assertIsNotNone(production_path)
+        self.assertIsNotNone(shared_path)
+        self.assertAlmostEqual(production_cost, shared_cost, places=7)
+        self.assertAlmostEqual(
+            route_length(production_path), route_length(shared_path), places=7)
+
+    def test_shared_grade_objective_matches_dijkstra_for_both_neighbor_sets(self):
+        rng = np.random.default_rng(20261026)
+        cost = rng.uniform(0.5, 8.0, size=(8, 10))
+        elevation = rng.uniform(0.0, 1500.0, size=cost.shape)
+        traversable = rng.random(cost.shape) > 0.12
+        traversable[0, :] = traversable[-1, :] = True
+        traversable[:, 0] = traversable[:, -1] = True
+        start, goal = (0, 0), (7, 9)
+        spacing = (230.0, 90.0)
+        grade_weight = 1.25
+
+        for neighbors in (NEIGHBORS_8, NEIGHBORS_16):
+            route = astar_exact_integral_path(
+                cost, traversable, start, goal, neighbors,
+                pixel_spacing=spacing, elevation=elevation,
+                grade_penalty_weight=grade_weight,
+            )
+            self.assertIsNotNone(route)
+            route_cost = integrate_path_cost(
+                route, cost, traversable, spacing, neighbors,
+                elevation=elevation, grade_penalty_weight=grade_weight)
+            route_length = sum(
+                math.hypot((b[0] - a[0]) * spacing[0],
+                           (b[1] - a[1]) * spacing[1])
+                for a, b in zip(route, route[1:]))
+            oracle_cost, oracle_length = _lexicographic_dijkstra_oracle(
+                cost, traversable, start, goal, spacing, neighbors,
+                elevation=elevation, grade_penalty_weight=grade_weight)
+
+            self.assertAlmostEqual(route_cost, oracle_cost, places=7)
+            self.assertAlmostEqual(route_length, oracle_length, places=7)
+
+    def test_shared_grade_penalty_is_included_on_knight_edge(self):
+        cost = np.ones((3, 2), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+        elevation = np.zeros(cost.shape, dtype=np.float64)
+        elevation[2, 1] = 10.0
+        edge = [(0, 0), (2, 1)]
+
+        base = integrate_path_cost(edge, cost, traversable,
+                                   neighbor_offsets=NEIGHBORS_16)
+        shared = integrate_path_cost(
+            edge, cost, traversable, neighbor_offsets=NEIGHBORS_16,
+            elevation=elevation, grade_penalty_weight=2.0)
+
+        self.assertAlmostEqual(base, math.sqrt(5.0), places=12)
+        self.assertAlmostEqual(shared, 3.0 * math.sqrt(5.0), places=12)
+
+    def test_knight_edge_integrates_soft_cost_in_crossed_cells(self):
+        cost = np.ones((3, 2), dtype=np.float64)
+        cost[1, 1] = 100.0
+        traversable = np.ones(cost.shape, dtype=bool)
+
+        edge_cost = integrate_path_cost(
+            [(0, 0), (2, 1)], cost, traversable,
+            neighbor_offsets=NEIGHBORS_16)
+
+        self.assertGreater(edge_cost, math.hypot(2.0, 1.0) * 5.0)
 
     def test_segment_integral_matches_production_path_integral(self):
         cost = np.array([

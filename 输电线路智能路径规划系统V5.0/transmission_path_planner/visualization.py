@@ -82,6 +82,8 @@ def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, t
                   "A*(weighted)": "#9467bd", "A*(turn-aware)": "#17becf",
                   "A*(8-neighbor exact experimental)": "#8c564b",
                   "A*(16-neighbor experimental)": "#7f7f7f",
+                  "A*(8-neighbor shared objective experimental)": "#bcbd22",
+                  "A*(16-neighbor shared objective experimental)": "#d62728",
                   "Theta*(experimental)": "#e377c2"}
         line_styles = {
             "A*(baseline)": "-",
@@ -89,6 +91,8 @@ def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, t
             "A*(turn-aware)": ":",
             "A*(8-neighbor exact experimental)": "-.",
             "A*(16-neighbor experimental)": (0, (3, 1, 1, 1)),
+            "A*(8-neighbor shared objective experimental)": (0, (1, 1)),
+            "A*(16-neighbor shared objective experimental)": (0, (5, 2, 1, 2)),
             "Theta*(experimental)": (0, (5, 1)),
         }
         for name, geo in methods_paths.items():
@@ -149,6 +153,8 @@ def plot_value_map(V, transform, geo_vin, start_ll, end_ll, out_path):
 _COMPARISON_METHODS = [
     "VIN-Grad", "PPO", "A*(baseline)", "A*(weighted)", "A*(turn-aware)",
     "A*(8-neighbor exact experimental)", "A*(16-neighbor experimental)",
+    "A*(8-neighbor shared objective experimental)",
+    "A*(16-neighbor shared objective experimental)",
     "Theta*(experimental)",
 ]
 _COMPARISON_METRICS = [
@@ -186,6 +192,8 @@ def plot_algo_comparison(all_results, out_path):
         "A*(baseline)": "A* 基线", "A*(weighted)": "A* 加权",
         "A*(turn-aware)": "A* 转向代价", "A*(8-neighbor exact experimental)": "A* 8邻域精确",
         "A*(16-neighbor experimental)": "A* 16邻域", "Theta*(experimental)": "Theta*",
+        "A*(8-neighbor shared objective experimental)": "A* 8邻域共目标",
+        "A*(16-neighbor shared objective experimental)": "A* 16邻域共目标",
         "VIN-Grad": "VIN-Grad", "PPO": "PPO",
     }
     labels = {
@@ -198,6 +206,8 @@ def plot_algo_comparison(all_results, out_path):
               "A*(weighted)": "#9467bd", "A*(turn-aware)": "#17becf",
               "A*(8-neighbor exact experimental)": "#8c564b",
               "A*(16-neighbor experimental)": "#7f7f7f",
+              "A*(8-neighbor shared objective experimental)": "#bcbd22",
+              "A*(16-neighbor shared objective experimental)": "#d62728",
               "Theta*(experimental)": "#e377c2"}
     for i, k in enumerate(metrics_keys):
         ax = axes[i]
