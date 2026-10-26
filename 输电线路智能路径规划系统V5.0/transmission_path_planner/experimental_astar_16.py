@@ -133,8 +133,9 @@ def astar_exact_integral_path(cost_raster, traversable_mask, start_rc, goal_rc,
     """Search selected raster offsets using exact segment-integral cost.
 
     The search minimizes (integrated cost, then length) lexicographically.
-    The Euclidean lower bounds for both objectives are consistent because each
-    edge costs at least the minimum traversable raster cost times its length.
+    The cost lower bound is consistent because each edge costs at least the
+    minimum traversable raster cost times its length. The Euclidean length
+    lower bound is consistent because edge length bounds endpoint displacement.
     """
     cost, traversable, spacing, elevation = _validated_inputs(
         cost_raster, traversable_mask, pixel_spacing, elevation, max_ground_grade)
