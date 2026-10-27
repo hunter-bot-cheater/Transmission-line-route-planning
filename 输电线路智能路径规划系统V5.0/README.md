@@ -29,33 +29,30 @@
 
 ```
 输电线路智能路径规划系统V5.0/
-├── README.md                         # 本文件
+├── README.md                         # 软件边界、安装和使用说明
 ├── requirements.txt                  # Python 依赖
-├── run_real_tw.bat                   # Windows 真实线路事后评估入口
-├── transmission_path_planner/        # ★ 软件包（软著拟登记源代码）
-│   ├── __init__.py                   #   包初始化、版本号
-│   ├── __main__.py                   #   支持 python -m 运行
-│   ├── config.py                     #   全局配置：依赖导入、常量、确定性种子
-│   ├── geometry.py                   #   经纬度<->栅格、Haversine、路径长度
-│   ├── io_export.py                  #   路径导出（SHP/GeoJSON）
-│   ├── data.py                       #   DEM 读取、地形因子、山体阴影
-│   ├── osm.py                        #   OSM 矢量栅格化、距离/密度/用地波段
-│   ├── corridor.py                   #   旧走廊先验工具（当前 CLI 未接入）
-│   ├── cost.py                       #   26 维特征栈、CostUNet、启发式代价
-│   ├── methods.py                    #   A* / 加权 A* 与可选 VIN-Grad / PPO
-│   ├── stations.py                   #   站点台账与站间任务校验
-│   ├── smoothing.py                  #   路径平滑、硬约束吸附、高程采样
-│   ├── metrics.py                    #   双向空间相似度、覆盖率、形状与长度差指标
-│   ├── visualization.py              #   对比图、价值图、指标柱状图
-│   └── cli.py                        #   命令行入口与批量编排
-├── examples/                         # 站点和站间任务空模板
-├── docs/                             # 规划设计边界与项目技术路线
-├── scripts/                          # 官方开放数据获取脚本
-└── 软著材料/                          # 软件著作权登记材料草稿
-    ├── 软件说明书.md
-    ├── 软著申请表填写说明.md
-    ├── 申报资料清单.md
-    └── 源程序.txt                     # 登记范围 Python 源码分页稿（提交前复核页数）
+├── transmission_path_planner/        # 软著拟登记源代码：23 个 Python 文件
+│   ├── __init__.py / __main__.py     # 包信息和启动入口
+│   ├── cli.py / config.py            # 命令行编排和配置
+│   ├── corridor.py / cost.py         # 离线线路分析和路线代价
+│   ├── data.py / osm.py              # DEM、地形和 OSM 图层处理
+│   ├── diverse_routes.py             # 多样化路线实验工具
+│   ├── experimental_astar_16.py      # 实验性 16 邻域 A*
+│   ├── experimental_theta_star.py    # 实验性 Theta* 搜索
+│   ├── experimental_tower_graph.py   # 实验性候选塔位图筛查
+│   ├── geometry.py / io_export.py    # 几何转换和路线导出
+│   ├── methods.py / metrics.py       # 搜索方法和评价指标
+│   ├── official_hazards.py           # 官方灾害图层处理
+│   ├── provenance.py                 # 输入来源与运行记录
+│   ├── rebuild_terrarium_dem.py      # 离线 DEM 辅助工具
+│   ├── smoothing.py / stations.py    # 路径后处理和站间任务
+│   ├── terrarium.py                  # 高程瓦片解码
+│   └── visualization.py              # 路线及指标图表
+├── examples/                         # 站点和站间任务模板
+├── docs/                             # 算法设计、实验和数据审计
+├── scripts/                          # 数据获取工具
+├── 软著材料/                          # 说明书、申请提示和完整源码
+└── 结项材料_20261027/                 # 阶段总结/结项预备稿
 ```
 
 当前仓库不含专利申请材料目录。
@@ -64,7 +61,7 @@
 
 - 操作系统：Windows 10/11 或 Linux
 - Python：3.9 及以上（开发验证 3.13）
-- 算力：建议 NVIDIA GPU（CUDA 11.8+），CPU 亦可运行但较慢
+- 算力：默认 A* 主规划使用 CPU，不要求 GPU；只有可选 VIN/PPO 诊断才依赖 PyTorch，是否使用 CUDA 取决于安装环境
 - 关键第三方库：numpy、scipy、matplotlib、shapely、rasterio、geopandas、torch
 
 ## 四、安装与运行
