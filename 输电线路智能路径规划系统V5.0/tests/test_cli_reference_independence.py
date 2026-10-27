@@ -37,6 +37,7 @@ from transmission_path_planner.cli import (
     format_case_error,
     summarize_run_completion,
     reject_osm_planning_layer_read_errors,
+    resolve_turn_penalty_weights,
 )
 from transmission_path_planner.geometry import geo_to_rowcol, rowcol_to_geo
 from transmission_path_planner import methods as route_methods
@@ -46,6 +47,21 @@ from transmission_path_planner import metrics
 
 
 class ReferenceIndependentPlanningTests(unittest.TestCase):
+    def test_turn_penalty_weights_keep_legacy_default_and_allow_stage_overrides(self):
+        self.assertEqual(resolve_turn_penalty_weights(0.5), (0.5, 0.5))
+        self.assertEqual(resolve_turn_penalty_weights(0.0, 0.5, 0.0), (0.5, 0.0))
+        self.assertEqual(resolve_turn_penalty_weights(0.0, 0.0, 0.5), (0.0, 0.5))
+
+    def test_shared_objective_rejects_nonzero_smoothing_turn_penalty(self):
+        args = ["planner", "--experimental-astar-16-shared-objective",
+                "--smoothing-turn-penalty-weight", "0.5",
+                "--start", "24,121", "--end", "24.1,121.1"]
+        with patch("sys.argv", args), redirect_stderr(StringIO()):
+            with self.assertRaises(SystemExit) as exc:
+                main()
+
+        self.assertEqual(exc.exception.code, 2)
+
     def test_case_error_summary_keeps_exception_type_when_message_is_empty(self):
         self.assertEqual(format_case_error(MemoryError()), "MemoryError")
         self.assertEqual(format_case_error(ValueError("blocked")), "ValueError: blocked")

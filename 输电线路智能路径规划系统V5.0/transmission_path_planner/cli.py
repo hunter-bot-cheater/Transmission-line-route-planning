@@ -482,6 +482,15 @@ def validate_unique_case_names(cases, check_reference_names=False):
             raise ValueError("用例名净化后发生重复，无法安全匹配逐任务参考线路文件")
 
 
+def resolve_turn_penalty_weights(legacy_weight, search_weight=None,
+                                 smoothing_weight=None):
+    """Resolve the legacy shared weight and optional stage-specific overrides."""
+    return (
+        legacy_weight if search_weight is None else search_weight,
+        legacy_weight if smoothing_weight is None else smoothing_weight,
+    )
+
+
 def validate_cases_available(cases):
     if not cases:
         raise ValueError("未找到有效规划任务；请检查输入 CSV 或站点任务")
@@ -631,7 +640,11 @@ def main():
     ap.add_argument("--official-hazard-weight", type=float, default=1.0,
                     help="官方土石流/崩塌图层联合软代价权重；重叠类别不重复累计，0 表示关闭")
     ap.add_argument("--turn-penalty-weight", type=float, default=0.0,
-                    help="A* 转弯平滑代价系数；0 关闭。启用后使用8方向状态、内存占用显著增加")
+                    help="兼容参数：同时设置搜索和平滑转弯代价；可分别由下面两个参数覆盖")
+    ap.add_argument("--search-turn-penalty-weight", type=float, default=None,
+                    help="A* 搜索转弯代价系数；启用后使用8方向状态、内存占用显著增加")
+    ap.add_argument("--smoothing-turn-penalty-weight", type=float, default=None,
+                    help="约束感知平滑器转弯代价系数；默认沿用 --turn-penalty-weight")
     ap.add_argument("--settlement-weight", type=float, default=2.0,
                     help="OSM建筑密度/住宅与商业用地代理的软避让权重(方案筛选参数, 默认2.0)")
     ap.add_argument("--population-raster", type=str, default=None,
@@ -724,6 +737,10 @@ def main():
     ap.add_argument("--ppo-epochs", type=int, default=4, help="PPO 每轮策略优化 epoch(默认4)")
     ap.add_argument("--ppo-bc", type=int, default=60, help="PPO 行为克隆预热步数(默认60)")
     args = ap.parse_args()
+    (args.search_turn_penalty_weight,
+     args.smoothing_turn_penalty_weight) = resolve_turn_penalty_weights(
+         args.turn_penalty_weight, args.search_turn_penalty_weight,
+         args.smoothing_turn_penalty_weight)
     if bool(args.stations_csv) != bool(args.route_tasks_csv):
         ap.error("--stations-csv 和 --route-tasks-csv 必须同时提供")
     if args.select_experimental_tower_graph:
@@ -768,6 +785,8 @@ def main():
         "--roughness-weight": args.roughness_weight,
         "--official-hazard-weight": args.official_hazard_weight,
         "--turn-penalty-weight": args.turn_penalty_weight,
+        "--search-turn-penalty-weight": args.search_turn_penalty_weight,
+        "--smoothing-turn-penalty-weight": args.smoothing_turn_penalty_weight,
         "--astar-heuristic-weight": args.astar_heuristic_weight,
         "--window-margin-deg": args.window_margin_deg,
         "--max-ground-grade": args.max_ground_grade,
@@ -790,13 +809,16 @@ def main():
             or args.terrain_slope_weight < 0
             or args.roughness_weight < 0
             or args.official_hazard_weight < 0
-            or args.turn_penalty_weight < 0):
+            or args.turn_penalty_weight < 0
+            or args.search_turn_penalty_weight < 0
+            or args.smoothing_turn_penalty_weight < 0):
         ap.error("避让距离与代价权重不能为负数")
     if args.astar_heuristic_weight < 1:
         ap.error("--astar-heuristic-weight 必须大于或等于 1.0")
     if (args.experimental_astar_16_shared_objective
-            and args.turn_penalty_weight > 0):
-        ap.error("--experimental-astar-16-shared-objective 暂不支持非零 --turn-penalty-weight")
+            and (args.search_turn_penalty_weight > 0
+                 or args.smoothing_turn_penalty_weight > 0)):
+        ap.error("--experimental-astar-16-shared-objective 暂不支持非零搜索或平滑转弯权重")
     if args.population_weight > 0 and not args.population_raster:
         ap.error("启用 --population-weight 时必须同时指定 --population-raster")
     if args.population_raster and not Path(args.population_raster).is_file():
@@ -977,7 +999,7 @@ def main():
                     f"scale={population_metadata['normalization_scale_people_per_km2']:.0f} people/km², "
                     f"NoData策略={nodata_policy_label}"
                 )
-            if args.turn_penalty_weight > 0:
+            if args.search_turn_penalty_weight > 0:
                 state_gib = H * W * (8 * 8 + 8) / (1024 ** 3)
                 if state_gib >= 0.5:
                     print(f"  [warn] 转弯状态数组约需 {state_gib:.2f} GiB；还未包含其他栅格和搜索队列")
@@ -1202,7 +1224,7 @@ def main():
             # Weight 1 is optimal A*. Larger weights are approximate; reopened
             # states do not provide a general optimality bound.
             astar_method = (
-                "A*(turn-aware)" if args.turn_penalty_weight > 0 else
+                "A*(turn-aware)" if args.search_turn_penalty_weight > 0 else
                 "A*(baseline)" if args.astar_heuristic_weight == 1.0 else
                 "A*(weighted)"
             )
@@ -1213,7 +1235,7 @@ def main():
                 max_ground_grade=args.max_ground_grade,
                 pixel_spacing=route_pixel_spacing,
                 heuristic_weight=args.astar_heuristic_weight,
-                turn_penalty_weight=args.turn_penalty_weight,
+                turn_penalty_weight=args.search_turn_penalty_weight,
             )
             raw_astar_geo = ([rowcol_to_geo(r, c, transform) for r, c in a_path]
                              if a_path else None)
@@ -1221,7 +1243,7 @@ def main():
             if geo_astar:
                 geo_astar = smooth_path_with_constraints(
                     geo_astar, transform, hard_mask, cost_grid, dem,
-                    args.grade_penalty_weight, args.turn_penalty_weight,
+                    args.grade_penalty_weight, args.smoothing_turn_penalty_weight,
                     route_pixel_spacing, max_ground_grade=args.max_ground_grade,
                     crs=crs, shortcut_endpoints=shortcut_endpoints)
             geo_astar, grade_reports[astar_method] = filter_path_by_ground_grade(
@@ -1239,7 +1261,7 @@ def main():
                     pixel_spacing=route_pixel_spacing, elevation=dem, pixel_m=pm,
                     grade_penalty_weight=args.grade_penalty_weight,
                     max_ground_grade=args.max_ground_grade,
-                    turn_penalty_weight=args.turn_penalty_weight,
+                    turn_penalty_weight=args.search_turn_penalty_weight,
                 )
                 sample_elapsed = time.time() - started
                 for index, candidate in enumerate(sampled_candidates, start=1):
@@ -1249,7 +1271,7 @@ def main():
                     if geo:
                         geo = smooth_path_with_constraints(
                             geo, transform, hard_mask, cost_grid, dem,
-                            args.grade_penalty_weight, args.turn_penalty_weight,
+                            args.grade_penalty_weight, args.smoothing_turn_penalty_weight,
                             route_pixel_spacing,
                             max_ground_grade=args.max_ground_grade, crs=crs,
                             shortcut_endpoints=shortcut_endpoints,
@@ -1401,7 +1423,7 @@ def main():
                         (sr, sc), (er, ec), args.tower_min_span_m,
                         args.tower_max_span_m, pixel_spacing=route_pixel_spacing,
                         candidate_stride=args.tower_candidate_stride,
-                        turn_penalty_weight=args.turn_penalty_weight,
+                        turn_penalty_weight=args.search_turn_penalty_weight,
                         start_position_rc=start_tower_position_rc,
                         goal_position_rc=goal_tower_position_rc,
                         **tower_profile_args,
@@ -1442,7 +1464,7 @@ def main():
                     "span_min_m": args.tower_min_span_m,
                     "span_max_m": args.tower_max_span_m,
                     "candidate_stride": args.tower_candidate_stride,
-                    "turn_penalty_weight": args.turn_penalty_weight,
+                    "turn_penalty_weight": args.search_turn_penalty_weight,
                     "tower_site_max_surface_slope_deg": args.max_surface_slope_deg,
                     "clearance_profile_screening": bool(tower_profile_args),
                     "clearance_profile_status": clearance_profile_status,
@@ -1527,7 +1549,7 @@ def main():
                 if geo:
                     method_grade_weight = _metric_grade_penalty_weight(
                         m, experimental_neighbor_results, args.grade_penalty_weight)
-                    method_turn_weight = (args.turn_penalty_weight
+                    method_turn_weight = (args.search_turn_penalty_weight
                                           if m in ("A*(turn-aware)", TOWER_GRAPH_METHOD)
                                           or m in sampled_pareto_by_method
                                           else 0.0)
@@ -1554,12 +1576,50 @@ def main():
                     met["search_window_edge_clearance_m"] = route_search_window_clearance_m(
                         geo, transform, dem.shape, route_pixel_spacing)
                     if m == astar_method and raw_astar_geo:
+                        met["search_turn_penalty_weight"] = args.search_turn_penalty_weight
+                        met["smoothing_turn_penalty_weight"] = args.smoothing_turn_penalty_weight
                         met["astar_search_path_objective"] = astar_path_objective(
                             a_path, cost_grid, dem, route_pixel_spacing,
-                            args.grade_penalty_weight, args.turn_penalty_weight)
+                            args.grade_penalty_weight, args.search_turn_penalty_weight)
+                        raw_at_search_weight = path_cost_integral(
+                            raw_astar_geo, dem, transform, cost_grid,
+                            args.grade_penalty_weight, args.search_turn_penalty_weight,
+                            route_pixel_spacing)
+                        post_at_search_weight = path_cost_integral(
+                            geo, dem, transform, cost_grid,
+                            args.grade_penalty_weight, args.search_turn_penalty_weight,
+                            route_pixel_spacing)
+                        raw_at_smoothing_weight = path_cost_integral(
+                            raw_astar_geo, dem, transform, cost_grid,
+                            args.grade_penalty_weight, args.smoothing_turn_penalty_weight,
+                            route_pixel_spacing)
+                        post_at_smoothing_weight = path_cost_integral(
+                            geo, dem, transform, cost_grid,
+                            args.grade_penalty_weight, args.smoothing_turn_penalty_weight,
+                            route_pixel_spacing)
+                        met["astar_raw_vs_post_cost_diagnostics"] = {
+                            "raw_at_search_weight": raw_at_search_weight,
+                            "post_at_search_weight": post_at_search_weight,
+                            "raw_at_smoothing_weight": raw_at_smoothing_weight,
+                            "post_at_smoothing_weight": post_at_smoothing_weight,
+                            "post_minus_raw_at_search_weight_meter": (
+                                post_at_search_weight["total_cost_meter"]
+                                - raw_at_search_weight["total_cost_meter"]
+                                if post_at_search_weight["status"] == "measured"
+                                and raw_at_search_weight["status"] == "measured"
+                                else None),
+                            "post_minus_raw_at_smoothing_weight_meter": (
+                                post_at_smoothing_weight["total_cost_meter"]
+                                - raw_at_smoothing_weight["total_cost_meter"]
+                                if post_at_smoothing_weight["status"] == "measured"
+                                and raw_at_smoothing_weight["status"] == "measured"
+                                else None),
+                        }
                     if m in sampled_pareto_by_method:
                         met["candidate_role"] = "experimental_nonselectable_pareto_sample"
                         met["sampled_pareto"] = sampled_pareto_by_method[m]
+                        met["search_turn_penalty_weight"] = args.search_turn_penalty_weight
+                        met["smoothing_turn_penalty_weight"] = args.smoothing_turn_penalty_weight
                     if m in ("A*(baseline)", "A*(weighted)"):
                         met["astar_heuristic_weight"] = args.astar_heuristic_weight
                         met["ridge_penalty_weight"] = args.ridge_penalty_weight
@@ -1567,7 +1627,8 @@ def main():
                         met["official_hazard_weight"] = args.official_hazard_weight
                     if m == "A*(turn-aware)":
                         met["astar_heuristic_weight"] = args.astar_heuristic_weight
-                        met["turn_penalty_weight"] = args.turn_penalty_weight
+                        met["turn_penalty_weight"] = args.search_turn_penalty_weight
+                        met["search_turn_penalty_weight"] = args.search_turn_penalty_weight
                         met["ridge_penalty_weight"] = args.ridge_penalty_weight
                         met["landcover_penalty_weight"] = args.landcover_penalty_weight
                         met["official_hazard_weight"] = args.official_hazard_weight
@@ -1861,6 +1922,8 @@ def main():
                 "settlement_weight": args.settlement_weight,
                 "official_hazard_weight": args.official_hazard_weight,
                 "turn_penalty_weight": args.turn_penalty_weight,
+                "search_turn_penalty_weight": args.search_turn_penalty_weight,
+                "smoothing_turn_penalty_weight": args.smoothing_turn_penalty_weight,
                 "ridge_penalty_weight": args.ridge_penalty_weight,
                 "landcover_penalty_weight": args.landcover_penalty_weight,
                 "building_clearance_m": args.building_clearance_m,
@@ -1966,6 +2029,8 @@ def main():
                                            "settlement_weight": args.settlement_weight,
                                            "official_hazard_weight": args.official_hazard_weight,
                                            "turn_penalty_weight": args.turn_penalty_weight,
+                                           "search_turn_penalty_weight": args.search_turn_penalty_weight,
+                                           "smoothing_turn_penalty_weight": args.smoothing_turn_penalty_weight,
                                            "ridge_penalty_weight": args.ridge_penalty_weight,
                                            "landcover_penalty_weight": args.landcover_penalty_weight,
                                            "building_clearance_m": args.building_clearance_m,
@@ -2074,6 +2139,12 @@ def main():
                     tag = m.split("(")[0].strip().lower().replace("*", "astar").replace("-", "")
                 export_route(geo, crs, cdir / f"planned_route_{tag}.shp",
                              cdir / f"planned_route_{tag}.geojson")
+            if raw_astar_geo:
+                export_route(
+                    raw_astar_geo, crs,
+                    cdir / "astar_raw_route.shp",
+                    cdir / "astar_raw_route.geojson",
+                )
             # 导出真实/参考线路(便于下游复用与二次对比)
             if real_geo:
                 export_route(real_geo, crs, cdir / "real_route.shp", cdir / "real_route.geojson")
