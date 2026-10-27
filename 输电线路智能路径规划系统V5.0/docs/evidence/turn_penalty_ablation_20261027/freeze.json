@@ -1,0 +1,167 @@
+{
+  "experiment_id": "turn_penalty_ablation_3case_20261027",
+  "status": "frozen_before_turn_penalty_runs",
+  "frozen_at_utc": "2026-10-27T01:48:57.711788+00:00",
+  "purpose": "Isolate the effect of A* turn cost on fixed-endpoint terrain-only candidate geometry; reference geometry is not used in planning, parameter selection, or stopping.",
+  "source_terrain_weight_experiment": "terrain_cost_weight_ablation_3case_20261027",
+  "source_freeze_sha256": "caab0fe38d712f6e6b7a6d3a5cbd2f636be0245b5f05e9aac59a9468ccbc4d13",
+  "source_candidate_freeze_sha256": "eebf3a045691d3226aa7476b4c68c7c888b30323966695c29419270733f11eb1",
+  "source_server_code_sha256": {
+    "cli.py": "b3a5e22d761434ab6e293de6de3badb4560ed7b082485aabb63fd5ad2574c493",
+    "cost.py": "f5d07061852f524caa73dc3f60e1967ab0172f60cfae72e96c57098a35bb1f9d",
+    "methods.py": "cfe44e73af001d9a44207a0eae412f8900eeef954f816ed4ccd19317dd164792"
+  },
+  "case_selection": {
+    "rule": "Reuse the preselected low, upper-median, and high endpoint-box DEM slope cases from the frozen 3-case terrain-cost experiment. No reference route scores are used to select cases.",
+    "window_margin_deg": 0.3,
+    "selected_cases": [
+      {
+        "case_id": "TW59",
+        "start": [
+          24.995756,
+          121.696388
+        ],
+        "end": [
+          24.819519,
+          121.196138
+        ],
+        "bbox_p90_slope_deg": 34.0742,
+        "bbox_p95_slope_deg": 38.0786,
+        "bbox_relief_p95_minus_p5_m": 1534.0,
+        "selection_rank": "minimum",
+        "baseline_source_dir": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\turn_penalty_ablation_3case_20261027\\baselines\\TW59",
+        "baseline_route_hashes": {
+          "final_route.geojson": "a69c351fe1a710f99933079d9599ba8cb58fc2c5a7ca81240bf249cfe54c5907",
+          "planned_route_aastar.geojson": "2bebfbf5702b48007307f8441f764a73f636028c9b2d20c4f6b2b90df612d87b"
+        }
+      },
+      {
+        "case_id": "TW345",
+        "start": [
+          23.892187,
+          120.768123
+        ],
+        "end": [
+          23.552757,
+          120.490569
+        ],
+        "bbox_p90_slope_deg": 36.9423,
+        "bbox_p95_slope_deg": 41.5916,
+        "bbox_relief_p95_minus_p5_m": 2470.0,
+        "selection_rank": "upper_median",
+        "baseline_source_dir": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\turn_penalty_ablation_3case_20261027\\baselines\\TW345",
+        "baseline_route_hashes": {
+          "final_route.geojson": "8cba43037b8d18b55b54d2094c77da8437af7f58db617061fc05c51a309b5c29",
+          "planned_route_aastar.geojson": "0d3a93988341e73b4347453194674680f4be94e9481bbce0c61828476ba02515"
+        }
+      },
+      {
+        "case_id": "TW102",
+        "start": [
+          23.721245,
+          121.43028
+        ],
+        "end": [
+          23.334595,
+          121.305276
+        ],
+        "bbox_p90_slope_deg": 42.6396,
+        "bbox_p95_slope_deg": 46.6556,
+        "bbox_relief_p95_minus_p5_m": 2794.1,
+        "selection_rank": "maximum",
+        "baseline_source_dir": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\turn_penalty_ablation_3case_20261027\\baselines\\TW102",
+        "baseline_route_hashes": {
+          "final_route.geojson": "fd75f422a4df90c226b20dc8bd17be97a1803050560e875b2b2e42b7d43e47f2",
+          "planned_route_aastar.geojson": "c697f652ba5bf59e1f459706eb1260fa3f80057993efa91dad13c134908358c6"
+        }
+      }
+    ]
+  },
+  "planning_input_hashes": {
+    "dem": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\taiwan_dem_35m_georef_fixed.tif",
+      "sha256": "dc963ff6047f911275e9d2b3be678539f09ee8457939511c094721be6a2b4025",
+      "size_bytes": 108648188
+    },
+    "constraints": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_constraints_20261023.geojson",
+      "sha256": "5967d659856b925cd42909a6b5e1cf4ac09ae808d6d1c8e7ecd851003fa530b5",
+      "size_bytes": 9910543
+    },
+    "land_mask": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\landmask_route_fix_20261026\\server_output_12case\\route_geometry\\county_boundaries_1140318.geojson",
+      "sha256": "7e3d24cb13b7f1125c1c967d9d436ee556567516b0eb9894cfa3e763fe8874dd",
+      "size_bytes": 10172081
+    },
+    "hazard_manifest": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\manifest.json",
+      "sha256": "d6d9328ad03a1ac73a8fc8aaf3cff8a1d4afdc59df4134da8d6a77f654bf320b",
+      "size_bytes": 3057
+    },
+    "hazard_tiles_sha256": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\tiles.sha256",
+      "sha256": "3d0fcf3137def46c5ad5b5d2452da27c120fb42cfba68967c4f3d57751466a37",
+      "size_bytes": 15742
+    },
+    "osm_landuse": {
+      "path": "D:\\大创\\V5_final\\data\\downloaded\\taiwan_landuse.pkl",
+      "sha256": "823b984a95b1ced79b2c73a5b438f6c3851316879f0f109b63a2015c54d7a093",
+      "size_bytes": 62594277
+    },
+    "osm_buildings": {
+      "path": "D:\\大创\\V5_final\\data\\downloaded\\taiwan_buildings.pkl",
+      "sha256": "d601bd68ce1fdcf6833b53553db8f4378ee2f02ccdda20db51e19030b063c3d3",
+      "size_bytes": 142960916
+    }
+  },
+  "variable_weights": [
+    {
+      "turn_penalty_weight": 0.1
+    },
+    {
+      "turn_penalty_weight": 0.25
+    },
+    {
+      "turn_penalty_weight": 0.5
+    },
+    {
+      "turn_penalty_weight": 1.0
+    }
+  ],
+  "baseline": {
+    "turn_penalty_weight": 0.0,
+    "reused_planner_outputs": true,
+    "baseline_routes_are_candidates_from_prior_cost_weight_batch": true,
+    "baseline_candidate_count": 3,
+    "new_turn_weight_run_count": 12
+  },
+  "fixed_weights": {
+    "official_hazard_weight": 1.0,
+    "settlement_weight": 2.0,
+    "ridge_penalty_weight": 0.1,
+    "landcover_penalty_weight": 0.0,
+    "roughness_weight": 0.25,
+    "turn_penalty_weight": null,
+    "population_weight": 0.0,
+    "astar_heuristic_weight": 1.0,
+    "terrain_slope_weight": 0.0,
+    "grade_penalty_weight": 0.0
+  },
+  "engine": {
+    "algorithm": "CPU A* turn-aware search",
+    "max_side": 2048,
+    "window_margin_deg": 0.3,
+    "gpu_used": false,
+    "runs_serially": true,
+    "population_layer": "disabled"
+  },
+  "reference_policy": {
+    "reference_files_passed_to_planner": false,
+    "planning_uses_reference_geometry": false,
+    "all_12_candidates_frozen_before_reference_read": true,
+    "reference_similarity_may_select_turn_weight": false,
+    "all_candidates_frozen_before_reference_read": true,
+    "candidate_count_including_reused_baseline": 15
+  },
+  "evaluation_rule": "Report hard constraints, route length, total ascent/descent, grade/slope/roughness exposure, heading changes/turn cost and resource time. Report route similarity only after all 12 candidate geometries are frozen. Do not select a turn weight using reference similarity."
+}

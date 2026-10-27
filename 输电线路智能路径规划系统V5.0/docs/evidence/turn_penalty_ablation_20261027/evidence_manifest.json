@@ -1,0 +1,10 @@
+{
+  "experiment_id": "turn_penalty_ablation_3case_20261027",
+  "files": [
+    {
+      "file": "freeze.json",
+      "size_bytes": 7550,
+      "sha256": "027ffff42610def293d4924233db34783212bff36f2da17788d72604981d36c1"
+    }
+  ]
+}
