@@ -1,0 +1,149 @@
+{
+  "software_name": "输电线路智能路径规划系统",
+  "version": "V5.0",
+  "source_root": "transmission_path_planner/",
+  "baseline_git_revision": "de03f78cb9ffe836ddf6ff576ece9e19a4c4a38b",
+  "python_file_count": 23,
+  "raw_source_line_count": 9602,
+  "combined_line_count_with_path_markers": 9625,
+  "files": [
+    {
+      "path": "transmission_path_planner/__init__.py",
+      "source_lines": 12,
+      "bytes": 556,
+      "sha256": "b038356cd9612a78f52bf8c3164d76ddffab92009f0696a68e2517ba0dd42932"
+    },
+    {
+      "path": "transmission_path_planner/__main__.py",
+      "source_lines": 7,
+      "bytes": 168,
+      "sha256": "ca22886fbac055824344581f2ced4fa787532a8a91d27b2e98d801f6babd1222"
+    },
+    {
+      "path": "transmission_path_planner/cli.py",
+      "source_lines": 2287,
+      "bytes": 134802,
+      "sha256": "b3a5e22d761434ab6e293de6de3badb4560ed7b082485aabb63fd5ad2574c493"
+    },
+    {
+      "path": "transmission_path_planner/config.py",
+      "source_lines": 184,
+      "bytes": 6863,
+      "sha256": "75f6467d828f0c04666a74ee111b1ff841b6571d19a101579ea81f328fe25c64"
+    },
+    {
+      "path": "transmission_path_planner/corridor.py",
+      "source_lines": 176,
+      "bytes": 6745,
+      "sha256": "8aef1bb09e9dbab5adde7f798bce0f8e41fe0f7650e1fd9e82c37bb5da237788"
+    },
+    {
+      "path": "transmission_path_planner/cost.py",
+      "source_lines": 254,
+      "bytes": 12652,
+      "sha256": "f5d07061852f524caa73dc3f60e1967ab0172f60cfae72e96c57098a35bb1f9d"
+    },
+    {
+      "path": "transmission_path_planner/data.py",
+      "source_lines": 443,
+      "bytes": 19220,
+      "sha256": "e6b79621a13d763daffd7003030cfe0005a20c298a5d832ac33b65b3f7b361e2"
+    },
+    {
+      "path": "transmission_path_planner/diverse_routes.py",
+      "source_lines": 441,
+      "bytes": 20156,
+      "sha256": "952d87838b2f32d01ab775c7ce1e0429d2a1ad51f3794d60a54b28fd40b3233a"
+    },
+    {
+      "path": "transmission_path_planner/experimental_astar_16.py",
+      "source_lines": 283,
+      "bytes": 11474,
+      "sha256": "401af83a9758d3c79aad52c7268d67dfe68ec43228e25761aaf557f4ec2e3a3f"
+    },
+    {
+      "path": "transmission_path_planner/experimental_theta_star.py",
+      "source_lines": 318,
+      "bytes": 13430,
+      "sha256": "3959a054c51a070cbf5d5396bbc72d51ea97393ad5560d5323df5b2be37c997c"
+    },
+    {
+      "path": "transmission_path_planner/experimental_tower_graph.py",
+      "source_lines": 568,
+      "bytes": 27755,
+      "sha256": "65f0560c47c97efaa29d85320b661484d1727ab8b99971b27362540e129027b7"
+    },
+    {
+      "path": "transmission_path_planner/geometry.py",
+      "source_lines": 92,
+      "bytes": 3854,
+      "sha256": "cef485dac1a7f6b7f5759b5f1fc6d18335e39a9bddb8b9e9d824c136942ad246"
+    },
+    {
+      "path": "transmission_path_planner/io_export.py",
+      "source_lines": 103,
+      "bytes": 4161,
+      "sha256": "db4444e2783c42d3daaf6a095e527fe01068181ea69e1b31f28b12d07d8e1311"
+    },
+    {
+      "path": "transmission_path_planner/methods.py",
+      "source_lines": 1062,
+      "bytes": 57239,
+      "sha256": "cfe44e73af001d9a44207a0eae412f8900eeef954f816ed4ccd19317dd164792"
+    },
+    {
+      "path": "transmission_path_planner/metrics.py",
+      "source_lines": 857,
+      "bytes": 41956,
+      "sha256": "b6f3808ea9a36843d1195404899aa0be72f9c6f3b2903125c4a0fdb21a305574"
+    },
+    {
+      "path": "transmission_path_planner/official_hazards.py",
+      "source_lines": 511,
+      "bytes": 22140,
+      "sha256": "aecb44ca3238f46f7d03939252b2d756b9ceb8c8cc67018c70382cd20244b817"
+    },
+    {
+      "path": "transmission_path_planner/osm.py",
+      "source_lines": 671,
+      "bytes": 33373,
+      "sha256": "ae4c7f0149f47d5dc181b3d434f84d39354dcb301ae34d385724137ea23b80ad"
+    },
+    {
+      "path": "transmission_path_planner/provenance.py",
+      "source_lines": 268,
+      "bytes": 9501,
+      "sha256": "85b4204f44152cf2ad847cbf4a55a5d400cde411d89e6cc127e27828e8219281"
+    },
+    {
+      "path": "transmission_path_planner/rebuild_terrarium_dem.py",
+      "source_lines": 148,
+      "bytes": 6644,
+      "sha256": "ee69866a3a229e4855abb356acc7be1b42b5220241e051ff73bd66efdb2f380a"
+    },
+    {
+      "path": "transmission_path_planner/smoothing.py",
+      "source_lines": 414,
+      "bytes": 17112,
+      "sha256": "bed0a978e502f5add055ee350b8bd0e9385bb8049dc157c6cf9484cede14e44e"
+    },
+    {
+      "path": "transmission_path_planner/stations.py",
+      "source_lines": 217,
+      "bytes": 11190,
+      "sha256": "93c92d8cf4cf0048856fe49973fa0ccc2344a9ec1d024d8527d12f5f82cae966"
+    },
+    {
+      "path": "transmission_path_planner/terrarium.py",
+      "source_lines": 37,
+      "bytes": 1471,
+      "sha256": "3d4d823ff5731242f90127c59887bc734da4431db42a2412287179cf34d3942e"
+    },
+    {
+      "path": "transmission_path_planner/visualization.py",
+      "source_lines": 249,
+      "bytes": 11917,
+      "sha256": "f4d0dca8f5b25b269fa179e6f4c6cc33a038f11ada150018a61b42138ed1515e"
+    }
+  ]
+}

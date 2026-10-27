@@ -1,0 +1,208 @@
+{
+  "experiment_id": "turn_penalty_ablation_3case_20261027",
+  "status": "complete",
+  "verified_input_sha256": {
+    "dem": "dc963ff6047f911275e9d2b3be678539f09ee8457939511c094721be6a2b4025",
+    "constraints": "5967d659856b925cd42909a6b5e1cf4ac09ae808d6d1c8e7ecd851003fa530b5",
+    "land_mask": "7e3d24cb13b7f1125c1c967d9d436ee556567516b0eb9894cfa3e763fe8874dd",
+    "hazard_manifest": "d6d9328ad03a1ac73a8fc8aaf3cff8a1d4afdc59df4134da8d6a77f654bf320b",
+    "hazard_tiles_sha256": "3d0fcf3137def46c5ad5b5d2452da27c120fb42cfba68967c4f3d57751466a37",
+    "osm_landuse": "823b984a95b1ced79b2c73a5b438f6c3851316879f0f109b63a2015c54d7a093",
+    "osm_buildings": "d601bd68ce1fdcf6833b53553db8f4378ee2f02ccdda20db51e19030b063c3d3"
+  },
+  "verified_code_sha256": {
+    "cli.py": "b3a5e22d761434ab6e293de6de3badb4560ed7b082485aabb63fd5ad2574c493",
+    "cost.py": "f5d07061852f524caa73dc3f60e1967ab0172f60cfae72e96c57098a35bb1f9d",
+    "methods.py": "cfe44e73af001d9a44207a0eae412f8900eeef954f816ed4ccd19317dd164792"
+  },
+  "gpu_used": false,
+  "gpu_reason": "A* turn-aware grid search is CPU-bound; CUDA_VISIBLE_DEVICES is empty for each child.",
+  "turn_penalty_weights": [
+    0.1,
+    0.25,
+    0.5,
+    1.0
+  ],
+  "runs": [
+    {
+      "tag": "TW59_t0p1",
+      "case_id": "TW59",
+      "turn_penalty_weight": 0.1,
+      "elapsed_s": 316.032,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW59_t0p25",
+      "case_id": "TW59",
+      "turn_penalty_weight": 0.25,
+      "elapsed_s": 314.15,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW59_t0p5",
+      "case_id": "TW59",
+      "turn_penalty_weight": 0.5,
+      "elapsed_s": 321.728,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW59_t1",
+      "case_id": "TW59",
+      "turn_penalty_weight": 1.0,
+      "elapsed_s": 325.408,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW345_t0p1",
+      "case_id": "TW345",
+      "turn_penalty_weight": 0.1,
+      "elapsed_s": 174.523,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW345_t0p25",
+      "case_id": "TW345",
+      "turn_penalty_weight": 0.25,
+      "elapsed_s": 173.374,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW345_t0p5",
+      "case_id": "TW345",
+      "turn_penalty_weight": 0.5,
+      "elapsed_s": 177.489,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW345_t1",
+      "case_id": "TW345",
+      "turn_penalty_weight": 1.0,
+      "elapsed_s": 174.53,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW102_t0p1",
+      "case_id": "TW102",
+      "turn_penalty_weight": 0.1,
+      "elapsed_s": 122.612,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW102_t0p25",
+      "case_id": "TW102",
+      "turn_penalty_weight": 0.25,
+      "elapsed_s": 118.109,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW102_t0p5",
+      "case_id": "TW102",
+      "turn_penalty_weight": 0.5,
+      "elapsed_s": 121.764,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    },
+    {
+      "tag": "TW102_t1",
+      "case_id": "TW102",
+      "turn_penalty_weight": 1.0,
+      "elapsed_s": 121.849,
+      "returncode": 0,
+      "run_summary": {
+        "expected_cases": 1,
+        "completed_cases": 1,
+        "recorded_cases": 1,
+        "failed_cases": [],
+        "no_route_cases": [],
+        "complete": true
+      }
+    }
+  ]
+}

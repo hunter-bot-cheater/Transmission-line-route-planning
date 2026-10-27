@@ -1,0 +1,52 @@
+{
+  "experiment_id": null,
+  "candidate_count": 15,
+  "reference_geometry_read": false,
+  "candidates": [
+    {
+      "final_route_sha256": "74947e2478eb259d5904e2fdc6610d29180714917bd535f4ed723552a7a39495"
+    },
+    {
+      "final_route_sha256": "3f47437cbbce656c8233aa36823431288b6b15ce4a62c9fb1a3151347a090982"
+    },
+    {
+      "final_route_sha256": "1854e7aaa9894ffb6dcf2e54eb40bc4c47581f14755cc97005194ff2b671aadf"
+    },
+    {
+      "final_route_sha256": "b0c3359fee41ed9a788996e805762876230478f2f7a735df9e5ea08b1072ee58"
+    },
+    {
+      "final_route_sha256": "68623a843295cfb27117ef6d85a079d33908b49f7acf0688424177871ff725cd"
+    },
+    {
+      "final_route_sha256": "fc139d709b657e448e795fb47e345add4efd1697f6f8258cb431dbcf240ffdd8"
+    },
+    {
+      "final_route_sha256": "4cfa1a3a5a63942b02435eb9652bae8d281c5480f747eba71cbbd68f39184511"
+    },
+    {
+      "final_route_sha256": "968a206e6f9f2448d2b86856cf6f3fed573d782aaefedf4eb63da376f9fd10d0"
+    },
+    {
+      "final_route_sha256": "74314dee62ade4602d10397c62a51ad3594f14cfac96d2d2cc92205a89d8c613"
+    },
+    {
+      "final_route_sha256": "5cc373cab16f16ae5c48e3a803196efcbb0b9faae0584b9379de3551c3cd3184"
+    },
+    {
+      "final_route_sha256": "f1aa8f6c0592dc7b24d413227e3df43c001643da7487284a7b8f7078b4396fc0"
+    },
+    {
+      "final_route_sha256": "5437fe39d3719bd561aaea2530ec4ba78eba5358ca506bccf589c28840a92592"
+    },
+    {
+      "final_route_sha256": "2f4f43d0b9400f3a3ad72de17824a685b331931547c319c1b5a5db3e3fa484d9"
+    },
+    {
+      "final_route_sha256": "a1c83431562e7e8aa24e9dadc3bb93013e8bcf3ad772382432e51611107327ca"
+    },
+    {
+      "final_route_sha256": "2f076593820e3ba942c3ea3646d4bc81b40264b2d7cc0587b602df4ac11fa1ea"
+    }
+  ]
+}

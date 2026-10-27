@@ -2,9 +2,34 @@
   "experiment_id": "turn_penalty_ablation_3case_20261027",
   "files": [
     {
-      "file": "freeze.json",
-      "size_bytes": 7550,
-      "sha256": "027ffff42610def293d4924233db34783212bff36f2da17788d72604981d36c1"
+      "path": "candidate_freeze_summary.json",
+      "bytes": 1783,
+      "sha256": "011fbcfe82191477b00d01527189284d7abae49b5896fbeaf1f6c5f5d3d92cb2"
+    },
+    {
+      "path": "posthoc_metrics_v6.csv",
+      "bytes": 2596,
+      "sha256": "45842b41afdcd567a8cde73abe44d9a3f164651ca294e6f18757329fbf5d088e"
+    },
+    {
+      "path": "posthoc_summary_v6.json",
+      "bytes": 977,
+      "sha256": "16042234951560dd54a9b6fe64a3cee9a066ace506fbbe63dbc3a96c4f0a80a9"
+    },
+    {
+      "path": "server_execution_summary_sanitized.json",
+      "bytes": 5660,
+      "sha256": "2c89a1ba5ddb565303cc0a8ce8646d58bc0b73ce008aabfaaec710800ca85710"
+    },
+    {
+      "path": "turn_penalty_metrics.png",
+      "bytes": 192997,
+      "sha256": "0445013d6b25fb563ed3218b121b8538ce616cc8d4ff81d90b94b4c171e91be4"
+    },
+    {
+      "path": "turn_penalty_route_overlay.png",
+      "bytes": 145919,
+      "sha256": "d9ab88c936af3c9e0dab1293b89aa14f45eb01e718783b68fa71531b509ba99f"
     }
   ]
 }
