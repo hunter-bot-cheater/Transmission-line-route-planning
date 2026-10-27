@@ -710,7 +710,7 @@ def main():
     ap.add_argument("--max-ground-grade", type=float, default=None,
                     help="可选地面相邻栅格最大坡度比，如0.30; 属于筛选阈值，不是线路设计限值")
     ap.add_argument("--max-surface-slope-deg", type=float, default=None,
-                    help="可选地表坡度硬限制(度); 默认不设工程阈值")
+                    help="可选候选塔位地表坡度筛查阈值(度); 不限制架空走廊跨越；默认不设工程阈值")
     ap.add_argument("--max-terrain-elevation-m", type=float, default=None,
                     help="可选地形海拔硬限制(米); 默认不设工程阈值")
     ap.add_argument("--use-costunet", action="store_true",
@@ -1094,7 +1094,7 @@ def main():
             if args.max_surface_slope_deg is not None:
                 if not 0 < args.max_surface_slope_deg <= 90:
                     raise ValueError("--max-surface-slope-deg 必须在(0,90]内")
-            tower_span_mask, hard_mask = build_tower_masks(
+            tower_span_mask, tower_site_mask = build_tower_masks(
                 dem, slope,
                 custom_hard_mask=combined_hard_mask,
                 max_surface_slope_deg=args.max_surface_slope_deg,
@@ -1121,24 +1121,24 @@ def main():
             endpoint_building_exceptions = open_safe_building_endpoint_pixels(
                 (("起点", (sr, sc), (slon, slat)),
                  ("终点", (er, ec), (elon, elat))),
-                hard_mask, endpoint_blockers, building_geometries, transform,
+                tower_site_mask, endpoint_blockers, building_geometries, transform,
                 args.building_clearance_m,
             )
             for exception in endpoint_building_exceptions:
                 tower_span_mask[exception["row"], exception["col"]] = 1
             endpoint_mask = (tower_span_mask if args.experimental_tower_graph
-                             else hard_mask)
+                             else tower_site_mask)
             validate_endpoint_cells((sr, sc), (er, ec), dem.shape, endpoint_mask,
                                     endpoint_blockers)
             same_grid_cell = (sr, sc) == (er, ec)
             cost_grid = (1.0 + 4.0 * cost).astype(np.float64)
-            cost_grid = np.where(hard_mask == 0, np.inf, cost_grid)
+            cost_grid = np.where(tower_span_mask > 0, cost_grid, np.inf)
             tower_span_cost_grid = (1.0 + 4.0 * cost).astype(np.float64)
             tower_span_cost_grid = np.where(
                 tower_span_mask > 0, tower_span_cost_grid, np.inf)
             if args.include_ai_diagnostics:
                 cost_finite = np.where(np.isfinite(cost), cost, 1.0).astype(np.float32)
-                cost_vin = np.where(hard_mask > 0, cost_grid, 0.0).astype(np.float32)
+                cost_vin = np.where(tower_span_mask > 0, cost_grid, 0.0).astype(np.float32)
             lat_center = transform.f + transform.e * (H / 2.0)
             route_pixel_spacing = pixel_spacing_meters(transform, lat_center, crs)
 
@@ -1155,15 +1155,15 @@ def main():
                 extra = build_vin_extra(stack)
                 goal_mask = np.zeros((H, W), np.float32); goal_mask[er, ec] = 1.0
                 torch.manual_seed(RANDOM_SEED)
-                V = train_vin_or_skip_on_oom(cost_vin, goal_mask, extra, hard_mask,
+                V = train_vin_or_skip_on_oom(cost_vin, goal_mask, extra, tower_span_mask,
                                              route_pixel_spacing, n_steps=80)
                 if V is None:
                     print("  [VIN-Grad] 本用例未生成 AI 候选")
                 else:
                     V_main = np.nan_to_num(V, nan=1e6, posinf=1e6, neginf=1e6)
                     geo_vin = smooth_path_with_constraints(gradient_track_path(
-                        V, cost_finite, hard_mask, (sr, sc), (er, ec), transform),
-                        transform, hard_mask, cost_grid, dem,
+                        V, cost_finite, tower_span_mask, (sr, sc), (er, ec), transform),
+                        transform, tower_span_mask, cost_grid, dem,
                         0.0, pixel_spacing=route_pixel_spacing,
                         max_ground_grade=args.max_ground_grade, crs=crs,
                         shortcut_endpoints=shortcut_endpoints)
@@ -1178,7 +1178,8 @@ def main():
                     # 保存真实 V/cost/hard/起终点, 便于 PPO 推理调试(无需重跑训练即可秒级重测)
                     try:
                         np.savez(str(OUT / "_last_V.npz"), V=V_main, cost=cost_finite,
-                                 hard=hard_mask, start=np.array([sr, sc]), goal=np.array([er, ec]))
+                                 hard=tower_span_mask, tower_sites=tower_site_mask,
+                                 start=np.array([sr, sc]), goal=np.array([er, ec]))
                     except Exception:
                         pass
                     methods["VIN-Grad"] = geo_vin
@@ -1197,16 +1198,16 @@ def main():
                     print("  [PPO] 训练策略网络 ...")
                     t_p = time.time()
                     ppo_policy, _ = train_ppo(
-                        cost_finite, hard_mask, (er, ec), (sr, sc), value_map=V_main,
+                        cost_finite, tower_span_mask, (er, ec), (sr, sc), value_map=V_main,
                         n_updates=args.ppo_updates, episodes=args.ppo_episodes,
                         ppo_epochs=args.ppo_epochs, bc_steps=args.ppo_bc)
                     print(f"  [PPO] 训练完成 {time.time() - t_p:.1f}s")
                     ctx = build_ppo_context(np.clip(cost_finite, 0, 1), (er, ec), H, W, value_map=V_main)
-                    ppo_path = ppo_rollout_path(ppo_policy, ctx, cost_finite, hard_mask, (er, ec), (sr, sc),
+                    ppo_path = ppo_rollout_path(ppo_policy, ctx, cost_finite, tower_span_mask, (er, ec), (sr, sc),
                                                n_tries=6, guide_v=V_main, guide_w=6.0, v_tol=0.35)
                     geo_ppo = smooth_path_with_constraints(
                         [rowcol_to_geo(r, c, transform) for r, c in ppo_path],
-                        transform, hard_mask, cost_grid, dem,
+                        transform, tower_span_mask, cost_grid, dem,
                         0.0, pixel_spacing=route_pixel_spacing,
                         max_ground_grade=args.max_ground_grade, crs=crs,
                         shortcut_endpoints=shortcut_endpoints)
@@ -1253,7 +1254,7 @@ def main():
             geo_astar = [rowcol_to_geo(r, c, transform) for r, c in a_path] if a_path else None
             if geo_astar:
                 geo_astar = smooth_path_with_constraints(
-                    geo_astar, transform, hard_mask, cost_grid, dem,
+                    geo_astar, transform, tower_span_mask, cost_grid, dem,
                     args.grade_penalty_weight, args.smoothing_turn_penalty_weight,
                     route_pixel_spacing, max_ground_grade=args.max_ground_grade,
                     crs=crs, shortcut_endpoints=shortcut_endpoints)
@@ -1268,7 +1269,7 @@ def main():
             if args.experimental_sampled_pareto:
                 started = time.time()
                 sampled_candidates = sampled_pareto_astar_routes(
-                    cost_grid, hard_mask > 0, (sr, sc), (er, ec),
+                    cost_grid, tower_span_mask > 0, (sr, sc), (er, ec),
                     pixel_spacing=route_pixel_spacing, elevation=dem, pixel_m=pm,
                     grade_penalty_weight=args.grade_penalty_weight,
                     max_ground_grade=args.max_ground_grade,
@@ -1281,7 +1282,7 @@ def main():
                            for row, col in candidate["path"]]
                     if geo:
                         geo = smooth_path_with_constraints(
-                            geo, transform, hard_mask, cost_grid, dem,
+                            geo, transform, tower_span_mask, cost_grid, dem,
                             args.grade_penalty_weight, args.smoothing_turn_penalty_weight,
                             route_pixel_spacing,
                             max_ground_grade=args.max_ground_grade, crs=crs,
@@ -1321,7 +1322,7 @@ def main():
             for method, neighbors, grade_weight in neighbor_experiments:
                 started = time.time()
                 raw_path = astar_exact_integral_path(
-                    cost_grid, hard_mask, (sr, sc), (er, ec), neighbors,
+                    cost_grid, tower_span_mask, (sr, sc), (er, ec), neighbors,
                     pixel_spacing=route_pixel_spacing, elevation=dem,
                     max_ground_grade=args.max_ground_grade,
                     grade_penalty_weight=grade_weight,
@@ -1330,7 +1331,7 @@ def main():
                             if raw_path else None)
                 if geo_path:
                     geo_path = smooth_path_with_constraints(
-                        geo_path, transform, hard_mask, cost_grid, dem,
+                        geo_path, transform, tower_span_mask, cost_grid, dem,
                         grade_weight, 0.0, route_pixel_spacing,
                         max_ground_grade=args.max_ground_grade, crs=crs,
                         shortcut_endpoints=shortcut_endpoints,
@@ -1339,12 +1340,12 @@ def main():
                     geo_path, dem, transform, args.max_ground_grade, crs)
                 elapsed = time.time() - started
                 search_raster_cost = integrate_path_cost(
-                    raw_path, cost_grid, hard_mask,
+                    raw_path, cost_grid, tower_span_mask,
                     pixel_spacing=route_pixel_spacing,
                     neighbor_offsets=neighbors,
                 ) if raw_path else math.inf
                 search_cost = (integrate_path_cost(
-                    raw_path, cost_grid, hard_mask,
+                    raw_path, cost_grid, tower_span_mask,
                     pixel_spacing=route_pixel_spacing,
                     neighbor_offsets=neighbors, elevation=dem,
                     grade_penalty_weight=grade_weight,
@@ -1373,14 +1374,14 @@ def main():
             if args.experimental_theta_star:
                 t_theta = time.time()
                 theta_path = theta_star_cost_path(
-                    cost_grid, hard_mask, (sr, sc), (er, ec),
+                    cost_grid, tower_span_mask, (sr, sc), (er, ec),
                     pixel_spacing=route_pixel_spacing, elevation=dem,
                     max_ground_grade=args.max_ground_grade)
                 geo_theta = ([rowcol_to_geo(r, c, transform) for r, c in theta_path]
                              if theta_path else None)
                 if geo_theta:
                     geo_theta = smooth_path_with_constraints(
-                        geo_theta, transform, hard_mask, cost_grid, dem,
+                        geo_theta, transform, tower_span_mask, cost_grid, dem,
                         0.0, 0.0, route_pixel_spacing,
                         max_ground_grade=args.max_ground_grade, crs=crs,
                         shortcut_endpoints=shortcut_endpoints)
@@ -1430,7 +1431,7 @@ def main():
                 tower_path = None
                 if clearance_profile_ready:
                     tower_path = tower_graph_route(
-                        tower_span_cost_grid, tower_span_mask.astype(bool), hard_mask.astype(bool),
+                        tower_span_cost_grid, tower_span_mask.astype(bool), tower_site_mask.astype(bool),
                         (sr, sc), (er, ec), args.tower_min_span_m,
                         args.tower_max_span_m, pixel_spacing=route_pixel_spacing,
                         candidate_stride=args.tower_candidate_stride,
@@ -1502,8 +1503,7 @@ def main():
                     else:
                         geo, grade_report = filter_path_by_ground_grade(
                             geo, dem, transform, args.max_ground_grade, crs)
-                    validation_mask = (tower_span_mask if method == TOWER_GRAPH_METHOD
-                                       else hard_mask)
+                    validation_mask = tower_span_mask
                     geo, hard_report = validate_route_hard_constraints(
                         geo, transform, validation_mask)
                     hard_report.update(tower_span_reports.get(method, {}))
@@ -1535,8 +1535,7 @@ def main():
                     else:
                         geo, grade_reports[method] = filter_path_by_ground_grade(
                             geo, dem, transform, args.max_ground_grade, crs)
-                    validation_mask = (tower_span_mask if method == TOWER_GRAPH_METHOD
-                                       else hard_mask)
+                    validation_mask = tower_span_mask
                     geo, hard_report = validate_route_hard_constraints(
                         geo, transform, validation_mask)
                     hard_report.update(tower_span_reports.get(method, {}))
@@ -1566,8 +1565,7 @@ def main():
                                           else 0.0)
                     metric_cost_grid = (tower_span_cost_grid
                                         if m == TOWER_GRAPH_METHOD else cost_grid)
-                    metric_hard_mask = (tower_span_mask
-                                        if m == TOWER_GRAPH_METHOD else hard_mask)
+                    metric_hard_mask = tower_span_mask
                     met = compute_metrics(
                         geo, dem, transform, metric_cost_grid, metric_hard_mask,
                         start_ll, end_ll,
@@ -1949,6 +1947,7 @@ def main():
                     final_geo, population_valid_mask, transform, dem.shape),
                 "max_ground_grade_ratio": args.max_ground_grade,
                 "max_surface_slope_deg": args.max_surface_slope_deg,
+                "max_surface_slope_scope": "candidate_tower_sites_only",
                 "max_terrain_elevation_m": args.max_terrain_elevation_m,
                 "osm_layer_metadata": osm_layer_metadata,
                 "voltage_rules_applied": False,
@@ -1989,6 +1988,7 @@ def main():
                             "population_layer": population_metadata,
                             "max_ground_grade_ratio": args.max_ground_grade,
                             "max_surface_slope_deg": args.max_surface_slope_deg,
+                            "max_surface_slope_scope": "candidate_tower_sites_only",
                             "max_terrain_elevation_m": args.max_terrain_elevation_m,
                             "route_constraints_limitations": "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area layer, conductor clearance, tower siting or span feasibility checked",
                         })
@@ -2056,6 +2056,7 @@ def main():
                                                 final_geo, population_valid_mask, transform, dem.shape),
                                            "max_ground_grade_ratio": args.max_ground_grade,
                                            "max_surface_slope_deg": args.max_surface_slope_deg,
+                                           "max_surface_slope_scope": "candidate_tower_sites_only",
                                            "max_terrain_elevation_m": args.max_terrain_elevation_m,
                                            "osm_layer_metadata": osm_layer_metadata,
                                            "route_constraints_limitations": (

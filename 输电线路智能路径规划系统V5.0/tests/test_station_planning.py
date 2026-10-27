@@ -80,6 +80,15 @@ class StationPlanningTests(unittest.TestCase):
         self.assertFalse(span_mask[0, 0])
         self.assertFalse(span_mask[4, 4])
 
+        span_cost = np.where(span_mask > 0, 1.0, np.inf)
+        span_path = astar_search(span_cost, (2, 0), (2, 4))
+        self.assertIn((2, 2), span_path)
+        with self.assertRaisesRegex(ValueError, "地表坡度阈值"):
+            validate_endpoint_cells(
+                (2, 2), (2, 0), site_mask.shape, site_mask,
+                {"地表坡度阈值": slope > 30.0},
+            )
+
         route = tower_graph_route(
             np.ones((5, 5)), span_mask, site_mask, (2, 0), (2, 4),
             min_span_m=1.0, max_span_m=2.5, candidate_stride=1)
