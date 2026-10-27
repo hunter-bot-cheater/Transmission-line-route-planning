@@ -1,0 +1,222 @@
+{
+  "experiment_id": "terrain_turn_default_cost_factorial_2048_3case_20261027",
+  "frozen_at_utc": "2026-10-27T12:24:15.887432+00:00",
+  "source_git_head": "c33162225557e830dd7df01eb46d56a83153414b",
+  "design": "2x2 factorial: A* search turn penalty x constraint-aware smoothing turn penalty, three fixed endpoint cases stratified by DEM terrain. Production-default terrain soft costs are restored and held fixed (slope=0.75, grade=1.0); all other inputs and planner parameters remain frozen. Historical route geometry is not used in case selection or planning. max_side=2048; CPU-only sequential execution with resource guards.",
+  "reference_geometry_read_during_planning": false,
+  "selected_cases_source": "Prior frozen three-case terrain-slope stratification; case IDs and coordinates reused without route geometries or posthoc route scores.",
+  "cases": [
+    {
+      "case_id": "TW59",
+      "start": [
+        24.995756,
+        121.696388
+      ],
+      "end": [
+        24.819519,
+        121.196138
+      ],
+      "bbox_p90_slope_deg": 34.0742,
+      "bbox_p95_slope_deg": 38.0786,
+      "bbox_relief_p95_minus_p5_m": 1534.0,
+      "selection_rank": "minimum"
+    },
+    {
+      "case_id": "TW345",
+      "start": [
+        23.892187,
+        120.768123
+      ],
+      "end": [
+        23.552757,
+        120.490569
+      ],
+      "bbox_p90_slope_deg": 36.9423,
+      "bbox_p95_slope_deg": 41.5916,
+      "bbox_relief_p95_minus_p5_m": 2470.0,
+      "selection_rank": "upper_median"
+    },
+    {
+      "case_id": "TW102",
+      "start": [
+        23.721245,
+        121.43028
+      ],
+      "end": [
+        23.334595,
+        121.305276
+      ],
+      "bbox_p90_slope_deg": 42.6396,
+      "bbox_p95_slope_deg": 46.6556,
+      "bbox_relief_p95_minus_p5_m": 2794.1,
+      "selection_rank": "maximum"
+    }
+  ],
+  "arms": [
+    {
+      "arm": "baseline_0_0",
+      "legacy_turn_penalty_weight": 0.0,
+      "search_turn_penalty_weight": null,
+      "smoothing_turn_penalty_weight": null,
+      "expected_resolved_search_weight": 0.0,
+      "expected_resolved_smoothing_weight": 0.0
+    },
+    {
+      "arm": "search_only_0p5_0",
+      "legacy_turn_penalty_weight": 0.0,
+      "search_turn_penalty_weight": 0.5,
+      "smoothing_turn_penalty_weight": 0.0,
+      "expected_resolved_search_weight": 0.5,
+      "expected_resolved_smoothing_weight": 0.0
+    },
+    {
+      "arm": "smoothing_only_0_0p5",
+      "legacy_turn_penalty_weight": 0.0,
+      "search_turn_penalty_weight": 0.0,
+      "smoothing_turn_penalty_weight": 0.5,
+      "expected_resolved_search_weight": 0.0,
+      "expected_resolved_smoothing_weight": 0.5
+    },
+    {
+      "arm": "legacy_joint_0p5_0p5",
+      "legacy_turn_penalty_weight": 0.5,
+      "search_turn_penalty_weight": null,
+      "smoothing_turn_penalty_weight": null,
+      "expected_resolved_search_weight": 0.5,
+      "expected_resolved_smoothing_weight": 0.5
+    }
+  ],
+  "fixed_parameters": {
+    "dem_resolution_m_approx": 35,
+    "max_side": 2048,
+    "window_margin_deg": 0.3,
+    "official_hazard_weight": 1.0,
+    "settlement_weight": 2.0,
+    "ridge_penalty_weight": 0.1,
+    "landcover_penalty_weight": 0.0,
+    "grade_penalty_weight": 1.0,
+    "terrain_slope_weight": 0.75,
+    "roughness_weight": 0.25,
+    "astar_heuristic_weight": 1.0,
+    "population_weight": 0.0,
+    "ai_diagnostics": false,
+    "cpu_search": true,
+    "cuda_visible_devices": "",
+    "omp_num_threads": 1,
+    "openblas_num_threads": 1,
+    "building_clearance_m": 0.0,
+    "max_ground_grade": null,
+    "max_surface_slope_deg": null,
+    "max_terrain_elevation_m": null,
+    "population_raster": null,
+    "population_nodata_policy": "maximum",
+    "costunet_enabled": false,
+    "experimental_theta_star": false,
+    "experimental_astar_16": false,
+    "experimental_sampled_pareto": false,
+    "experimental_tower_graph": false,
+    "voltage_rules_applied": false
+  },
+  "inputs": {
+    "dem": {
+      "path": "/data1/B24041626/pp/work/data/taiwan_dem_35m_georef_fixed.tif",
+      "sha256": "dc963ff6047f911275e9d2b3be678539f09ee8457939511c094721be6a2b4025",
+      "size_bytes": 108648188
+    },
+    "constraints": {
+      "path": "/data1/B24041626/pp/work/data/official_constraints_20261023.geojson",
+      "sha256": "5967d659856b925cd42909a6b5e1cf4ac09ae808d6d1c8e7ecd851003fa530b5",
+      "size_bytes": 9910543
+    },
+    "land_mask": {
+      "path": "/data1/B24041626/pp/landmask_route_fix_20261026/inputs/county_boundaries_1140318.geojson",
+      "sha256": "7e3d24cb13b7f1125c1c967d9d436ee556567516b0eb9894cfa3e763fe8874dd",
+      "size_bytes": 10172081
+    },
+    "hazard_manifest": {
+      "path": "/data1/B24041626/pp/work/data/official_sources/ardswc_115_mvt_z10_20261023/manifest.json",
+      "sha256": "d6d9328ad03a1ac73a8fc8aaf3cff8a1d4afdc59df4134da8d6a77f654bf320b",
+      "size_bytes": 3057
+    },
+    "hazard_tiles_sha256": {
+      "path": "/data1/B24041626/pp/work/data/official_sources/ardswc_115_mvt_z10_20261023/tiles.sha256",
+      "sha256": "3d0fcf3137def46c5ad5b5d2452da27c120fb42cfba68967c4f3d57751466a37",
+      "size_bytes": 15742
+    },
+    "osm_landuse": {
+      "path": "/data1/B24041626/pp/work/osm/taiwan_landuse.pkl",
+      "sha256": "823b984a95b1ced79b2c73a5b438f6c3851316879f0f109b63a2015c54d7a093",
+      "size_bytes": 62594277
+    },
+    "osm_buildings": {
+      "path": "/data1/B24041626/pp/work/osm/taiwan_buildings.pkl",
+      "sha256": "d601bd68ce1fdcf6833b53553db8f4378ee2f02ccdda20db51e19030b063c3d3",
+      "size_bytes": 142960916
+    }
+  },
+  "out_dir": "outputs/terrain_turn_factorial_2048_3case_20261027",
+  "truth_source": {
+    "path_included": false,
+    "hash_included": false,
+    "role": "posthoc scoring only; reference is not read until candidate_freeze.json records every final route hash"
+  },
+  "limitations": [
+    "The fixed endpoints originate from legacy benchmark coordinates and are not verified station-side connection points.",
+    "The experiment isolates turn-weight stages only; it is not an engineering feasibility evaluation.",
+    "DEM vertical datum, OSM coverage, conductor, tower, span and clearance parameters remain unverified or absent.",
+    "Effective pixel spacing is recorded per run and must be considered when interpreting a 100 m route-match threshold.",
+    "The server run is restricted to the user-owned pp directory and uses no administrator commands."
+  ],
+  "runtime_source_sha256": {
+    "transmission_path_planner/__init__.py": "b038356cd9612a78f52bf8c3164d76ddffab92009f0696a68e2517ba0dd42932",
+    "transmission_path_planner/__main__.py": "ca22886fbac055824344581f2ced4fa787532a8a91d27b2e98d801f6babd1222",
+    "transmission_path_planner/cli.py": "0a7d5e643b1eea95a6b87d30072185b05adf0cf300671a65727b5f847ba8ac6a",
+    "transmission_path_planner/config.py": "75f6467d828f0c04666a74ee111b1ff841b6571d19a101579ea81f328fe25c64",
+    "transmission_path_planner/corridor.py": "8aef1bb09e9dbab5adde7f798bce0f8e41fe0f7650e1fd9e82c37bb5da237788",
+    "transmission_path_planner/cost.py": "f5d07061852f524caa73dc3f60e1967ab0172f60cfae72e96c57098a35bb1f9d",
+    "transmission_path_planner/data.py": "e6b79621a13d763daffd7003030cfe0005a20c298a5d832ac33b65b3f7b361e2",
+    "transmission_path_planner/diverse_routes.py": "49ad289712de499dea8bb763d945b6de29981d38496777bc14a9024babe459dc",
+    "transmission_path_planner/experimental_astar_16.py": "d2ba35743800dda697e8218d87a2a6f3a5189e56f6daad9e450f6cca897573a2",
+    "transmission_path_planner/experimental_theta_star.py": "3959a054c51a070cbf5d5396bbc72d51ea97393ad5560d5323df5b2be37c997c",
+    "transmission_path_planner/experimental_tower_graph.py": "0a826d4f58e74180f6deda756fc74eaa303fdb377a1c96447eca8bbb67d29ec8",
+    "transmission_path_planner/geometry.py": "cef485dac1a7f6b7f5759b5f1fc6d18335e39a9bddb8b9e9d824c136942ad246",
+    "transmission_path_planner/io_export.py": "db4444e2783c42d3daaf6a095e527fe01068181ea69e1b31f28b12d07d8e1311",
+    "transmission_path_planner/methods.py": "cfe44e73af001d9a44207a0eae412f8900eeef954f816ed4ccd19317dd164792",
+    "transmission_path_planner/metrics.py": "b6f3808ea9a36843d1195404899aa0be72f9c6f3b2903125c4a0fdb21a305574",
+    "transmission_path_planner/official_hazards.py": "44c95a46657776c63f1c526848aa95178d73491cbc53effd5e081b59501286ff",
+    "transmission_path_planner/osm.py": "ae4c7f0149f47d5dc181b3d434f84d39354dcb301ae34d385724137ea23b80ad",
+    "transmission_path_planner/provenance.py": "0ce710737a214aa400ab5688e8c064cb15b1de9460a7e0e2e696e56e2ae8170a",
+    "transmission_path_planner/rebuild_terrarium_dem.py": "78fe864fad364d5880c593feea428996a79e6974beb1a5d847a65c4656a71c47",
+    "transmission_path_planner/smoothing.py": "bed0a978e502f5add055ee350b8bd0e9385bb8049dc157c6cf9484cede14e44e",
+    "transmission_path_planner/stations.py": "93c92d8cf4cf0048856fe49973fa0ccc2344a9ec1d024d8527d12f5f82cae966",
+    "transmission_path_planner/terrarium.py": "2c0188a2a4c1aeb5e689a9bd6a5f106339de2c6261d99bbc8efa13da95864110",
+    "transmission_path_planner/visualization.py": "f4d0dca8f5b25b269fa179e6f4c6cc33a038f11ada150018a61b42138ed1515e"
+  },
+  "requirements_sha256": "b7148cf90ca9c25425198d5cdd054959f93849e63cef643448c4401e150be99a",
+  "runner_sha256": "ad70880b32063ff97d55bad345bdba9c36a9a7e48f1a56e6a8cffa1e7d5ebd17",
+  "frozen_source_count": 23,
+  "runner_path": "docs/evidence/terrain_turn_factorial_3case_20261027/run_local.py",
+  "resource_guard": {
+    "max_process_tree_rss_bytes": 8589934592,
+    "min_available_memory_bytes": 34359738368,
+    "poll_interval_seconds": 1
+  },
+  "execution_host": {
+    "target_root": "/data1/B24041626/pp/terrain_turn_factorial_3case_20261027/repo",
+    "planned_run": "CPU-only, nice level 10, CUDA disabled, single-threaded, sequential",
+    "preflight_at_utc": "2026-10-27T12:23:00Z",
+    "preflight_total_ram_bytes": 269802885120,
+    "preflight_available_ram_bytes": 108592287744,
+    "preflight_swap_total_bytes": 2147483648,
+    "preflight_swap_used_bytes": 2147483648,
+    "preflight_data1_available_bytes": 269399445504,
+    "preflight_load_average": [
+      10.4,
+      11.47,
+      11.69
+    ],
+    "preflight_output_target": "absent",
+    "preflight_venv": "/data1/B24041626/pp/venv exists",
+    "gpu_used": false
+  }
+}

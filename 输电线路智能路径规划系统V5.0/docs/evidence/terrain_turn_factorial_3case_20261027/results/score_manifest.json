@@ -1,0 +1,84 @@
+{
+  "experiment_id": "terrain_turn_default_cost_factorial_2048_3case_20261027",
+  "scored_at_utc": "2026-10-27T13:04:04.891286+00:00",
+  "plan_path": "/data1/B24041626/pp/terrain_turn_factorial_3case_20261027/repo/docs/evidence/terrain_turn_factorial_3case_20261027/freeze.json",
+  "plan_sha256": "1a3253142e64d30e7ff5e3ed59153a52b8631c87d5a4dc5920bd7008516be543",
+  "scorer_path": "/data1/B24041626/pp/terrain_turn_factorial_3case_20261027/repo/tools/score_turn_penalty_posthoc.py",
+  "scorer_sha256": "2e741ded6aa2a960e517cf5f33e9aa755477c70b6109da536856403dcde1f5db",
+  "candidate_freeze_path": "/data1/B24041626/pp/terrain_turn_factorial_3case_20261027/repo/outputs/terrain_turn_factorial_2048_3case_20261027/candidate_freeze.json",
+  "candidate_freeze_sha256": "2b56ab11dceb0f7cfa53c2d85b2d3b8eddb1f6ed62860739ebcad0c054a8767f",
+  "run_summary_path": "/data1/B24041626/pp/terrain_turn_factorial_3case_20261027/repo/outputs/terrain_turn_factorial_2048_3case_20261027/run_summary.json",
+  "run_summary_sha256": "f3785a8f477239fcc8a06256955b0f377c901acec61abb3455a4da34b5d5398c",
+  "reference_geometry_read_after_all_candidate_hashes_verified": true,
+  "candidate_artifact_count": 36,
+  "candidate_count": 12,
+  "comparison_metrics_sha256": {
+    "TW59/baseline_0_0": "273f6dbf4c65e3f1ffffc755de700459ec53bbee65eb3421488f0aabd160504c",
+    "TW59/search_only_0p5_0": "0061034bfab5511c87f90c252002009f118f9a17a20a518ec0eb258ab0587ec7",
+    "TW59/smoothing_only_0_0p5": "6f2eb74423536ef2352ef32fb489958cd8a9cda918f8450bf26d27680e3199c1",
+    "TW59/legacy_joint_0p5_0p5": "e9fae97c2a76fb956417feec3cfd7ebbb6e0181f36a64d878d7cd61ccf0e48ea",
+    "TW345/baseline_0_0": "887229c29b6c97ff454ddf1094ab499795cfb4160a3a02ed9fdf2256bb5ff54e",
+    "TW345/search_only_0p5_0": "0df0a68b150d6299456776105924dbe9fadd198b2711970958d1579ec10b9d47",
+    "TW345/smoothing_only_0_0p5": "849e802d4cee6769d416f604addb115732a3148cb88fc35b1533d808c6e05cb7",
+    "TW345/legacy_joint_0p5_0p5": "35dad2d91e9ea7ba5a51fc601bf404ec092b1e5c12e6cf94183a8d75a0d95091",
+    "TW102/baseline_0_0": "b57a16569057b187e73d120a75a9650fabcdfc62e258fb400f286b1fbb0c44da",
+    "TW102/search_only_0p5_0": "1d9a8008ea3a831bbe3680bd0dc6e38378dfeb71c4a802bc894d632d02b80530",
+    "TW102/smoothing_only_0_0p5": "4b265235920abf42babb4a3a53594cba9249a062030a329122e29b4f538ed3db",
+    "TW102/legacy_joint_0p5_0p5": "c3d3cf4fd42c183fd82da835bc6a2008763c27a5b32792db2e94e391abff8565"
+  },
+  "reference_map_path": "/data1/B24041626/pp/terrain_turn_factorial_3case_20261027/repo/docs/evidence/terrain_turn_factorial_3case_20261027/reference_map_posthoc.json",
+  "reference_map_sha256": "d75e8add4a1d061ccd77326bd69a312f8bbf8711dfc97b42102e91ddd81589d2",
+  "reference_geojson_sha256": {
+    "TW59": "d846309e7edfd366aaff17e32df16c772bcf63066385bfc127e08f730cf5ec51",
+    "TW345": "6cb7b2fef118533582b95a02e42a014b494d3d323b7737acb259f68e9d1885ce",
+    "TW102": "a72a005a9f3287587d277a6216a961bfc87887254742d0154bb7901ff7963d18"
+  },
+  "metric_version": 6,
+  "route_distance_sampling_interval_m": 20.0,
+  "f1_tolerance_m": 100,
+  "f1_values_are_fraction_0_to_1": true,
+  "plots": {
+    "factor_effects": "factor_effects.png",
+    "case_overlays": {
+      "TW59": "TW59_route_overlays.png",
+      "TW345": "TW345_route_overlays.png",
+      "TW102": "TW102_route_overlays.png"
+    }
+  },
+  "factor_effects_on_final_route": {
+    "symmetric_p95_m": {
+      "TW59": {
+        "search_main_effect": 68.17595546439043,
+        "smoothing_main_effect": 0.0,
+        "interaction": 0.0
+      },
+      "TW345": {
+        "search_main_effect": -3.0580794163397513,
+        "smoothing_main_effect": 0.0,
+        "interaction": 0.0
+      },
+      "TW102": {
+        "search_main_effect": 2.530824826733351,
+        "smoothing_main_effect": 0.0,
+        "interaction": 0.0
+      }
+    },
+    "f1_100m": {
+      "TW59": {
+        "search_main_effect": -7.971991062902944e-05,
+        "smoothing_main_effect": 0.0,
+        "interaction": 0.0
+      },
+      "TW345": {
+        "search_main_effect": 0.022631498951681928,
+        "smoothing_main_effect": 0.0,
+        "interaction": 0.0
+      },
+      "TW102": {
+        "search_main_effect": -0.002187004877690373,
+        "smoothing_main_effect": 0.0,
+        "interaction": 0.0
+      }
+    }
+  }
+}
