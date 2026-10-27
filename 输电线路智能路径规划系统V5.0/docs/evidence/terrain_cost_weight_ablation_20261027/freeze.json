@@ -1,0 +1,149 @@
+{
+  "experiment_id": "terrain_cost_weight_ablation_3case_20261027",
+  "status": "frozen_before_planning",
+  "frozen_at_utc": "2026-10-27T00:47:37.049149+00:00",
+  "purpose": "Measure the terrain-cost sensitivity of standard CPU A* under unchanged hard constraints; do not tune against historical route geometry.",
+  "case_selection": {
+    "rule": "For each of the 12 fixed endpoint pairs, estimate p90 DEM slope inside the county-boundary land mask within the endpoint bounding box expanded by 0.3 degrees. Choose the minimum, upper median rank 7/12, and maximum p90 slope. No route geometry or error score is used.",
+    "window_margin_deg": 0.3,
+    "slope_estimator": "DEM finite-difference slope at source grid spacing, approximate local metric conversion; stratification only, not engineering survey.",
+    "selected_cases": [
+      {
+        "case_id": "TW59",
+        "start": [
+          24.995756,
+          121.696388
+        ],
+        "end": [
+          24.819519,
+          121.196138
+        ],
+        "bbox_p90_slope_deg": 34.0742,
+        "bbox_p95_slope_deg": 38.0786,
+        "bbox_relief_p95_minus_p5_m": 1534.0,
+        "selection_rank": "minimum"
+      },
+      {
+        "case_id": "TW345",
+        "start": [
+          23.892187,
+          120.768123
+        ],
+        "end": [
+          23.552757,
+          120.490569
+        ],
+        "bbox_p90_slope_deg": 36.9423,
+        "bbox_p95_slope_deg": 41.5916,
+        "bbox_relief_p95_minus_p5_m": 2470.0,
+        "selection_rank": "upper_median"
+      },
+      {
+        "case_id": "TW102",
+        "start": [
+          23.721245,
+          121.43028
+        ],
+        "end": [
+          23.334595,
+          121.305276
+        ],
+        "bbox_p90_slope_deg": 42.6396,
+        "bbox_p95_slope_deg": 46.6556,
+        "bbox_relief_p95_minus_p5_m": 2794.1,
+        "selection_rank": "maximum"
+      }
+    ]
+  },
+  "fixed_endpoints_caveat": "Coordinates are inherited benchmark endpoints from existing historical-line data; they are not independently verified station line-side connection points.",
+  "planning_input_hashes": {
+    "dem": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\taiwan_dem_35m_georef_fixed.tif",
+      "sha256": "dc963ff6047f911275e9d2b3be678539f09ee8457939511c094721be6a2b4025",
+      "size_bytes": 108648188
+    },
+    "constraints": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_constraints_20261023.geojson",
+      "sha256": "5967d659856b925cd42909a6b5e1cf4ac09ae808d6d1c8e7ecd851003fa530b5",
+      "size_bytes": 9910543
+    },
+    "land_mask": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\landmask_route_fix_20261026\\server_output_12case\\route_geometry\\county_boundaries_1140318.geojson",
+      "sha256": "7e3d24cb13b7f1125c1c967d9d436ee556567516b0eb9894cfa3e763fe8874dd",
+      "size_bytes": 10172081
+    },
+    "hazard_manifest": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\manifest.json",
+      "sha256": "d6d9328ad03a1ac73a8fc8aaf3cff8a1d4afdc59df4134da8d6a77f654bf320b",
+      "size_bytes": 3057
+    },
+    "hazard_tiles_sha256": {
+      "path": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\data\\official_sources\\ardswc_115_mvt_z10_20261023\\tiles.sha256",
+      "sha256": "3d0fcf3137def46c5ad5b5d2452da27c120fb42cfba68967c4f3d57751466a37",
+      "size_bytes": 15742
+    },
+    "osm_landuse": {
+      "path": "D:\\大创\\V5_final\\data\\downloaded\\taiwan_landuse.pkl",
+      "sha256": "823b984a95b1ced79b2c73a5b438f6c3851316879f0f109b63a2015c54d7a093",
+      "size_bytes": 62594277
+    },
+    "osm_buildings": {
+      "path": "D:\\大创\\V5_final\\data\\downloaded\\taiwan_buildings.pkl",
+      "sha256": "d601bd68ce1fdcf6833b53553db8f4378ee2f02ccdda20db51e19030b063c3d3",
+      "size_bytes": 142960916
+    }
+  },
+  "variable_weights": [
+    {
+      "terrain_slope_weight": 0.0,
+      "grade_penalty_weight": 0.0
+    },
+    {
+      "terrain_slope_weight": 0.0,
+      "grade_penalty_weight": 0.5
+    },
+    {
+      "terrain_slope_weight": 0.0,
+      "grade_penalty_weight": 1.0
+    },
+    {
+      "terrain_slope_weight": 0.75,
+      "grade_penalty_weight": 0.0
+    },
+    {
+      "terrain_slope_weight": 0.75,
+      "grade_penalty_weight": 0.5
+    },
+    {
+      "terrain_slope_weight": 0.75,
+      "grade_penalty_weight": 1.0
+    }
+  ],
+  "fixed_weights": {
+    "official_hazard_weight": 1.0,
+    "settlement_weight": 2.0,
+    "ridge_penalty_weight": 0.1,
+    "landcover_penalty_weight": 0.0,
+    "roughness_weight": 0.25,
+    "turn_penalty_weight": 0.0,
+    "population_weight": 0.0,
+    "astar_heuristic_weight": 1.0
+  },
+  "engine": {
+    "algorithm": "standard A* baseline",
+    "max_side": 2048,
+    "window_margin_deg": 0.3,
+    "no_ppp": true,
+    "no_vin": true,
+    "gpu_used": false,
+    "reason": "The grid A* frontier and neighbor relaxations are CPU-bound; no GPU search kernel is implemented. CUDA visibility will be disabled only for each child process."
+  },
+  "reference_policy": {
+    "reference_files_passed_to_planner": false,
+    "planning_uses_reference_geometry": false,
+    "reference_comparison_after_all_18_runs_complete": true,
+    "reference_scores_may_select_weights": false
+  },
+  "analysis_rule": "Compare hard-constraint status, route length, cumulative ascent/descent, sampled ground-grade percentiles, surface-slope/roughness distributions, OSM exposure, and route-to-route changes. Report the Pareto trade-offs. Do not select a weight by route similarity; if no terrain-feasibility setting dominates under stated constraints, retain the current baseline and record that more engineering inputs are required.",
+  "planned_runs": 18
+}

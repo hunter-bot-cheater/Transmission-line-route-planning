@@ -118,19 +118,23 @@ def score(results_dir: Path) -> tuple[Path, Path]:
         if sha256(Path(item["final_route"])) != item["final_route_sha256"]:
             raise SystemExit(f"candidate changed during scoring: {item['case']}")
 
-    metrics_path = results_dir / "real_comparison_metrics_v5.json"
+    metric_versions = {row["A*(baseline)"]["route_similarity_version"] for row in rows}
+    if len(metric_versions) != 1:
+        raise SystemExit(f"inconsistent route similarity metric versions: {sorted(metric_versions)}")
+    metric_version = metric_versions.pop()
+    metrics_path = results_dir / f"real_comparison_metrics_v{metric_version}.json"
     metrics_path.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n",
                             encoding="utf-8")
     score_manifest = {
         "candidate_freeze_sha256": sha256(freeze_path),
         "candidate_count": len(candidates),
-        "metric_version": 5,
+        "metric_version": metric_version,
         "reference_geometry_read_after_candidate_hash_verification": True,
         "reference_route_geojson_sha256": reference_hashes,
         "metrics_sha256": sha256(metrics_path),
         "scored_at_utc": datetime.now(timezone.utc).isoformat(),
     }
-    score_manifest_path = results_dir / "metric_v5_posthoc_manifest.json"
+    score_manifest_path = results_dir / f"metric_v{metric_version}_posthoc_manifest.json"
     score_manifest_path.write_text(
         json.dumps(score_manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8")

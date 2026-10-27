@@ -1,0 +1,60 @@
+{
+  "experiment_id": "terrain_cost_weight_ablation_3case_20261027",
+  "files": [
+    {
+      "file": "candidate_freeze.json",
+      "size_bytes": 13576,
+      "sha256": "eebf3a045691d3226aa7476b4c68c7c888b30323966695c29419270733f11eb1"
+    },
+    {
+      "file": "cost_weight_sensitivity.png",
+      "size_bytes": 265964,
+      "sha256": "cf987c2f8351cf2d3f2153dba81132fbb5c7d69034c1ca44b3aab698c3cb6c4e"
+    },
+    {
+      "file": "freeze.json",
+      "size_bytes": 6193,
+      "sha256": "caab0fe38d712f6e6b7a6d3a5cbd2f636be0245b5f05e9aac59a9468ccbc4d13"
+    },
+    {
+      "file": "local_execution_summary.json",
+      "size_bytes": 31127,
+      "sha256": "d11e03d6b178dae60e6e9724b88ef4168644cb027bc39751c9f4c309553bc8e0"
+    },
+    {
+      "file": "posthoc_manifest_v6.json",
+      "size_bytes": 2029,
+      "sha256": "800c8147cae3ef40e3ddafcf33d8f7e1bc577e40157b96e34ee8a52b37dee291"
+    },
+    {
+      "file": "posthoc_metrics_v6.csv",
+      "size_bytes": 4281,
+      "sha256": "2cb599dba6c6481d1a4842fc6c3ac663c9727969ba42155e2a4dff077bcf42ef"
+    },
+    {
+      "file": "posthoc_metrics_v6.json",
+      "size_bytes": 51507,
+      "sha256": "2bb83d8cb2913217fa48faa1d128a008eb7bbb40685f8d5c9eb3cb24f7201007"
+    },
+    {
+      "file": "posthoc_summary_v6.json",
+      "size_bytes": 1234,
+      "sha256": "55dd0c0d50a7b99a4787d5b14343fdf48537ca52529c11e32dac9f37e6feca52"
+    },
+    {
+      "file": "reference_source_manifest.json",
+      "size_bytes": 18224,
+      "sha256": "0c3a681f228acf66fd7929b7de1082c23efbee246240911bda4e32b27b50468e"
+    },
+    {
+      "file": "route_overlay_3cases.png",
+      "size_bytes": 187474,
+      "sha256": "647bbc5b42aa852cf2b060d6e5c0295fb7cc8a14da768586f112ae4ad3cf6080"
+    },
+    {
+      "file": "server_execution_summary.json",
+      "size_bytes": 20981,
+      "sha256": "49ef5a87dc3b856d01b75164b69661f326da10fbeba7e98adeb35ca64ed83016"
+    }
+  ]
+}

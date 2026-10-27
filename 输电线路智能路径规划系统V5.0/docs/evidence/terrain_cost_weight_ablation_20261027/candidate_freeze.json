@@ -1,0 +1,136 @@
+{
+  "source_run_dir": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates",
+  "source_input_manifest": null,
+  "source_input_manifest_sha256": null,
+  "candidate_count": 18,
+  "reference_geometry_read": false,
+  "candidates": [
+    {
+      "case": "TW102_s0_g0",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0_g0\\final_route.geojson",
+      "final_route_sha256": "fd75f422a4df90c226b20dc8bd17be97a1803050560e875b2b2e42b7d43e47f2",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0_g0\\planned_route_aastar.geojson",
+      "astar_route_sha256": "c697f652ba5bf59e1f459706eb1260fa3f80057993efa91dad13c134908358c6"
+    },
+    {
+      "case": "TW102_s0_g0p5",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0_g0p5\\final_route.geojson",
+      "final_route_sha256": "ddf06b533a4bb0f69c1bc9ead5f3599283d00b00b9abf4960303b561ee520592",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0_g0p5\\planned_route_aastar.geojson",
+      "astar_route_sha256": "254505b81697839a3426a1e868e7011e4b845c08c2b4bcae4a79d30434cfd3a5"
+    },
+    {
+      "case": "TW102_s0_g1",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0_g1\\final_route.geojson",
+      "final_route_sha256": "349b3ae4a61d1787801550ffecc292eb3f8a4333ecd20a5447d307dd37e9a731",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0_g1\\planned_route_aastar.geojson",
+      "astar_route_sha256": "2addb0204a667bc883cdd092d94f38cdfb1a6f1edb69e89da7a6c481e89e8064"
+    },
+    {
+      "case": "TW102_s0p75_g0",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0p75_g0\\final_route.geojson",
+      "final_route_sha256": "0539756b87a993e7f6a6cca96eca1a4df3dc5c12dc61cb353cd9962e4f357824",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0p75_g0\\planned_route_aastar.geojson",
+      "astar_route_sha256": "4e13d7ecfbe47cb07fd164f0b44436e6fb9073408dea3ab96aa8b92d2c118921"
+    },
+    {
+      "case": "TW102_s0p75_g0p5",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0p75_g0p5\\final_route.geojson",
+      "final_route_sha256": "5703ce748d4f3f1ad8e77b0105b8eee9daf30e1a52c10d02c4020328d9a7a205",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0p75_g0p5\\planned_route_aastar.geojson",
+      "astar_route_sha256": "f0ad0a9f4142c395150655fb1304a6d71bd135e055cbc201adc123277f114666"
+    },
+    {
+      "case": "TW102_s0p75_g1",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0p75_g1\\final_route.geojson",
+      "final_route_sha256": "c7c37fda158d902f6057cf358c4b0a3ab65e0f60bbfef22c7c0b777778e2ffb6",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW102_s0p75_g1\\planned_route_aastar.geojson",
+      "astar_route_sha256": "78e48bfd594fe73b207cebdb11eac72ac7326e15ba5d48494589e20e8a8d7f2b"
+    },
+    {
+      "case": "TW345_s0_g0",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0_g0\\final_route.geojson",
+      "final_route_sha256": "8cba43037b8d18b55b54d2094c77da8437af7f58db617061fc05c51a309b5c29",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0_g0\\planned_route_aastar.geojson",
+      "astar_route_sha256": "0d3a93988341e73b4347453194674680f4be94e9481bbce0c61828476ba02515"
+    },
+    {
+      "case": "TW345_s0_g0p5",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0_g0p5\\final_route.geojson",
+      "final_route_sha256": "e1ea88a32fc00a2aab00d79dd673e83c8acb658ef7761e82da395a39deed2a2e",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0_g0p5\\planned_route_aastar.geojson",
+      "astar_route_sha256": "4f385f02e576ab12d08f216e71ba5d4d3092145c7bb2e0c0a2cbbce26eb4ab4f"
+    },
+    {
+      "case": "TW345_s0_g1",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0_g1\\final_route.geojson",
+      "final_route_sha256": "2ed8d1583d7bb71b57a418b9e769ac64a4c94074e21320a4b7db7e484d2f6b29",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0_g1\\planned_route_aastar.geojson",
+      "astar_route_sha256": "c12ab7450c28c72e6203d59846ce0a76b630e7f317fa8ed75a052367d5c6da84"
+    },
+    {
+      "case": "TW345_s0p75_g0",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0p75_g0\\final_route.geojson",
+      "final_route_sha256": "33096679b990093e8f8ccc70fce3301d1d5fc19eaf2ed65eb46a0402e068a53e",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0p75_g0\\planned_route_aastar.geojson",
+      "astar_route_sha256": "c95bfc26cdc14a854135d9fc4a6f6b9d10b119bae624c2af57e31191e27c4abf"
+    },
+    {
+      "case": "TW345_s0p75_g0p5",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0p75_g0p5\\final_route.geojson",
+      "final_route_sha256": "62f4ff956fd5591a18d30871e5402e3859f92dfd112e0e079149c0f8ce983815",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0p75_g0p5\\planned_route_aastar.geojson",
+      "astar_route_sha256": "112f70f8f46028f6c47ea300ea6d3740911cf79f9196dc7100a751d95e734b42"
+    },
+    {
+      "case": "TW345_s0p75_g1",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0p75_g1\\final_route.geojson",
+      "final_route_sha256": "5fa8b94b6d21b5e6a9ef906ee5864e9d65076b011eca78006ca359841ed4fce5",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW345_s0p75_g1\\planned_route_aastar.geojson",
+      "astar_route_sha256": "059b02428677bb1a480e4246621746ae30e990beb426b3019b4ba12a7ad033d6"
+    },
+    {
+      "case": "TW59_s0_g0",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0_g0\\final_route.geojson",
+      "final_route_sha256": "a69c351fe1a710f99933079d9599ba8cb58fc2c5a7ca81240bf249cfe54c5907",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0_g0\\planned_route_aastar.geojson",
+      "astar_route_sha256": "2bebfbf5702b48007307f8441f764a73f636028c9b2d20c4f6b2b90df612d87b"
+    },
+    {
+      "case": "TW59_s0_g0p5",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0_g0p5\\final_route.geojson",
+      "final_route_sha256": "57f899581e523bb0d2256951470c061e319768f5989798627b8e6411c090a007",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0_g0p5\\planned_route_aastar.geojson",
+      "astar_route_sha256": "b0a84bb285f5763901010023892e9e8d41dd98260c4186ad2f42880c30e7a134"
+    },
+    {
+      "case": "TW59_s0_g1",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0_g1\\final_route.geojson",
+      "final_route_sha256": "cb68d69874448e57e9f49c1e71e0c11669b24be997b3d786868bbe7421c4ac93",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0_g1\\planned_route_aastar.geojson",
+      "astar_route_sha256": "d9ae3cbf42576783a9ce49698df2142e565ff12efcd6e2fc05d8f9526f0192eb"
+    },
+    {
+      "case": "TW59_s0p75_g0",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0p75_g0\\final_route.geojson",
+      "final_route_sha256": "fb0a55457db81ec22e7136499aa65ed68e17b873a9c2f5b559b91b8a7e0ad896",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0p75_g0\\planned_route_aastar.geojson",
+      "astar_route_sha256": "77f0656724576af83c21efcfeb49f280fa08e242ac57684024881a8798b7d22c"
+    },
+    {
+      "case": "TW59_s0p75_g0p5",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0p75_g0p5\\final_route.geojson",
+      "final_route_sha256": "7f0b4a72c676f5bd24b7889782c452609b8b883aaa41ad6565ce27d6f7477428",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0p75_g0p5\\planned_route_aastar.geojson",
+      "astar_route_sha256": "b5866b8a51cf29840c3f9923e51d63be1a88c1aa39c6ebba970cadd97b25e250"
+    },
+    {
+      "case": "TW59_s0p75_g1",
+      "final_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0p75_g1\\final_route.geojson",
+      "final_route_sha256": "a606f6664d4aab47eb4f554ceab241251d5c9a09d7e83ead8793520e122b5059",
+      "astar_route": "C:\\Users\\admin\\.codex\\worktrees\\planner-doc-health\\大创\\输电线路智能路径规划系统V5.0\\outputs\\terrain_cost_weight_ablation_3case_20261027\\posthoc_candidates\\TW59_s0p75_g1\\planned_route_aastar.geojson",
+      "astar_route_sha256": "148ce54a58a0d4230d532882b2a1dcb8bdfd9d3e54973080251f6e16f43b61ae"
+    }
+  ],
+  "frozen_at_utc": "2026-10-27T01:37:11.126262+00:00"
+}
