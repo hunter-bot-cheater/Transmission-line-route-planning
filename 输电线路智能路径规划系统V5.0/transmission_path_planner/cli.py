@@ -209,14 +209,22 @@ def route_search_window_clearance_m(geo, transform, shape, pixel_spacing):
 
 
 def screening_data_quality(osm_layer_metadata):
-    """Describe missing settlement proxy layers without treating them as empty land."""
+    """Describe proxy-layer availability and coverage without treating gaps as empty land."""
     required_layers = ("buildings", "landuse")
     missing = [
         name for name in required_layers
         if osm_layer_metadata.get(name, {}).get("status") != "available"
     ]
-    return ("incomplete_osm_proxies" if missing
-            else "osm_proxy_features_observed_coverage_unverified"), missing
+    if missing:
+        return "incomplete_osm_proxies", missing
+
+    coverage = [osm_layer_metadata[name].get("coverage_status")
+                for name in required_layers]
+    if all(status == "complete" for status in coverage):
+        return "osm_proxy_coverage_complete", missing
+    if "features_observed" in coverage:
+        return "osm_proxy_features_observed_coverage_unverified", missing
+    return "osm_proxy_coverage_unverified", missing
 
 
 def reject_osm_planning_layer_read_errors(osm_layer_metadata):
@@ -543,7 +551,8 @@ def summarize_run_completion(expected_cases, results, failed_cases):
     }
 
 
-def route_planning_status(final_geo, station_task, missing_screening_layers):
+def route_planning_status(final_geo, station_task, missing_screening_layers,
+                          osm_coverage_unverified=False):
     if not final_geo:
         return "no_hard_constraint_compliant_route"
     if station_task and station_task["endpoint_qualification"] != \
@@ -551,6 +560,8 @@ def route_planning_status(final_geo, station_task, missing_screening_layers):
         return "exploratory_only_unverified_endpoints"
     if missing_screening_layers:
         return "screening_candidate_data_incomplete"
+    if osm_coverage_unverified:
+        return "screening_candidate_coverage_unverified"
     return "screening_candidate"
 
 
@@ -1830,7 +1841,7 @@ def main():
                 missing_screening_layers.append("population_raster_coverage")
             screening_quality = (
                 "incomplete_screening_layers" if missing_screening_layers
-                else "configured_layers_present_osm_coverage_unverified")
+                else osm_data_quality)
             hazard_route_exposure = route_hazard_exposure(
                 final_geo, official_hazard_masks, transform, dem.shape)
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
@@ -1890,7 +1901,9 @@ def main():
 
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
             planning_status = route_planning_status(
-                final_geo, station_task, missing_screening_layers)
+                final_geo, station_task, missing_screening_layers,
+                osm_coverage_unverified=(
+                    osm_data_quality != "osm_proxy_coverage_complete"))
             case_metrics[FINAL_ROUTE_LABEL] = {
                 "method": best_method,
                 "selection_rule": selection_rule,

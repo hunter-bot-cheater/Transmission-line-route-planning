@@ -244,6 +244,12 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(route_planning_status(None, result, []), "no_hard_constraint_compliant_route")
         self.assertEqual(route_planning_status([(1.0, 1.0), (2.0, 2.0)], None, ["buildings"]),
                          "screening_candidate_data_incomplete")
+        self.assertEqual(
+            route_planning_status([(1.0, 1.0), (2.0, 2.0)], None,
+                                  ["official_hazards"],
+                                  osm_coverage_unverified=True),
+            "screening_candidate_data_incomplete",
+        )
 
     def test_declared_verified_endpoint_does_not_open_blocked_dem_or_building_cell(self):
         hard_mask = np.ones((3, 3), dtype=np.uint8)
@@ -1138,6 +1144,27 @@ class StationPlanningTests(unittest.TestCase):
 
         self.assertEqual(status, "osm_proxy_features_observed_coverage_unverified")
         self.assertEqual(missing, [])
+        self.assertEqual(
+            route_planning_status([(1.0, 1.0), (2.0, 2.0)], None, missing,
+                                  osm_coverage_unverified=True),
+            "screening_candidate_coverage_unverified",
+        )
+
+    def test_complete_required_osm_coverage_can_be_screening_candidate(self):
+        metadata = {
+            name: {"status": "available", "coverage_status": "complete"}
+            for name in ("buildings", "landuse")
+        }
+
+        status, missing = screening_data_quality(metadata)
+
+        self.assertEqual(status, "osm_proxy_coverage_complete")
+        self.assertEqual(missing, [])
+        self.assertEqual(
+            route_planning_status([(1.0, 1.0), (2.0, 2.0)], None, missing,
+                                  osm_coverage_unverified=False),
+            "screening_candidate",
+        )
 
     def test_mean_cost_samples_route_interior_cells(self):
         transform = Affine(1.0, 0.0, 0.0, 0.0, -1.0, 5.0)
