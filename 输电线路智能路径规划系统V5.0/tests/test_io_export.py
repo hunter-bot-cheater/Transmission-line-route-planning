@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from rasterio.crs import CRS
 
@@ -29,6 +30,21 @@ class RouteExportTests(unittest.TestCase):
                 self.assertEqual(result, shp_path)
             else:
                 self.assertEqual(result, geojson_path)
+
+    def test_rejects_geojson_when_readback_differs_from_requested_route(self):
+        with tempfile.TemporaryDirectory() as folder:
+            shp_path = Path(folder) / "route.shp"
+            geojson_path = Path(folder) / "route.geojson"
+
+            def write_corrupt_geojson(_document, output, **_kwargs):
+                output.write('{"type":"FeatureCollection","features":[]}')
+
+            with patch("transmission_path_planner.io_export.json.dump",
+                       side_effect=write_corrupt_geojson):
+                with self.assertRaisesRegex(RuntimeError, "readback verification"):
+                    io_export.export_route(
+                        [(121.0, 24.0), (121.1, 24.1)],
+                        "EPSG:4326", shp_path, geojson_path)
 
     def test_multiline_exports_use_the_same_valid_segments(self):
         segments = [[(121.0, 24.0)], [(122.0, 25.0), (122.1, 25.1)]]

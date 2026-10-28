@@ -100,4 +100,8 @@ def export_route(geo, crs, shp_path, geojson_path):
             "features": feats}
     with open(geojson_path, "w", encoding="utf-8") as f:
         json.dump(feat, f, ensure_ascii=False, indent=2)
+    with open(geojson_path, "r", encoding="utf-8") as f:
+        if json.load(f) != feat:
+            raise RuntimeError(
+                f"GeoJSON route export readback verification failed: {geojson_path}")
     return shp_path if shp_exported else geojson_path
