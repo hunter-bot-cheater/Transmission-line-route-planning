@@ -1112,6 +1112,8 @@ class StationPlanningTests(unittest.TestCase):
         self.assertIsNone(accepted)
         self.assertEqual(report["hard_constraint_status"], "fail")
         self.assertGreater(report["hard_violations"], 0)
+        self.assertEqual(report["hard_constraint_validation_scope"], "loaded_raster_masks_only")
+        self.assertEqual(report["hard_constraint_completeness_status"], "not_independently_verified")
 
     def test_final_route_selection_skips_hard_constraint_violations(self):
         path = [(0.0, 0.0), (1.0, 1.0)]
@@ -1170,9 +1172,20 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(status, "osm_proxy_coverage_complete")
         self.assertEqual(missing, [])
         self.assertEqual(
-            route_planning_status([(1.0, 1.0), (2.0, 2.0)], None, missing,
-                                  osm_coverage_unverified=False),
+            route_planning_status(
+                [(1.0, 1.0), (2.0, 2.0)],
+                {"endpoint_qualification": "declared_verified_line_connection_points"},
+                missing,
+                osm_coverage_unverified=False),
             "screening_candidate",
+        )
+
+    def test_complete_screening_without_station_task_stays_exploratory(self):
+        self.assertEqual(
+            route_planning_status(
+                [(1.0, 1.0), (2.0, 2.0)], None, [],
+                osm_coverage_unverified=False),
+            "exploratory_only_unverified_endpoints",
         )
 
     def test_mean_cost_samples_route_interior_cells(self):

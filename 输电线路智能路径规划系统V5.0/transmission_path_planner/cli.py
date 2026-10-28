@@ -210,6 +210,8 @@ def validate_route_hard_constraints(geo, transform, hard_mask):
     report = {
         "hard_constraint_status": "pass" if violations == 0 else "fail",
         "hard_violations": int(violations),
+        "hard_constraint_validation_scope": "loaded_raster_masks_only",
+        "hard_constraint_completeness_status": "not_independently_verified",
     }
     return (geo if violations == 0 else None), report
 
@@ -633,6 +635,8 @@ def route_planning_status(final_geo, station_task, missing_screening_layers,
         return "screening_candidate_data_incomplete"
     if osm_coverage_unverified:
         return "screening_candidate_coverage_unverified"
+    if station_task is None:
+        return "exploratory_only_unverified_endpoints"
     return "screening_candidate"
 
 
@@ -2026,6 +2030,7 @@ def main():
                 "real_evaluation_status": real_evaluation_status,
                 "real_evaluation_methods": real_evaluation_methods,
                 "planning_status": planning_status,
+                "engineering_feasibility": "not_evaluated",
                 **station_endpoint_properties(station_task),
                 "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
                 "hard_violations": selected_metrics.get("hard_violations"),
@@ -2122,9 +2127,12 @@ def main():
                                             "route_similarity": selected_metrics.get("route_similarity"),
                                            "selection_rule": selection_rule,
                                            "planning_status": planning_status,
+                                           "engineering_feasibility": "not_evaluated",
                                            **station_endpoint_properties(station_task),
                                            "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
                                            "hard_violations": selected_metrics.get("hard_violations"),
+                                           "hard_constraint_validation_scope": "loaded_raster_masks_only",
+                                           "hard_constraint_completeness_status": "not_independently_verified",
                                            "osm_data_quality": osm_data_quality,
                                            "screening_data_quality": screening_quality,
                                            "missing_osm_screening_layers": missing_osm_layers,
