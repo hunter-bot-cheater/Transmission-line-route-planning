@@ -2,6 +2,7 @@
 """命令行入口与多走廊批量编排。"""
 
 import hashlib
+import re
 
 from .config import *
 from .geometry import *
@@ -16,7 +17,10 @@ from .io_export import *
 from .stations import *
 from .official_hazards import load_official_hazard_masks
 from .provenance import capture_run_provenance, write_run_provenance
-from .experimental_theta_star import theta_star_cost_path
+from .experimental_theta_star import (
+    integrate_polyline_cost,
+    theta_star_cost_path,
+)
 from .experimental_tower_graph import span_clearance_status, tower_graph_route
 from .experimental_astar_16 import (
     NEIGHBORS_8,
@@ -33,7 +37,13 @@ ASTAR_16_METHOD = "A*(16-neighbor experimental)"
 ASTAR_8_EXACT_METHOD = "A*(8-neighbor exact experimental)"
 ASTAR_8_SHARED_METHOD = "A*(8-neighbor shared objective experimental)"
 ASTAR_16_SHARED_METHOD = "A*(16-neighbor shared objective experimental)"
+THETA_SHARED_METHOD = "Theta*(shared objective experimental)"
 TOWER_GRAPH_METHOD = "Tower graph (experimental)"
+SHARED_SEARCH_ROUTE_TAGS = {
+    ASTAR_8_SHARED_METHOD: "astar_8_shared_objective",
+    ASTAR_16_SHARED_METHOD: "astar_16_shared_objective",
+    THETA_SHARED_METHOD: "theta_shared_objective",
+}
 
 
 def _select_final_route(methods, case_metrics, select_tower_graph=False):
@@ -71,10 +81,71 @@ def _select_final_route(methods, case_metrics, select_tower_graph=False):
     return None, None, "no_hard_constraint_compliant_route"
 
 
+def _candidate_validation_status(search_path, validated_path):
+    if validated_path:
+        return "survived_validation"
+    if search_path:
+        return "rejected_after_search"
+    return "no_path"
+
+
+def _shared_search_route_exports(neighbor_results, theta_results, transform):
+    experiments = {**neighbor_results, **theta_results}
+    routes = []
+    for method, tag in SHARED_SEARCH_ROUTE_TAGS.items():
+        path = experiments.get(method, {}).get("path")
+        if path and len(path) >= 2:
+            geo = [rowcol_to_geo(row, col, transform) for row, col in path]
+            routes.append((method, tag, geo))
+    return routes
+
+
+def _route_method_export_tag(method):
+    return re.sub(r"[^a-z0-9]+", "_", method.lower().replace("*", "star")).strip("_")
+
+
+def _shared_route_artifact_paths(case_name, method, search_path, validated_path):
+    tag = SHARED_SEARCH_ROUTE_TAGS[method]
+    case_dir = route_output_name(case_name)
+    return {
+        "search_route_artifact": (
+            f"{case_dir}/planned_route_{tag}_search_raw.geojson"
+            if search_path and len(search_path) >= 2 else None),
+        "validated_route_artifact": (
+            f"{case_dir}/planned_route_{tag}_validated.geojson"
+            if validated_path and len(validated_path) >= 2 else None),
+    }
+
+
+def _assert_route_artifacts_absent(directory, stems):
+    existing = [
+        path for stem in stems for path in Path(directory).glob(f"{stem}.*")
+    ]
+    if existing:
+        raise FileExistsError(
+            "refusing to overwrite route artifacts: "
+            + ", ".join(str(path) for path in existing))
+
+
+def _write_comparison_outputs(all_results, output_dir):
+    output_dir = Path(output_dir)
+    try:
+        plot_algo_comparison(all_results, output_dir / "algo_comparison.png")
+    except Exception as exc:
+        print(f"[WARN] 聚合对比图写出失败(不影响指标写出): {exc}")
+    try:
+        with open(output_dir / "comparison_metrics.json", "w", encoding="utf-8") as stream:
+            json.dump(all_results, stream, ensure_ascii=False, indent=2)
+    except Exception as exc:
+        print(f"[WARN] 聚合指标JSON写出失败: {exc}")
+
+
 def _metric_grade_penalty_weight(method, experimental_neighbor_methods,
-                                 configured_weight):
+                                 configured_weight, experimental_theta_methods=None):
     if method in experimental_neighbor_methods:
         return experimental_neighbor_methods[method].get("grade_penalty_weight", 0.0)
+    if experimental_theta_methods and method in experimental_theta_methods:
+        return experimental_theta_methods[method].get("grade_penalty_weight", 0.0)
     if method in (TOWER_GRAPH_METHOD, "Theta*(experimental)"):
         return 0.0
     return configured_weight
@@ -682,13 +753,16 @@ def main():
     ap.add_argument("--experimental-theta-star", action="store_true",
                     help="额外生成 Theta* 实验候选；复用 A* 栅格代价面，不计软坡度/转弯代价，"
                          "经常规约束复核但不参与最终选路")
+    ap.add_argument("--experimental-theta-star-shared-objective", action="store_true",
+                    help="额外生成 Theta* 搜索空间对照；需设 --grade-penalty-weight 0 以保持路径级目标一致；"
+                         "地形坡度栅格与硬坡度限制仍生效；不计转弯代价，仅作对照且不参与最终选路")
     ap.add_argument("--experimental-astar-16", action="store_true",
                     help="额外运行同目标的 8/16 邻域精确积分 A* 对照；复用含地形与约束图层的代价面，"
                          "关闭相邻地面坡度附加惩罚和转弯惩罚，"
                          "配置的地面坡度上限仍作硬约束；均不参与最终选路")
     ap.add_argument("--experimental-astar-16-shared-objective", action="store_true",
-                    help="额外运行共享边成本公式的 8/16 邻域 A* 对照：精确积分同一代价面并计入端点地面坡度惩罚；"
-                         "不含转弯惩罚，配置的地面坡度上限仍作硬约束；均不参与最终选路")
+                    help="额外运行 8/16 邻域 A* 搜索空间对照；需设 --grade-penalty-weight 0 以保持路径级目标一致；"
+                         "地形坡度栅格与硬坡度限制仍生效；不含转弯惩罚，仅作对照且不参与最终选路")
     ap.add_argument("--experimental-sampled-pareto", action="store_true",
                     help="对同一地形/约束代价面采样生成 A* 多目标候选；只输出实验候选，不参与最终选路")
     ap.add_argument("--experimental-tower-graph", action="store_true",
@@ -826,10 +900,17 @@ def main():
         ap.error("避让距离与代价权重不能为负数")
     if args.astar_heuristic_weight < 1:
         ap.error("--astar-heuristic-weight 必须大于或等于 1.0")
-    if (args.experimental_astar_16_shared_objective
+    if (args.experimental_theta_star and args.experimental_theta_star_shared_objective):
+        ap.error("--experimental-theta-star 与 --experimental-theta-star-shared-objective 不能同时指定")
+    if ((args.experimental_astar_16_shared_objective
+            or args.experimental_theta_star_shared_objective)
+            and args.grade_penalty_weight != 0.0):
+        ap.error("共享搜索空间对照要求 --grade-penalty-weight 0；地形坡度代价栅格和硬坡度限制仍生效")
+    if ((args.experimental_astar_16_shared_objective
+            or args.experimental_theta_star_shared_objective)
             and (args.search_turn_penalty_weight > 0
                  or args.smoothing_turn_penalty_weight > 0)):
-        ap.error("--experimental-astar-16-shared-objective 暂不支持非零搜索或平滑转弯权重")
+        ap.error("共享目标实验暂不支持非零搜索或平滑转弯权重")
     if args.population_weight > 0 and not args.population_raster:
         ap.error("启用 --population-weight 时必须同时指定 --population-raster")
     if args.population_raster and not Path(args.population_raster).is_file():
@@ -1306,6 +1387,7 @@ def main():
                           "之后仍需端点、硬约束和建筑复核")
 
             experimental_neighbor_results = {}
+            experimental_theta_results = {}
             neighbor_experiments = []
             if args.experimental_astar_16:
                 neighbor_experiments.extend((
@@ -1363,7 +1445,7 @@ def main():
                     "search_grade_penalty_cost": search_grade_penalty_cost,
                     "grade_penalty_weight": grade_weight,
                     "objective_scope": (
-                        "piecewise_constant_raster_cost_plus_endpoint_grade"
+                        "piecewise_constant_raster_cost_plus_per_search_edge_endpoint_grade"
                         if grade_weight > 0.0 else "piecewise_constant_raster_cost_only"),
                     "time_s": elapsed,
                 }
@@ -1371,26 +1453,53 @@ def main():
                       f"路径生成总耗时 {elapsed:.1f}s；精确积分，"
                       f"软地面坡度权重={grade_weight:g}，转弯权重=0")
 
-            if args.experimental_theta_star:
+            if (args.experimental_theta_star
+                    or args.experimental_theta_star_shared_objective):
+                theta_shared_objective = args.experimental_theta_star_shared_objective
+                theta_method = (THETA_SHARED_METHOD if theta_shared_objective
+                                else "Theta*(experimental)")
+                theta_grade_weight = (args.grade_penalty_weight
+                                      if theta_shared_objective else 0.0)
                 t_theta = time.time()
                 theta_path = theta_star_cost_path(
                     cost_grid, tower_span_mask, (sr, sc), (er, ec),
                     pixel_spacing=route_pixel_spacing, elevation=dem,
-                    max_ground_grade=args.max_ground_grade)
+                    max_ground_grade=args.max_ground_grade,
+                    grade_penalty_weight=theta_grade_weight)
                 geo_theta = ([rowcol_to_geo(r, c, transform) for r, c in theta_path]
                              if theta_path else None)
                 if geo_theta:
                     geo_theta = smooth_path_with_constraints(
                         geo_theta, transform, tower_span_mask, cost_grid, dem,
-                        0.0, 0.0, route_pixel_spacing,
+                        theta_grade_weight, 0.0, route_pixel_spacing,
                         max_ground_grade=args.max_ground_grade, crs=crs,
                         shortcut_endpoints=shortcut_endpoints)
-                grade_reports["Theta*(experimental)"] = ground_grade_limit_report(
+                grade_reports[theta_method] = ground_grade_limit_report(
                     geo_theta, dem, transform, args.max_ground_grade, crs)
-                methods["Theta*(experimental)"] = geo_theta
                 t_theta = time.time() - t_theta
-                print(f"  [Theta*(experimental)] 路径 {len(geo_theta) if geo_theta else 0} 点, "
+                methods[theta_method] = geo_theta
+                print(f"  [{theta_method}] 路径 {len(geo_theta) if geo_theta else 0} 点, "
                       f"耗时 {t_theta:.1f}s；仅作对照候选")
+                if theta_shared_objective:
+                    theta_raster_cost = integrate_polyline_cost(
+                        theta_path or [], cost_grid, tower_span_mask,
+                        pixel_spacing=route_pixel_spacing)
+                    theta_search_cost = integrate_polyline_cost(
+                        theta_path or [], cost_grid, tower_span_mask,
+                        pixel_spacing=route_pixel_spacing, elevation=dem,
+                        grade_penalty_weight=theta_grade_weight)
+                    theta_objective_scope = (
+                        "piecewise_constant_raster_cost_plus_per_search_edge_endpoint_grade"
+                        if theta_grade_weight > 0.0
+                        else "piecewise_constant_raster_cost_only")
+                    experimental_theta_results[theta_method] = {
+                        "path": theta_path,
+                        "search_cost": theta_search_cost,
+                        "search_raster_cost": theta_raster_cost,
+                        "grade_penalty_weight": theta_grade_weight,
+                        "objective_scope": theta_objective_scope,
+                        "time_s": t_theta,
+                    }
 
             experimental_tower_graph_results = None
             if args.experimental_tower_graph:
@@ -1558,7 +1667,8 @@ def main():
             for m, geo in methods.items():
                 if geo:
                     method_grade_weight = _metric_grade_penalty_weight(
-                        m, experimental_neighbor_results, args.grade_penalty_weight)
+                        m, experimental_neighbor_results, args.grade_penalty_weight,
+                        experimental_theta_results)
                     method_turn_weight = (args.search_turn_penalty_weight
                                           if m in ("A*(turn-aware)", TOWER_GRAPH_METHOD)
                                           or m in sampled_pareto_by_method
@@ -1645,6 +1755,8 @@ def main():
                         "VIN-Grad": t_vin,
                         "PPO": t_ppo,
                         "Theta*(experimental)": t_theta,
+                        THETA_SHARED_METHOD: experimental_theta_results.get(
+                            THETA_SHARED_METHOD, {}).get("time_s", 0.0),
                         "A*(baseline)": t_astar,
                         "A*(weighted)": t_astar,
                         "A*(turn-aware)": t_astar,
@@ -1665,39 +1777,8 @@ def main():
                                 "screening only; zero tower-site cost; optional parabolic DEM clearance "
                                 "is not conductor or load-case certification"),
                         }
-                        met["candidate_validation_status"] = (
-                            "survived_validation" if geo else
-                            "rejected_after_search" if experimental_tower_graph_results["path"]
-                            else "no_path")
-                    if m in experimental_neighbor_results:
-                        experiment = experimental_neighbor_results[m]
-                        search_cost = experiment["search_cost"]
-                        met["search_path_objective"] = {
-                            "status": ("measured" if math.isfinite(search_cost)
-                                       else "invalid_path" if experiment["path"] else "no_path"),
-                            "unit": "cost_meter",
-                            "search_objective_cost_meter": search_cost if math.isfinite(search_cost) else None,
-                            "raster_cost": (experiment["search_raster_cost"]
-                                            if math.isfinite(experiment["search_raster_cost"])
-                                            else None),
-                            "soft_grade_penalty_cost_meter": (
-                                experiment["search_grade_penalty_cost"]
-                                if math.isfinite(experiment["search_grade_penalty_cost"])
-                                else None),
-                            "soft_grade_penalty_weight": experiment[
-                                "grade_penalty_weight"],
-                            "neighbor_count": len(experiment["neighbors"]),
-                            "turn_penalty": 0.0,
-                            "hard_ground_grade_limit": args.max_ground_grade,
-                            "objective_scope": experiment["objective_scope"],
-                        }
-                        met["candidate_validation_status"] = (
-                            "survived_validation" if geo else
-                            "rejected_after_search" if experiment["path"] else "no_path")
-                        met["search_objective_model"] = (
-                            f"{len(experiment['neighbors'])}_neighbor_exact_raster_integral"
-                            + ("_plus_endpoint_grade_penalty"
-                               if experiment["grade_penalty_weight"] > 0.0 else ""))
+                        met["candidate_validation_status"] = _candidate_validation_status(
+                            experimental_tower_graph_results["path"], geo)
                     if not station_task:
                         start_center = rowcol_to_geo(sr, sc, transform)
                         end_center = rowcol_to_geo(er, ec, transform)
@@ -1731,9 +1812,11 @@ def main():
                     experiment = experimental_neighbor_results[m]
                     search_cost = experiment["search_cost"]
                     met["time_s"] = round(experiment["time_s"], 2)
-                    met.setdefault("search_objective_model",
-                                   f"{len(experiment['neighbors'])}_neighbor_exact_raster_integral")
-                    met.setdefault("search_path_objective", {
+                    met["search_objective_model"] = (
+                        f"{len(experiment['neighbors'])}_neighbor_exact_raster_integral"
+                        + ("_plus_per_search_edge_endpoint_grade_penalty"
+                           if experiment["grade_penalty_weight"] > 0.0 else ""))
+                    met["search_path_objective"] = {
                         "status": ("measured" if math.isfinite(search_cost)
                                    else "invalid_path" if experiment["path"] else "no_path"),
                         "unit": "cost_meter",
@@ -1751,13 +1834,45 @@ def main():
                         "turn_penalty": 0.0,
                         "hard_ground_grade_limit": args.max_ground_grade,
                         "objective_scope": experiment["objective_scope"],
-                    })
-                    met.setdefault("candidate_validation_status", (
-                        "rejected_after_search" if experiment["path"] else "no_path"))
-                    met.setdefault("search_objective_model", (
-                        f"{len(experiment['neighbors'])}_neighbor_exact_raster_integral"
-                        + ("_plus_endpoint_grade_penalty"
-                           if experiment["grade_penalty_weight"] > 0.0 else "")))
+                    }
+                    met["candidate_validation_status"] = _candidate_validation_status(
+                        experiment["path"], geo)
+                    if m in SHARED_SEARCH_ROUTE_TAGS:
+                        met.update(_shared_route_artifact_paths(
+                            cname, m, None, None))
+                if m in experimental_theta_results:
+                    experiment = experimental_theta_results[m]
+                    search_cost = experiment["search_cost"]
+                    met["time_s"] = round(experiment["time_s"], 2)
+                    met["search_objective_model"] = (
+                        "theta_star_exact_raster_integral"
+                        + ("_plus_per_search_edge_endpoint_grade_penalty"
+                           if experiment["grade_penalty_weight"] > 0.0 else ""))
+                    met["search_path_objective"] = {
+                        "status": ("measured" if math.isfinite(search_cost)
+                                   else "invalid_path" if experiment["path"] else "no_path"),
+                        "unit": "cost_meter",
+                        "search_objective_cost_meter": (
+                            search_cost if math.isfinite(search_cost) else None),
+                        "raster_cost": (
+                            experiment["search_raster_cost"]
+                            if math.isfinite(experiment["search_raster_cost"])
+                            else None),
+                        "soft_grade_penalty_cost_meter": (
+                            search_cost - experiment["search_raster_cost"]
+                            if math.isfinite(search_cost)
+                            and math.isfinite(experiment["search_raster_cost"])
+                            else None),
+                        "soft_grade_penalty_weight": experiment[
+                            "grade_penalty_weight"],
+                        "turn_penalty": 0.0,
+                        "hard_ground_grade_limit": args.max_ground_grade,
+                        "objective_scope": experiment["objective_scope"],
+                    }
+                    met["candidate_validation_status"] = _candidate_validation_status(
+                        experiment["path"], geo)
+                    met.update(_shared_route_artifact_paths(
+                        cname, m, None, None))
                 if geo and "hard_constraint_status" not in met:
                     met["hard_constraint_status"] = (
                         "pass" if met.get("hard_violations", 0) == 0 else "fail")
@@ -2106,26 +2221,6 @@ def main():
                         json.dump(pareto_manifest, _pf, ensure_ascii=False, indent=2)
             except Exception as exc:
                 raise RuntimeError(f"最终路线必需文件写出失败: {exc}") from exc
-            all_results.append({"case": cname, "metrics": case_metrics})
-            # 增量写出真实对比 JSON: 任一走廊完成后即落盘, 即使后续走廊异常/SIGKILL 终止也能保留已完成结果
-            try:
-                _real_out = []
-                for _rec in all_results:
-                    _entry = {"case": _rec["case"]}
-                    for _m, _met in _rec["metrics"].items():
-                        if "route_similarity" in _met:
-                            _entry[_m] = {
-                                "method": _met.get("method", _m),
-                                "length_km": _met.get("length_km"),
-                                "route_similarity_version": _met.get("route_similarity_version"),
-                                "route_similarity": _met["route_similarity"],
-                            }
-                    if _entry:
-                        _real_out.append(_entry)
-                with open(OUT / "real_comparison_metrics.json", "w", encoding="utf-8") as _f:
-                    json.dump(_real_out, _f, ensure_ascii=False, indent=2)
-            except Exception:
-                pass
             # 逐走廊绘制规划路线与参考线对比图并导出矢量。
             safe = route_output_name(cname)
             cdir = OUT / safe
@@ -2151,15 +2246,55 @@ def main():
                 if m.startswith("Sampled Pareto "):
                     tag = f"sampled_pareto_{m.rsplit(' ', 1)[-1]}"
                 else:
-                    tag = m.split("(")[0].strip().lower().replace("*", "astar").replace("-", "")
+                    tag = _route_method_export_tag(m)
                 export_route(geo, crs, cdir / f"planned_route_{tag}.shp",
                              cdir / f"planned_route_{tag}.geojson")
+            legacy_astar_geo = methods.get(astar_method)
+            if legacy_astar_geo:
+                export_route(
+                    legacy_astar_geo, crs,
+                    cdir / "planned_route_aastar.shp",
+                    cdir / "planned_route_aastar.geojson",
+                )
             if raw_astar_geo:
                 export_route(
                     raw_astar_geo, crs,
                     cdir / "astar_raw_route.shp",
                     cdir / "astar_raw_route.geojson",
                 )
+            for method, tag, search_geo in _shared_search_route_exports(
+                    experimental_neighbor_results, experimental_theta_results,
+                    transform):
+                search_geojson_path = (
+                    cdir / f"planned_route_{tag}_search_raw.geojson")
+                validated_geo = methods.get(method)
+                validated_geojson_path = (
+                    cdir / f"planned_route_{tag}_validated.geojson"
+                    if validated_geo and len(validated_geo) >= 2 else None)
+                artifact_stems = [search_geojson_path.stem]
+                if validated_geojson_path is not None:
+                    artifact_stems.append(validated_geojson_path.stem)
+                _assert_route_artifacts_absent(cdir, artifact_stems)
+                export_route(
+                    search_geo, crs,
+                    cdir / f"planned_route_{tag}_search_raw.shp",
+                    search_geojson_path,
+                )
+                if not search_geojson_path.is_file():
+                    raise RuntimeError(
+                        f"raw search route export missing: {search_geojson_path}")
+                if validated_geojson_path is not None:
+                    export_route(
+                        validated_geo, crs,
+                        cdir / f"planned_route_{tag}_validated.shp",
+                        validated_geojson_path,
+                    )
+                    if not validated_geojson_path.is_file():
+                        raise RuntimeError(
+                            f"validated route export missing: {validated_geojson_path}")
+                case_metrics[method].update(_shared_route_artifact_paths(
+                    cname, method, search_geo,
+                    validated_geo if validated_geojson_path else None))
             # 导出真实/参考线路(便于下游复用与二次对比)
             if real_geo:
                 export_route(real_geo, crs, cdir / "real_route.shp", cdir / "real_route.geojson")
@@ -2192,6 +2327,26 @@ def main():
                             json.dump(case_metrics["VIN-Grad"], f, ensure_ascii=False, indent=2)
                     except Exception as _me:
                         print(f"[WARN] metrics.json 写出失败(跳过): {_me}")
+            all_results.append({"case": cname, "metrics": case_metrics})
+            # 只在本走廊必需图件、矢量与路径文件写出后，增量提交其成功记录。
+            try:
+                _real_out = []
+                for _rec in all_results:
+                    _entry = {"case": _rec["case"]}
+                    for _m, _met in _rec["metrics"].items():
+                        if "route_similarity" in _met:
+                            _entry[_m] = {
+                                "method": _met.get("method", _m),
+                                "length_km": _met.get("length_km"),
+                                "route_similarity_version": _met.get("route_similarity_version"),
+                                "route_similarity": _met["route_similarity"],
+                            }
+                    if _entry:
+                        _real_out.append(_entry)
+                with open(OUT / "real_comparison_metrics.json", "w", encoding="utf-8") as _f:
+                    json.dump(_real_out, _f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
         except Exception as _exc:
             import traceback as _tb
             _tb.print_exc()
@@ -2239,14 +2394,7 @@ def main():
           f"无可行路线 {len(run_summary['no_route_cases'])} 条，失败 {len(failed_cases)} 条")
 
     # 聚合对比图 + 指标表
-    try:
-        plot_algo_comparison(all_results, OUT / "algo_comparison.png")
-        with open(OUT / "comparison_metrics.json", "w", encoding="utf-8") as f:
-            json.dump(all_results, f, ensure_ascii=False, indent=2)
-    except Exception as _exc2:
-        import traceback as _tb2
-        _tb2.print_exc()
-        print(f"[WARN] 聚合对比图/指标写出失败(不影响各走廊已写出结果): {_exc2}")
+    _write_comparison_outputs(all_results, OUT)
     # CSV
     rows = []
     for rec in all_results:
@@ -2297,7 +2445,7 @@ def main():
                              TOWER_GRAPH_METHOD,
                              ASTAR_8_EXACT_METHOD, ASTAR_16_METHOD,
                              ASTAR_8_SHARED_METHOD, ASTAR_16_SHARED_METHOD,
-                             "Theta*(experimental)", "VIN-Grad", "PPO"]
+            "Theta*(experimental)", THETA_SHARED_METHOD, "VIN-Grad", "PPO"]
         failed_case_names = {item["case"] for item in failed_cases}
         for rec in all_results:
             if rec["case"] in failed_case_names or rec["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status") == "no_hard_constraint_compliant_route":
@@ -2351,7 +2499,7 @@ def main():
     for m in ["A*(baseline)", "A*(weighted)", "A*(turn-aware)",
               ASTAR_8_EXACT_METHOD, ASTAR_16_METHOD,
               ASTAR_8_SHARED_METHOD, ASTAR_16_SHARED_METHOD,
-              "Theta*(experimental)", "VIN-Grad", "PPO"]:
+              "Theta*(experimental)", THETA_SHARED_METHOD, "VIN-Grad", "PPO"]:
         method_metrics = _method_route_metrics(all_results, m)
         lens = [metrics["length_km"] for metrics in method_metrics]
         mc = [metrics["mean_cost"] for metrics in method_metrics]

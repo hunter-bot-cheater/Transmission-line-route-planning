@@ -1,3 +1,4 @@
+import json
 from contextlib import redirect_stderr, redirect_stdout
 from io import BytesIO, StringIO, TextIOWrapper
 from pathlib import Path
@@ -11,7 +12,19 @@ from affine import Affine
 from shapely.geometry import LineString, MultiLineString, Polygon, box
 
 from transmission_path_planner.cli import (
+    ASTAR_8_SHARED_METHOD,
+    ASTAR_16_METHOD,
+    ASTAR_16_SHARED_METHOD,
+    ASTAR_8_EXACT_METHOD,
+    THETA_SHARED_METHOD,
     _select_final_route,
+    _assert_route_artifacts_absent,
+    _candidate_validation_status,
+    route_output_name,
+    _route_method_export_tag,
+    _shared_route_artifact_paths,
+    _shared_search_route_exports,
+    _write_comparison_outputs,
     _metric_grade_penalty_weight,
     _method_route_metrics,
     annotate_route_validation_context,
@@ -47,6 +60,99 @@ from transmission_path_planner import metrics
 
 
 class ReferenceIndependentPlanningTests(unittest.TestCase):
+    def test_experimental_validation_status_uses_final_candidate(self):
+        self.assertEqual(_candidate_validation_status([(0, 0)], None),
+                         "rejected_after_search")
+        self.assertEqual(_candidate_validation_status([(0, 0)], [(0.0, 0.0)]),
+                         "survived_validation")
+        self.assertEqual(_candidate_validation_status(None, None), "no_path")
+
+    def test_shared_search_exports_keep_raw_cell_center_geometry(self):
+        transform = Affine(0.1, 0.0, 10.0, 0.0, -0.1, 20.0)
+        neighbor_results = {
+            ASTAR_8_SHARED_METHOD: {"path": [(0, 0), (1, 2)]},
+            "A*(8-neighbor exact experimental)": {"path": [(0, 1)]},
+        }
+        theta_results = {
+            THETA_SHARED_METHOD: {"path": [(2, 2), (3, 3)]},
+        }
+
+        exports = _shared_search_route_exports(
+            neighbor_results, theta_results, transform)
+
+        self.assertEqual(
+            exports,
+            [
+                (ASTAR_8_SHARED_METHOD, "astar_8_shared_objective",
+                 [(10.05, 19.95), (10.25, 19.85)]),
+                (THETA_SHARED_METHOD, "theta_shared_objective",
+                 [(10.25, 19.75), (10.35, 19.65)]),
+            ],
+        )
+
+    def test_astar_method_export_tags_are_unique(self):
+        methods = [
+            "A*(baseline)",
+            "A*(weighted)",
+            "A*(turn-aware)",
+            ASTAR_8_EXACT_METHOD,
+            ASTAR_16_METHOD,
+            ASTAR_8_SHARED_METHOD,
+            ASTAR_16_SHARED_METHOD,
+            "Theta*(experimental)",
+            THETA_SHARED_METHOD,
+            "Tower graph (experimental)",
+            "VIN-Grad",
+            "PPO",
+        ]
+        tags = [_route_method_export_tag(method) for method in methods]
+
+        self.assertTrue(all(tags))
+        self.assertEqual(len(tags), len(set(tags)))
+        self.assertEqual(tags[0], "astar_baseline")
+        self.assertEqual(tags[1], "astar_weighted")
+        self.assertEqual(tags[2], "astar_turn_aware")
+
+    def test_shared_artifact_paths_are_case_relative_and_skip_single_cell_lines(self):
+        transform = Affine(0.1, 0.0, 10.0, 0.0, -0.1, 20.0)
+        single_cell = {ASTAR_8_SHARED_METHOD: {"path": [(0, 0)]}}
+        self.assertEqual(
+            _shared_search_route_exports(single_cell, {}, transform), [])
+
+        artifacts = _shared_route_artifact_paths(
+            "TW345", ASTAR_8_SHARED_METHOD, [(0, 0), (0, 1)], None)
+        self.assertEqual(
+            artifacts,
+            {
+                "search_route_artifact": (
+                    f"{route_output_name('TW345')}/"
+                    "planned_route_astar_8_shared_objective_search_raw.geojson"),
+                "validated_route_artifact": None,
+            },
+        )
+
+    def test_shared_route_export_preserves_existing_artifact(self):
+        with TemporaryDirectory() as temp_dir:
+            existing = Path(temp_dir) / "planned_route_theta_raw.geojson"
+            existing.write_text("preserve", encoding="utf-8")
+
+            with self.assertRaises(FileExistsError):
+                _assert_route_artifacts_absent(
+                    temp_dir, ["planned_route_theta_raw"])
+
+            self.assertEqual(existing.read_text(encoding="utf-8"), "preserve")
+
+    def test_comparison_metrics_are_written_if_plot_fails(self):
+        with TemporaryDirectory() as temp_dir:
+            with patch("transmission_path_planner.cli.plot_algo_comparison",
+                       side_effect=RuntimeError("plot failed")), \
+                    redirect_stdout(StringIO()):
+                _write_comparison_outputs([], temp_dir)
+
+            metrics_path = Path(temp_dir) / "comparison_metrics.json"
+            self.assertTrue(metrics_path.is_file())
+            self.assertEqual(json.loads(metrics_path.read_text(encoding="utf-8")), [])
+
     def test_turn_penalty_weights_keep_legacy_default_and_allow_stage_overrides(self):
         self.assertEqual(resolve_turn_penalty_weights(0.5), (0.5, 0.5))
         self.assertEqual(resolve_turn_penalty_weights(0.0, 0.5, 0.0), (0.5, 0.0))
@@ -54,7 +160,41 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
 
     def test_shared_objective_rejects_nonzero_smoothing_turn_penalty(self):
         args = ["planner", "--experimental-astar-16-shared-objective",
+                "--grade-penalty-weight", "0",
                 "--smoothing-turn-penalty-weight", "0.5",
+                "--start", "24,121", "--end", "24.1,121.1"]
+        with patch("sys.argv", args), redirect_stderr(StringIO()):
+            with self.assertRaises(SystemExit) as exc:
+                main()
+
+        self.assertEqual(exc.exception.code, 2)
+
+    def test_shared_theta_objective_rejects_turn_penalty(self):
+        args = ["planner", "--experimental-theta-star-shared-objective",
+                "--grade-penalty-weight", "0",
+                "--search-turn-penalty-weight", "0.5",
+                "--start", "24,121", "--end", "24.1,121.1"]
+        with patch("sys.argv", args), redirect_stderr(StringIO()):
+            with self.assertRaises(SystemExit) as exc:
+                main()
+
+        self.assertEqual(exc.exception.code, 2)
+
+    def test_shared_search_objectives_require_zero_soft_grade_weight(self):
+        for flag in ("--experimental-astar-16-shared-objective",
+                     "--experimental-theta-star-shared-objective"):
+            args = ["planner", flag, "--grade-penalty-weight", "0.1",
+                    "--start", "24,121", "--end", "24.1,121.1"]
+            with self.subTest(flag=flag), patch("sys.argv", args), \
+                    redirect_stderr(StringIO()):
+                with self.assertRaises(SystemExit) as exc:
+                    main()
+
+            self.assertEqual(exc.exception.code, 2)
+
+    def test_theta_objective_modes_are_mutually_exclusive(self):
+        args = ["planner", "--experimental-theta-star",
+                "--experimental-theta-star-shared-objective",
                 "--start", "24,121", "--end", "24.1,121.1"]
         with patch("sys.argv", args), redirect_stderr(StringIO()):
             with self.assertRaises(SystemExit) as exc:

@@ -84,7 +84,8 @@ def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, t
                   "A*(16-neighbor experimental)": "#7f7f7f",
                   "A*(8-neighbor shared objective experimental)": "#bcbd22",
                   "A*(16-neighbor shared objective experimental)": "#d62728",
-                  "Theta*(experimental)": "#e377c2"}
+                  "Theta*(experimental)": "#e377c2",
+                  "Theta*(shared objective experimental)": "#17becf"}
         line_styles = {
             "A*(baseline)": "-",
             "A*(weighted)": "--",
@@ -94,6 +95,7 @@ def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, t
             "A*(8-neighbor shared objective experimental)": (0, (1, 1)),
             "A*(16-neighbor shared objective experimental)": (0, (5, 2, 1, 2)),
             "Theta*(experimental)": (0, (5, 1)),
+            "Theta*(shared objective experimental)": (0, (2, 2)),
         }
         for name, geo in methods_paths.items():
             if not geo:
@@ -155,7 +157,7 @@ _COMPARISON_METHODS = [
     "A*(8-neighbor exact experimental)", "A*(16-neighbor experimental)",
     "A*(8-neighbor shared objective experimental)",
     "A*(16-neighbor shared objective experimental)",
-    "Theta*(experimental)",
+    "Theta*(experimental)", "Theta*(shared objective experimental)",
 ]
 _COMPARISON_METRICS = [
     "length_km", "mean_cost", "sinuosity", "hard_violations", "time_s", "cum_relief_m",
@@ -194,6 +196,7 @@ def plot_algo_comparison(all_results, out_path):
         "A*(16-neighbor experimental)": "A* 16邻域", "Theta*(experimental)": "Theta*",
         "A*(8-neighbor shared objective experimental)": "A* 8邻域共目标",
         "A*(16-neighbor shared objective experimental)": "A* 16邻域共目标",
+        "Theta*(shared objective experimental)": "Theta* 共目标",
         "VIN-Grad": "VIN-Grad", "PPO": "PPO",
     }
     labels = {
@@ -208,7 +211,8 @@ def plot_algo_comparison(all_results, out_path):
               "A*(16-neighbor experimental)": "#7f7f7f",
               "A*(8-neighbor shared objective experimental)": "#bcbd22",
               "A*(16-neighbor shared objective experimental)": "#d62728",
-              "Theta*(experimental)": "#e377c2"}
+              "Theta*(experimental)": "#e377c2",
+              "Theta*(shared objective experimental)": "#17becf"}
     for i, k in enumerate(metrics_keys):
         ax = axes[i]
         vals = [means[m][k] for m in methods]
