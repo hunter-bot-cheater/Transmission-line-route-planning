@@ -80,6 +80,53 @@ def _lexicographic_dijkstra_oracle(cost, traversable, start, goal, spacing,
 
 
 class ExperimentalAstar16Tests(unittest.TestCase):
+    def test_positive_grade_penalty_requires_elevation_for_integrals(self):
+        cost = np.ones((2, 2), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+
+        with self.assertRaisesRegex(ValueError, "elevation is required"):
+            integrate_path_cost(
+                [(0, 0), (0, 1)], cost, traversable,
+                grade_penalty_weight=1.0)
+
+        with self.assertRaisesRegex(ValueError, "elevation is required"):
+            astar_exact_integral_path(
+                cost, traversable, (0, 0), (1, 1), NEIGHBORS_8,
+                grade_penalty_weight=1.0)
+
+    def test_positive_grade_penalty_rejects_nonfinite_endpoint_elevation(self):
+        cost = np.ones((2, 2), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+        elevation = np.zeros(cost.shape, dtype=np.float64)
+        elevation[0, 0] = np.nan
+
+        self.assertTrue(math.isinf(integrate_path_cost(
+            [(0, 0), (1, 1)], cost, traversable, elevation=elevation,
+            grade_penalty_weight=1.0)))
+        self.assertIsNone(astar_exact_integral_path(
+            cost, traversable, (0, 0), (1, 1), NEIGHBORS_8,
+            elevation=elevation, grade_penalty_weight=1.0))
+
+    def test_positive_grade_penalty_blocks_nodata_crossed_by_search_edges(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+        elevation = np.zeros(cost.shape, dtype=np.float64)
+        elevation[1, 1] = np.nan
+        diagonal = [(0, 0), (2, 2)]
+
+        self.assertTrue(math.isinf(integrate_path_cost(
+            diagonal, cost, traversable, elevation=elevation,
+            grade_penalty_weight=1.0)))
+        route = astar_exact_integral_path(
+            cost, traversable, (0, 0), (2, 2), NEIGHBORS_16,
+            elevation=elevation, grade_penalty_weight=1.0)
+
+        self.assertIsNotNone(route)
+        self.assertTrue(all(math.isfinite(integrate_path_cost(
+            [first, second], cost, traversable, elevation=elevation,
+            grade_penalty_weight=1.0))
+            for first, second in zip(route, route[1:])))
+
     def test_matches_dijkstra_oracle_and_is_direction_invariant(self):
         rng = np.random.default_rng(20261024)
         cost = rng.uniform(0.5, 8.0, size=(8, 10))

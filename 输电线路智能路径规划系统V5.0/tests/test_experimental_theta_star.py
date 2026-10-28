@@ -8,6 +8,10 @@ from transmission_path_planner.experimental_theta_star import (
     integrate_polyline_cost,
     theta_star_cost_path,
 )
+from transmission_path_planner.experimental_astar_16 import (
+    NEIGHBORS_16,
+    integrate_path_cost,
+)
 from transmission_path_planner.metrics import path_cost_integral
 from transmission_path_planner.methods import astar_search
 from transmission_path_planner.smoothing import path_hard_violations
@@ -84,6 +88,97 @@ class ExperimentalThetaStarTests(unittest.TestCase):
 
         self.assertEqual(production["status"], "measured")
         self.assertAlmostEqual(exact, production["base_cost_meter"], places=6)
+
+    def test_endpoint_grade_objective_matches_shared_neighbor_astar(self):
+        cost = np.arange(36, dtype=np.float64).reshape(6, 6) / 10.0
+        traversable = np.ones(cost.shape, dtype=bool)
+        elevation = np.array([
+            [0, 0, 0, 0, 0, 0],
+            [0, 5, 5, 0, 0, 0],
+            [0, 5, 8, 0, 0, 0],
+            [0, 0, 0, 12, 0, 0],
+            [0, 0, 0, 12, 20, 0],
+            [0, 0, 0, 0, 0, 0],
+        ], dtype=np.float64)
+        route = [(1, 1), (2, 2), (4, 3)]
+        spacing = (2.5, 4.0)
+        weight = 1.25
+
+        theta_cost = integrate_polyline_cost(
+            route, cost, traversable, pixel_spacing=spacing,
+            elevation=elevation, grade_penalty_weight=weight)
+        astar_cost = integrate_path_cost(
+            route, cost, traversable, pixel_spacing=spacing,
+            neighbor_offsets=NEIGHBORS_16, elevation=elevation,
+            grade_penalty_weight=weight)
+
+        self.assertAlmostEqual(theta_cost, astar_cost, places=12)
+
+    def test_endpoint_grade_penalty_requires_elevation(self):
+        cost = np.ones((4, 4), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+        with self.assertRaisesRegex(ValueError, "elevation is required"):
+            theta_star_cost_path(
+                cost, traversable, (0, 0), (3, 3), grade_penalty_weight=1.0)
+        with self.assertRaisesRegex(ValueError, "elevation is required"):
+            integrate_polyline_cost(
+                [(0, 0), (3, 3)], cost, traversable,
+                grade_penalty_weight=1.0)
+
+    def test_soft_grade_search_rejects_missing_endpoint_elevation(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+        elevation = np.zeros(cost.shape, dtype=np.float64)
+        elevation[0, 0] = np.nan
+
+        route = theta_star_cost_path(
+            cost, traversable, (0, 0), (2, 2), elevation=elevation,
+            grade_penalty_weight=1.0)
+
+        self.assertIsNone(route)
+
+    def test_soft_grade_search_routes_around_intermediate_dem_nodata(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+        elevation = np.zeros(cost.shape, dtype=np.float64)
+        elevation[1, 1] = np.nan
+
+        route = theta_star_cost_path(
+            cost, traversable, (0, 0), (2, 2), elevation=elevation,
+            grade_penalty_weight=1.0)
+
+        self.assertIsNotNone(route)
+        self.assertTrue(math.isfinite(integrate_polyline_cost(
+            route, cost, traversable, elevation=elevation,
+            grade_penalty_weight=1.0)))
+
+    def test_soft_grade_integral_rejects_intermediate_dem_nodata(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+        elevation = np.zeros(cost.shape, dtype=np.float64)
+        elevation[1, 1] = np.nan
+
+        score = integrate_polyline_cost(
+            [(0, 0), (2, 2)], cost, traversable, elevation=elevation,
+            grade_penalty_weight=1.0)
+
+        self.assertTrue(math.isinf(score))
+
+    def test_theta_search_accepts_shared_endpoint_grade_objective(self):
+        cost = np.ones((5, 5), dtype=np.float64)
+        traversable = np.ones(cost.shape, dtype=bool)
+        elevation = np.tile(np.arange(5, dtype=np.float64)[:, None] * 10.0,
+                            (1, 5))
+        route = theta_star_cost_path(
+            cost, traversable, (0, 0), (4, 4), elevation=elevation,
+            grade_penalty_weight=1.0)
+
+        self.assertIsNotNone(route)
+        raster_cost = integrate_polyline_cost(route, cost, traversable)
+        weighted_cost = integrate_polyline_cost(
+            route, cost, traversable, elevation=elevation,
+            grade_penalty_weight=1.0)
+        self.assertGreater(weighted_cost, raster_cost)
 
     def test_hard_obstacle_is_not_crossed_and_route_exists_around_it(self):
         cost = np.ones((15, 21), dtype=np.float64)

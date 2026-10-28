@@ -22,6 +22,10 @@ from itertools import count
 import numpy as np
 
 from .smoothing import _grid_cells_touched, _ground_grade_grid_edge_passes
+from .experimental_astar_16 import (
+    _segment_grade_penalty,
+    _validated_grade_weight,
+)
 
 
 _NEIGHBORS = (
@@ -135,14 +139,25 @@ def _segment_cost_positions(start_rc, end_rc, cost, pixel_spacing,
     return total
 
 
-def integrate_polyline_cost(path, cost_raster, traversable_mask, pixel_spacing=(1.0, 1.0)):
-    """Return exact piecewise-constant cost-meter integral for cell-center vertices.
+def integrate_polyline_cost(path, cost_raster, traversable_mask,
+                            pixel_spacing=(1.0, 1.0), elevation=None,
+                            grade_penalty_weight=0.0):
+    """Return exact raster and optional endpoint-grade cost for cell vertices.
 
     Returns infinity when any segment's conservative supercover touches a
     blocked/out-of-grid cell. A one-cell route has zero length and zero cost.
     """
+    grade_penalty_weight = _validated_grade_weight(grade_penalty_weight)
     cost, traversable, spacing = _validated_inputs(
         cost_raster, traversable_mask, pixel_spacing)
+    if elevation is not None:
+        elevation = np.asarray(elevation, dtype=np.float64)
+        if elevation.shape != cost.shape:
+            raise ValueError("elevation must match the 2D cost raster")
+    elif grade_penalty_weight > 0.0:
+        raise ValueError("elevation is required when grade_penalty_weight is positive")
+    if grade_penalty_weight > 0.0:
+        traversable &= np.isfinite(elevation)
     points = [_checked_cell(point, "path cell") for point in path]
     if not points:
         return math.inf
@@ -155,13 +170,15 @@ def integrate_polyline_cost(path, cost_raster, traversable_mask, pixel_spacing=(
     for start, end in zip(points, points[1:]):
         if not _segment_is_clear(start, end, traversable):
             return math.inf
-        total += _segment_cost(start, end, cost, spacing)
+        total += (_segment_cost(start, end, cost, spacing)
+                  + _segment_grade_penalty(
+                      start, end, elevation, spacing, grade_penalty_weight))
     return total
 
 
 def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
                          pixel_spacing=(1.0, 1.0), elevation=None,
-                         max_ground_grade=None):
+                         max_ground_grade=None, grade_penalty_weight=0.0):
     """Find an experimental any-angle route over non-negative raster costs.
 
     Args:
@@ -171,6 +188,9 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
         pixel_spacing: physical metres per row and column pixel.
         elevation: optional DEM used to enforce the ground-grade edge limit.
         max_ground_grade: optional positive grade ratio applied to every segment.
+        grade_penalty_weight: optional soft endpoint-grade penalty using the
+            shared-objective 8/16-neighbor A* per-edge formula. Its path sum is
+            representation-dependent for longer Theta* edges.
 
     Returns:
         A list of (row, column) cell-center vertices, or None when unreachable.
@@ -178,8 +198,11 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
         piecewise-constant segment integral, but Basic Theta* is not guaranteed
         globally optimal for weighted terrain.
     """
+    grade_penalty_weight = _validated_grade_weight(grade_penalty_weight)
     cost, traversable, spacing = _validated_inputs(
         cost_raster, traversable_mask, pixel_spacing)
+    if grade_penalty_weight > 0.0 and elevation is None:
+        raise ValueError("elevation is required when grade_penalty_weight is positive")
     height, width = traversable.shape
     if max_ground_grade is not None:
         try:
@@ -197,6 +220,8 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
         elevation = np.asarray(elevation, dtype=np.float64)
         if elevation.shape != cost.shape:
             raise ValueError("elevation must match the 2D cost raster")
+    if grade_penalty_weight > 0.0 or max_ground_grade is not None:
+        traversable &= np.isfinite(elevation)
 
     start = _checked_cell(start_rc, "start_rc")
     goal = _checked_cell(goal_rc, "goal_rc")
@@ -282,24 +307,32 @@ def theta_star_cost_path(cost_raster, traversable_mask, start_rc, goal_rc,
             if (_segment_is_clear(parent, neighbor, traversable)
                     and grade_passes(parent, neighbor)):
                 direct_g = (g_score[parent]
-                            + _segment_cost(parent, neighbor, cost, spacing))
-                direct_length = (length_score[parent]
-                                 + segment_length(parent, neighbor))
-                candidate_parent = parent
-                candidate_g = direct_g
-                candidate_length = direct_length
+                            + _segment_cost(parent, neighbor, cost, spacing)
+                            + _segment_grade_penalty(
+                                parent, neighbor, elevation, spacing,
+                                grade_penalty_weight))
+                if math.isfinite(direct_g):
+                    direct_length = (length_score[parent]
+                                     + segment_length(parent, neighbor))
+                    candidate_parent = parent
+                    candidate_g = direct_g
+                    candidate_length = direct_length
 
             current = (row, col)
             if (_segment_is_clear(current, neighbor, traversable)
                     and grade_passes(current, neighbor)):
                 via_g = (g_score[row, col]
-                         + _segment_cost(current, neighbor, cost, spacing))
-                via_length = (length_score[row, col]
-                              + segment_length(current, neighbor))
-                if (via_g, via_length) < (candidate_g, candidate_length):
-                    candidate_parent = current
-                    candidate_g = via_g
-                    candidate_length = via_length
+                         + _segment_cost(current, neighbor, cost, spacing)
+                         + _segment_grade_penalty(
+                             current, neighbor, elevation, spacing,
+                             grade_penalty_weight))
+                if math.isfinite(via_g):
+                    via_length = (length_score[row, col]
+                                  + segment_length(current, neighbor))
+                    if (via_g, via_length) < (candidate_g, candidate_length):
+                        candidate_parent = current
+                        candidate_g = via_g
+                        candidate_length = via_length
 
             if (candidate_parent is None
                     or (candidate_g, candidate_length)

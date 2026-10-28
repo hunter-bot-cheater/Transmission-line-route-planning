@@ -1,8 +1,8 @@
 """Opt-in 16-neighbor A* for a bounded raster-search experiment.
 
-The search objective is the exact piecewise-constant raster cost integral.
-Optional ground-grade limits are hard edge constraints; soft grade and turn
-penalties are intentionally excluded. This planner is not a production default.
+The search integrates piecewise-constant raster costs and can add an optional
+endpoint-grade penalty or enforce a hard ground-grade limit. Turn penalties
+are excluded. This planner is not a production default.
 """
 
 from __future__ import annotations
@@ -119,12 +119,14 @@ def _segment_cost(start_rc, end_rc, cost, spacing):
 
 def _segment_grade_penalty(start_rc, end_rc, elevation, spacing, weight):
     """Apply the production endpoint-grade formula to one search edge."""
-    if weight == 0.0 or elevation is None:
+    if weight == 0.0:
         return 0.0
+    if elevation is None:
+        raise ValueError("elevation is required when grade_penalty_weight is positive")
     start_elevation = float(elevation[start_rc])
     end_elevation = float(elevation[end_rc])
     if not math.isfinite(start_elevation) or not math.isfinite(end_elevation):
-        return 0.0
+        return math.inf
     dr = (end_rc[0] - start_rc[0]) * spacing[0]
     dc = (end_rc[1] - start_rc[1]) * spacing[1]
     length = math.hypot(dr, dc)
@@ -139,8 +141,12 @@ def integrate_path_cost(path, cost_raster, traversable_mask, pixel_spacing=(1.0,
                         grade_penalty_weight=0.0):
     """Return exact raster integral plus an optional endpoint-grade penalty."""
     grade_penalty_weight = _validated_grade_weight(grade_penalty_weight)
+    if grade_penalty_weight > 0.0 and elevation is None:
+        raise ValueError("elevation is required when grade_penalty_weight is positive")
     cost, traversable, spacing, _ = _validated_inputs(
         cost_raster, traversable_mask, pixel_spacing, elevation, None)
+    if grade_penalty_weight > 0.0:
+        traversable &= np.isfinite(elevation)
     points = [_grid_point(point) for point in path]
     if not points:
         return math.inf
@@ -173,8 +179,12 @@ def astar_exact_integral_path(cost_raster, traversable_mask, start_rc, goal_rc,
     because edge length bounds endpoint displacement.
     """
     grade_penalty_weight = _validated_grade_weight(grade_penalty_weight)
+    if grade_penalty_weight > 0.0 and elevation is None:
+        raise ValueError("elevation is required when grade_penalty_weight is positive")
     cost, traversable, spacing, elevation = _validated_inputs(
         cost_raster, traversable_mask, pixel_spacing, elevation, max_ground_grade)
+    if grade_penalty_weight > 0.0 or max_ground_grade is not None:
+        traversable &= np.isfinite(elevation)
     height, width = cost.shape
     start = _grid_point(start_rc)
     goal = _grid_point(goal_rc)
