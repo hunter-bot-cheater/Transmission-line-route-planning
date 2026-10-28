@@ -628,6 +628,43 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
 
         self.assertEqual(exc.exception.code, 2)
 
+    def test_selectable_tower_graph_requires_site_slope_limit(self):
+        args = [
+            "planner", "--experimental-tower-graph", "--select-experimental-tower-graph",
+            "--stations-csv", "stations.csv", "--route-tasks-csv", "tasks.csv",
+            "--constraint-geojson", "constraints.geojson",
+            "--tower-min-span-m", "100", "--tower-max-span-m", "500",
+            "--tower-attachment-height-m", "30", "--tower-max-midspan-sag-m", "20",
+            "--tower-min-clearance-m", "8", "--dem-vertical-datum", "TWVD2001",
+        ]
+        error_output = StringIO()
+        with patch("sys.argv", args), redirect_stderr(error_output):
+            with self.assertRaises(SystemExit) as exc:
+                main()
+
+        self.assertEqual(exc.exception.code, 2)
+        self.assertIn("--max-surface-slope-deg", error_output.getvalue())
+
+    def test_selectable_tower_graph_rejects_invalid_site_slope_limit(self):
+        base_args = [
+            "planner", "--experimental-tower-graph", "--select-experimental-tower-graph",
+            "--stations-csv", "stations.csv", "--route-tasks-csv", "tasks.csv",
+            "--constraint-geojson", "constraints.geojson",
+            "--tower-min-span-m", "100", "--tower-max-span-m", "500",
+            "--tower-attachment-height-m", "30", "--tower-max-midspan-sag-m", "20",
+            "--tower-min-clearance-m", "8", "--dem-vertical-datum", "TWVD2001",
+        ]
+        for invalid_limit in ("0", "-1", "91", "nan", "inf"):
+            with self.subTest(invalid_limit=invalid_limit):
+                error_output = StringIO()
+                args = [*base_args, "--max-surface-slope-deg", invalid_limit]
+                with patch("sys.argv", args), redirect_stderr(error_output):
+                    with self.assertRaises(SystemExit) as exc:
+                        main()
+
+                self.assertEqual(exc.exception.code, 2)
+                self.assertIn("--max-surface-slope-deg", error_output.getvalue())
+
     def test_tower_graph_span_parameters_require_experimental_mode(self):
         args = ["planner", "--tower-min-span-m", "175", "--start", "24,121",
                 "--end", "24.1,121.1"]

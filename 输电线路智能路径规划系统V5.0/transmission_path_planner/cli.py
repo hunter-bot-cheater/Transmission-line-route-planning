@@ -49,6 +49,14 @@ SHARED_SEARCH_ROUTE_TAGS = {
 def _select_final_route(methods, case_metrics, select_tower_graph=False):
     if select_tower_graph:
         metrics = case_metrics.get(TOWER_GRAPH_METHOD, {})
+        site_slope_limit = metrics.get("tower_site_max_surface_slope_deg")
+        site_slope_assessed = (
+            metrics.get("tower_site_slope_status") == "interior_candidates_screened"
+            and isinstance(site_slope_limit, (int, float))
+            and not isinstance(site_slope_limit, bool)
+            and math.isfinite(float(site_slope_limit))
+            and 0 < float(site_slope_limit) <= 90
+        )
         clearance_spans = metrics.get("clearance_profile_spans", [])
         clearance_passed = (
             metrics.get("clearance_profile_status") in {
@@ -60,12 +68,13 @@ def _select_final_route(methods, case_metrics, select_tower_graph=False):
                     for span in clearance_spans)
         )
         if (methods.get(TOWER_GRAPH_METHOD)
-                and metrics.get("candidate_validation_status") == "survived_validation"
+                and metrics.get("candidate_validation_status") == "survived_configured_screening"
                 and metrics.get("hard_constraint_status") == "pass"
                 and metrics.get("hard_violations") == 0
                 and metrics.get("building_geometry_status") == "pass"
                 and metrics.get("tower_span_status") == "pass"
                 and metrics.get("tower_span_violation_count") == 0
+                and site_slope_assessed
                 and clearance_passed):
             return TOWER_GRAPH_METHOD, None, "explicit_tower_graph_screen_passed"
         return None, None, "no_hard_constraint_compliant_route"
@@ -239,14 +248,16 @@ def validate_tower_span_lengths(geo, min_span_m, max_span_m, tolerance_m=0.5):
 
 
 def tower_candidate_validation_status(geo, searched_path, clearance_status,
-                                     building_geometry_status):
+                                     building_geometry_status, tower_site_slope_status=None):
     if str(clearance_status).startswith("unknown_"):
         return "unknown_clearance_reference"
     if not geo:
         return "rejected_after_search" if searched_path else "no_path"
     if building_geometry_status != "pass":
         return "incomplete_building_geometry_check"
-    return "survived_validation"
+    if tower_site_slope_status != "interior_candidates_screened":
+        return "site_slope_not_evaluated"
+    return "survived_configured_screening"
 
 
 def overhead_span_grade_report():
@@ -772,7 +783,7 @@ def main():
     ap.add_argument("--experimental-tower-graph", action="store_true",
                     help="额外生成带候选塔位和档距约束的实验路线；默认仅作筛选对照")
     ap.add_argument("--select-experimental-tower-graph", action="store_true",
-                    help="显式把通过档距、硬约束、建筑及逐跨 DEM 净空筛查的塔位图候选作为最终筛查方案")
+                    help="显式把通过塔位坡度、档距、硬约束、建筑及逐跨 DEM 净空筛查的塔位图候选作为最终筛查方案")
     ap.add_argument("--tower-min-span-m", type=float, default=None,
                     help="实验塔位图最小水平档距；必须按具体线路工程参数提供")
     ap.add_argument("--tower-max-span-m", type=float, default=None,
@@ -839,6 +850,9 @@ def main():
             ap.error("选择塔位图方案必须使用站点 CSV 任务")
         if not args.constraint_geojson:
             ap.error("选择塔位图方案必须提供含核验凭证的 --constraint-geojson 硬约束")
+        if (args.max_surface_slope_deg is None
+                or not 0 < args.max_surface_slope_deg <= 90):
+            ap.error("选择塔位图方案必须提供有效的 --max-surface-slope-deg 塔位坡度上限")
         if any(value is None for value in (
                 args.tower_attachment_height_m,
                 args.tower_max_midspan_sag_m,
@@ -1591,6 +1605,13 @@ def main():
                     "candidate_stride": args.tower_candidate_stride,
                     "turn_penalty_weight": args.search_turn_penalty_weight,
                     "tower_site_max_surface_slope_deg": args.max_surface_slope_deg,
+                    "tower_site_slope_status": (
+                        "interior_candidates_screened" if args.max_surface_slope_deg is not None
+                        else "not_evaluated"),
+                    "tower_site_slope_scope": "intermediate_tower_candidate_pixels_only",
+                    "selected_intermediate_tower_site_count": (
+                        max(0, len(tower_path) - 2) if tower_path else 0),
+                    "station_terminal_slope_status": "not_evaluated_existing_station_endpoints",
                     "clearance_profile_screening": bool(tower_profile_args),
                     "clearance_profile_status": clearance_profile_status,
                     "clearance_profile_spans": span_clearance_profiles,
@@ -1803,12 +1824,23 @@ def main():
                     met.update({
                         "candidate_validation_status": tower_candidate_validation_status(
                             geo, experimental_tower_graph_results["path"], clearance_status,
-                            met.get("building_geometry_status")),
+                            met.get("building_geometry_status"),
+                            experimental_tower_graph_results["tower_site_slope_status"]),
                         "clearance_profile_screening": experimental_tower_graph_results[
                             "clearance_profile_screening"],
                         "clearance_profile_status": clearance_status,
                         "clearance_profile_spans": experimental_tower_graph_results[
                             "clearance_profile_spans"],
+                        "tower_site_max_surface_slope_deg": experimental_tower_graph_results[
+                            "tower_site_max_surface_slope_deg"],
+                        "tower_site_slope_status": experimental_tower_graph_results[
+                            "tower_site_slope_status"],
+                        "tower_site_slope_scope": experimental_tower_graph_results[
+                            "tower_site_slope_scope"],
+                        "selected_intermediate_tower_site_count": experimental_tower_graph_results[
+                            "selected_intermediate_tower_site_count"],
+                        "station_terminal_slope_status": experimental_tower_graph_results[
+                            "station_terminal_slope_status"],
                         "dem_vertical_datum": experimental_tower_graph_results[
                             "dem_vertical_datum"],
                     })
@@ -1889,13 +1921,23 @@ def main():
                     "candidate_validation_status": tower_candidate_validation_status(
                         None, experimental_tower_graph_results["path"],
                         experimental_tower_graph_results["clearance_profile_status"],
-                        None),
+                        None, experimental_tower_graph_results["tower_site_slope_status"]),
                     "clearance_profile_screening": experimental_tower_graph_results[
                         "clearance_profile_screening"],
                     "clearance_profile_status": experimental_tower_graph_results[
                         "clearance_profile_status"],
                     "clearance_profile_spans": experimental_tower_graph_results[
                         "clearance_profile_spans"],
+                    "tower_site_max_surface_slope_deg": experimental_tower_graph_results[
+                        "tower_site_max_surface_slope_deg"],
+                    "tower_site_slope_status": experimental_tower_graph_results[
+                        "tower_site_slope_status"],
+                    "tower_site_slope_scope": experimental_tower_graph_results[
+                        "tower_site_slope_scope"],
+                    "selected_intermediate_tower_site_count": experimental_tower_graph_results[
+                        "selected_intermediate_tower_site_count"],
+                    "station_terminal_slope_status": experimental_tower_graph_results[
+                        "station_terminal_slope_status"],
                     "dem_vertical_datum": experimental_tower_graph_results[
                         "dem_vertical_datum"],
                 }

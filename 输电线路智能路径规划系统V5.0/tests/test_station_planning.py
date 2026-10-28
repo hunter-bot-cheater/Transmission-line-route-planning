@@ -107,12 +107,14 @@ class StationPlanningTests(unittest.TestCase):
     def test_explicit_tower_graph_selection_requires_all_screening_checks(self):
         route = [(121.0, 25.0), (121.003, 25.0)]
         accepted_metrics = {
-            "candidate_validation_status": "survived_validation",
+            "candidate_validation_status": "survived_configured_screening",
             "hard_constraint_status": "pass",
             "hard_violations": 0,
             "building_geometry_status": "pass",
             "tower_span_status": "pass",
             "tower_span_violation_count": 0,
+            "tower_site_slope_status": "interior_candidates_screened",
+            "tower_site_max_surface_slope_deg": 30.0,
             "clearance_profile_status": "dem_only_profile_screening",
             "clearance_profile_spans": [{"status": "sampled_clearance_ok"}],
         }
@@ -151,11 +153,44 @@ class StationPlanningTests(unittest.TestCase):
             {TOWER_GRAPH_METHOD: missing_building_check},
             select_tower_graph=True)[0])
 
+        unassessed_site_slope = {
+            **accepted_metrics,
+            "tower_site_slope_status": "not_evaluated",
+        }
+        self.assertIsNone(_select_final_route(
+            {TOWER_GRAPH_METHOD: route},
+            {TOWER_GRAPH_METHOD: unassessed_site_slope},
+            select_tower_graph=True)[0])
+
+        missing_site_slope = {
+            key: value for key, value in accepted_metrics.items()
+            if key not in {"tower_site_slope_status", "tower_site_max_surface_slope_deg"}
+        }
+        self.assertIsNone(_select_final_route(
+            {TOWER_GRAPH_METHOD: route},
+            {TOWER_GRAPH_METHOD: missing_site_slope},
+            select_tower_graph=True)[0])
+
+        for invalid_limit in (0, -1, 91, float("nan"), float("inf"), True, "30"):
+            with self.subTest(invalid_limit=invalid_limit):
+                invalid_slope = {
+                    **accepted_metrics,
+                    "tower_site_max_surface_slope_deg": invalid_limit,
+                }
+                self.assertIsNone(_select_final_route(
+                    {TOWER_GRAPH_METHOD: route},
+                    {TOWER_GRAPH_METHOD: invalid_slope},
+                    select_tower_graph=True)[0])
+
     def test_tower_candidate_validation_status_tracks_post_search_result(self):
         route = [(121.0, 25.0), (121.003, 25.0)]
         self.assertEqual(
+            tower_candidate_validation_status(
+                route, route, "not_requested", "pass", "interior_candidates_screened"),
+            "survived_configured_screening")
+        self.assertEqual(
             tower_candidate_validation_status(route, route, "not_requested", "pass"),
-            "survived_validation")
+            "site_slope_not_evaluated")
         self.assertEqual(
             tower_candidate_validation_status(
                 None, route, "dem_only_profile_screening", "pass"),
