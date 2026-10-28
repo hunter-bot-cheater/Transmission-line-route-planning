@@ -50,6 +50,19 @@ def geojson_coordinates(geo):
     return [[float(lon), float(lat)] for lon, lat in geo]
 
 
+def write_geojson_verified(path, document, indent=None):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(document, f, ensure_ascii=False, indent=indent)
+    with open(path, "r", encoding="utf-8") as f:
+        readback = json.load(f)
+    expected = json.dumps(
+        document, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    actual = json.dumps(
+        readback, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if actual != expected:
+        raise RuntimeError(f"GeoJSON route export readback verification failed: {path}")
+
+
 def export_route(geo, crs, shp_path, geojson_path):
     if not geo:
         return None
@@ -98,10 +111,5 @@ def export_route(geo, crs, shp_path, geojson_path):
     feat = {"type": "FeatureCollection",
             "crs": {"type": "name", "properties": {"name": crs_name}},
             "features": feats}
-    with open(geojson_path, "w", encoding="utf-8") as f:
-        json.dump(feat, f, ensure_ascii=False, indent=2)
-    with open(geojson_path, "r", encoding="utf-8") as f:
-        if json.load(f) != feat:
-            raise RuntimeError(
-                f"GeoJSON route export readback verification failed: {geojson_path}")
+    write_geojson_verified(geojson_path, feat, indent=2)
     return shp_path if shp_exported else geojson_path

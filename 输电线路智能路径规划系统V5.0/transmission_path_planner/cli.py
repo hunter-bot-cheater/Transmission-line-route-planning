@@ -2065,8 +2065,9 @@ def main():
                                            **grade_reports.get(best_method, {}),
                                            **station_offsets_by_method.get(best_method, {}),
                                            **(route_profile_metrics(final_geo, dem, transform) if final_geo else {})}}]
-                    with open(final_dir / "final_route.geojson", "w", encoding="utf-8") as _ff:
-                        json.dump({"type": "FeatureCollection", "features": _fg}, _ff, ensure_ascii=False)
+                    write_geojson_verified(
+                        final_dir / "final_route.geojson",
+                        {"type": "FeatureCollection", "features": _fg})
                     if final_geo:
                         write_elevation_profile_csv(final_geo, dem, transform, final_dir / "elevation_profile.csv")
                 if args.experimental_sampled_pareto:
