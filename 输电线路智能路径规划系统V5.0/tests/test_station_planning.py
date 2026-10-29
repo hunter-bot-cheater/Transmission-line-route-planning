@@ -111,6 +111,7 @@ class StationPlanningTests(unittest.TestCase):
             "hard_constraint_status": "pass",
             "hard_violations": 0,
             "building_geometry_status": "pass",
+            "building_geometry_coverage_status": "features_observed",
             "tower_span_status": "pass",
             "tower_span_violation_count": 0,
             "tower_site_slope_status": "interior_candidates_screened",
@@ -124,7 +125,7 @@ class StationPlanningTests(unittest.TestCase):
             select_tower_graph=True)
         self.assertEqual(selected,
                          (TOWER_GRAPH_METHOD, None,
-                          "explicit_tower_graph_screen_passed"))
+                          "explicit_tower_graph_configured_screens_passed"))
 
         failed_metrics = {**accepted_metrics, "hard_violations": 1}
         fallback = _select_final_route(

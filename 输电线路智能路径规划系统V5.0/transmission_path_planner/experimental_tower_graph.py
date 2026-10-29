@@ -402,6 +402,7 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
     cell interval, the minimum between that surface and the parabolic conductor
     approximation is solved analytically. ``unknown`` means required terrain
     samples are masked, non-finite, or equal to the declared NoData value.
+    Supplied terminal elevations replace DEM values at the exact endpoints only.
     """
     dem, valid = _dem_data_and_validity(
         dem_raster, dem_valid_mask, dem_nodata_value)
@@ -471,13 +472,6 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
             elevation += weight * float(dem[sample_row, sample_col])
         return elevation
 
-    def bilinear_elevation(row, col):
-        if (row, col) == start and start_ground_elevation_m is not None:
-            return float(start_ground_elevation_m)
-        if (row, col) == end and end_ground_elevation_m is not None:
-            return float(end_ground_elevation_m)
-        return dem_bilinear_elevation(row, col)
-
     cuts = [0.0, 1.0]
     for first, last in ((start[0], end[0]), (start[1], end[1])):
         delta = last - first
@@ -512,9 +506,14 @@ def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
         terrain_values = []
         conductor_values = []
         for fraction in (first, middle, last):
-            row = start[0] + fraction * dr
-            col = start[1] + fraction * dc
-            ground = bilinear_elevation(row, col)
+            if fraction == 0.0:
+                ground = start_ground
+            elif fraction == 1.0:
+                ground = end_ground
+            else:
+                row = start[0] + fraction * dr
+                col = start[1] + fraction * dc
+                ground = dem_bilinear_elevation(row, col)
             if ground is None:
                 return {"status": "unknown", "reason": "dem_nodata"}
             terrain_values.append(ground)

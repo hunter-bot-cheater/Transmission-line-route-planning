@@ -76,7 +76,7 @@ def _select_final_route(methods, case_metrics, select_tower_graph=False):
                 and metrics.get("tower_span_violation_count") == 0
                 and site_slope_assessed
                 and clearance_passed):
-            return TOWER_GRAPH_METHOD, None, "explicit_tower_graph_screen_passed"
+            return TOWER_GRAPH_METHOD, None, "explicit_tower_graph_configured_screens_passed"
         return None, None, "no_hard_constraint_compliant_route"
 
     for method, rule in (
@@ -1942,7 +1942,7 @@ def main():
                         "dem_vertical_datum"],
                 }
 
-            # 按固定优先规则筛选硬约束可行路线；实验 Pareto 候选不在选择优先表中。
+            # 按固定优先规则筛选通过已配置筛查的候选；覆盖完整性另行标注。
             # 真实线仍只在规划选路完成后读取，用于事后评分。
             best_method, _, selection_rule = _select_final_route(
                 methods, case_metrics,

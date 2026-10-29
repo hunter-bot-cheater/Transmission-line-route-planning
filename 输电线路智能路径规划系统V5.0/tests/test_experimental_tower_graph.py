@@ -458,6 +458,17 @@ def test_profile_samples_fractional_station_endpoint_and_fails_closed_on_nodata(
     assert unknown["reason"] == "dem_nodata"
 
 
+def test_profile_uses_surveyed_fractional_end_elevation_after_float_reconstruction():
+    dem = np.array([[0.0, 0.0], [100.0, 0.0]])
+    status = span_clearance_status(
+        (0.0, 1.0), (1.0, 0.1), dem, (1.0, 1.0), 20.0, 0.0, 0.0,
+        start_ground_elevation_m=0.0, end_ground_elevation_m=0.0)
+
+    assert status["status"] == "fail"
+    assert np.isclose(status["sampled_minimum_clearance_m"], -2.5)
+    assert np.isclose(status["limiting_distance_m"], np.hypot(1.0, 0.9) / 2)
+
+
 def test_profile_mask_and_finite_nodata_are_unknown():
     dem = np.ma.array(np.zeros((1, 5)), mask=False)
     dem.mask[0, 2] = True
