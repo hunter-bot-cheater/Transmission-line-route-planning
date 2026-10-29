@@ -27,10 +27,10 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)
 
-    def _save_cache(self, name, elements):
+    def _save_cache(self, name, elements, **metadata):
         path = Path(self.temp_dir.name) / name
         with path.open("wb") as stream:
-            pickle.dump({"elements": elements}, stream)
+            pickle.dump({"elements": elements, **metadata}, stream)
         return path
 
     def test_invalid_building_polygon_is_repaired_before_rasterization(self):
@@ -226,6 +226,29 @@ class OSMSettlementMetadataTests(unittest.TestCase):
         self.assertEqual(missing_meta["status"], "missing_file")
         self.assertEqual(empty, [])
         self.assertEqual(empty_meta["status"], "empty_source")
+
+    def test_source_snapshot_metadata_is_preserved_or_explicitly_unknown(self):
+        recorded = self._save_cache(
+            "recorded_snapshot.pkl", [_way([(0, 0), (1, 1)])],
+            generator="Overpass API",
+            osm3s={"timestamp_osm_base": "2026-10-28T00:00:00Z"},
+        )
+        unknown = self._save_cache(
+            "unknown_snapshot.pkl", [_way([(0, 0), (1, 1)])],
+            generator="rebuild_osm_cache (shared)",
+        )
+
+        _, recorded_meta = osm.load_osm_geoms_with_status(
+            recorded, "line", (0, 0, 1, 1))
+        _, unknown_meta = osm.load_osm_geoms_with_status(
+            unknown, "line", (0, 0, 1, 1))
+
+        self.assertEqual(recorded_meta["cache_generator"], "Overpass API")
+        self.assertEqual(recorded_meta["source_snapshot_timestamp"], "2026-10-28T00:00:00Z")
+        self.assertEqual(recorded_meta["source_snapshot_status"], "recorded")
+        self.assertEqual(unknown_meta["cache_generator"], "rebuild_osm_cache (shared)")
+        self.assertIsNone(unknown_meta["source_snapshot_timestamp"])
+        self.assertEqual(unknown_meta["source_snapshot_status"], "unknown_not_recorded")
 
     def test_outside_observed_extent_is_distinct_from_no_local_features(self):
         cache = self._save_cache("lines.pkl", [

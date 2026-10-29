@@ -1,0 +1,419 @@
+{
+  "experiment_id": "results",
+  "generated_at_utc": "2026-10-29T04:57:22.913329+00:00",
+  "source_run_status": "complete",
+  "source_run_summary_sha256": "0fe7c06159057edf78a76078642438aa0b534c10f4e2c35a463d56eacd84da22",
+  "candidate_freeze_sha256": "e26c84b831f389339c4b214703a357b4d59d1032e1ec1e9747c7c030aa623b89",
+  "reference_geometry_read_after_all_candidate_hashes_verified": true,
+  "validated_candidate_count": 18,
+  "candidate_hash_failures": 0,
+  "reference_sources": {
+    "TW59": {
+      "TW59_real_path.shp": "3c96e65e0f5c032b8b4cbec528a6d564a8711de22317adeb07a61d4be579eb11",
+      "TW59_real_path.shx": "72d69cb3b65959c8c6c2975f4d914577bf17c7b89c08065f59c95de26bc7bac2",
+      "TW59_real_path.dbf": "b550b9949da884b7c778d9b620c1bc4ba363261dcafe3f9bf2a63d060d399805",
+      "TW59_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    },
+    "TW345": {
+      "TW345_real_path.shp": "2e6a53db911cd8292f103ccad6253c917acb88e68df14148d448d3d2e87b978c",
+      "TW345_real_path.shx": "f0e521286cf3e0884f6303f1394862e98effa45d1bb8533dd39c88adaa082f6d",
+      "TW345_real_path.dbf": "0892931e7510768b3067d583e4126d08f24ca02d5e5d11ea2501fd09b4def504",
+      "TW345_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    },
+    "TW102": {
+      "TW102_real_path.shp": "d38807bb2d1010fd42f661feaa907c68d5cb0b8ac1ef0c15a57b4be8a0ef1500",
+      "TW102_real_path.shx": "2cd9380d0d638795e672b8c7287f21144afd0e6e0016c6112179f35fd39b6cab",
+      "TW102_real_path.dbf": "850c10891d6549d475bd4089dab615ea17561eeb79ae5fc09b5f22f44f3e124f",
+      "TW102_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+    }
+  },
+  "osm_cache_sources": {
+    "TW59": {
+      "request_bbox_wgs84": [
+        121.17613800000001,
+        24.766130599960263,
+        121.716388,
+        25.015756399928083
+      ],
+      "reference": {
+        "source": "/data1/B24041626/pp/work/benchmark_12/TW59_real_path.shp",
+        "component_sha256": {
+          "TW59_real_path.shp": "3c96e65e0f5c032b8b4cbec528a6d564a8711de22317adeb07a61d4be579eb11",
+          "TW59_real_path.shx": "72d69cb3b65959c8c6c2975f4d914577bf17c7b89c08065f59c95de26bc7bac2",
+          "TW59_real_path.dbf": "b550b9949da884b7c778d9b620c1bc4ba363261dcafe3f9bf2a63d060d399805",
+          "TW59_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+        },
+        "length_km": 60.91369643895534,
+        "expected_scored_length_km": 60.91811872054686
+      },
+      "osm_layers": {
+        "roads": {
+          "path": "/data1/B24041626/pp/work/osm/taiwan_roads.pkl",
+          "exists": true,
+          "size_bytes": 40793403,
+          "mtime_utc": "1970-01-01T00:00:00+00:00",
+          "sha256": "3539097f22c8360273afbad75282f88b63eff0fbaca577205d4545001d1dda40",
+          "loader_metadata": {
+            "path": "/data1/B24041626/pp/work/osm/taiwan_roads.pkl",
+            "status": "available",
+            "source_element_count": 71028,
+            "geometry_count_in_bbox": 5866,
+            "observed_feature_bounds": [
+              120.0688806,
+              21.9034427,
+              122.0032623,
+              25.2977885
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "tag_wrapper_count": 71028,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 0,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed"
+          },
+          "element_type_counts": {
+            "tertiary": 2600,
+            "secondary": 1630,
+            "primary": 1073,
+            "motorway": 430,
+            "trunk": 133
+          },
+          "generator": "rebuild_osm_cache (shared)",
+          "osm3s": null,
+          "snapshot_time_status": "unknown_not_recorded_in_cache",
+          "coverage_claim": "observed feature extent/count only; completeness unknown"
+        },
+        "water": {
+          "path": "/data1/B24041626/pp/work/osm/taiwan_water.pkl",
+          "exists": true,
+          "size_bytes": 53395462,
+          "mtime_utc": "1970-01-01T00:00:00+00:00",
+          "sha256": "c3b3a8556d19f49c1cc2e3e6e957bf8060e25b3937c9a1993dd336e74e6509d9",
+          "loader_metadata": {
+            "path": "/data1/B24041626/pp/work/osm/taiwan_water.pkl",
+            "status": "available",
+            "source_element_count": 106933,
+            "geometry_count_in_bbox": 6003,
+            "observed_feature_bounds": [
+              120.0372094,
+              21.9044466,
+              121.9948412,
+              25.2984694
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "tag_wrapper_count": 106933,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 0,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed"
+          },
+          "element_type_counts": {
+            "stream": 3819,
+            "river": 372
+          },
+          "generator": "rebuild_osm_cache (shared)",
+          "osm3s": null,
+          "snapshot_time_status": "unknown_not_recorded_in_cache",
+          "coverage_claim": "observed feature extent/count only; completeness unknown"
+        },
+        "railways": {
+          "path": "/data1/B24041626/pp/work/osm/taiwan_railways.pkl",
+          "exists": true,
+          "size_bytes": 8590907,
+          "mtime_utc": "1970-01-01T00:00:00+00:00",
+          "sha256": "8db59f57fb5c792990853fbdeb94a2f06f6c4dd76de4813dbdecaa686a66cd75",
+          "loader_metadata": {
+            "path": "/data1/B24041626/pp/work/osm/taiwan_railways.pkl",
+            "status": "available",
+            "source_element_count": 8527,
+            "geometry_count_in_bbox": 760,
+            "observed_feature_bounds": [
+              120.211887,
+              22.2652579,
+              121.9579732,
+              25.2040301
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "tag_wrapper_count": 8527,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 0,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed"
+          },
+          "element_type_counts": {
+            "subway": 353,
+            "rail": 262,
+            "light_rail": 124,
+            "narrow_gauge": 21
+          },
+          "generator": "rebuild_osm_cache (shared)",
+          "osm3s": null,
+          "snapshot_time_status": "unknown_not_recorded_in_cache",
+          "coverage_claim": "observed feature extent/count only; completeness unknown"
+        }
+      }
+    },
+    "TW345": {
+      "request_bbox_wgs84": [
+        120.463144054283,
+        23.532757,
+        120.78812805428299,
+        23.91218700036001
+      ],
+      "reference": {
+        "source": "/data1/B24041626/pp/work/benchmark_12/TW345_real_path.shp",
+        "component_sha256": {
+          "TW345_real_path.shp": "2e6a53db911cd8292f103ccad6253c917acb88e68df14148d448d3d2e87b978c",
+          "TW345_real_path.shx": "f0e521286cf3e0884f6303f1394862e98effa45d1bb8533dd39c88adaa082f6d",
+          "TW345_real_path.dbf": "0892931e7510768b3067d583e4126d08f24ca02d5e5d11ea2501fd09b4def504",
+          "TW345_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+        },
+        "length_km": 50.99284111373489,
+        "expected_scored_length_km": 50.99702451507425
+      },
+      "osm_layers": {
+        "roads": {
+          "path": "/data1/B24041626/pp/work/osm/taiwan_roads.pkl",
+          "exists": true,
+          "size_bytes": 40793403,
+          "mtime_utc": "1970-01-01T00:00:00+00:00",
+          "sha256": "3539097f22c8360273afbad75282f88b63eff0fbaca577205d4545001d1dda40",
+          "loader_metadata": {
+            "path": "/data1/B24041626/pp/work/osm/taiwan_roads.pkl",
+            "status": "available",
+            "source_element_count": 71028,
+            "geometry_count_in_bbox": 3351,
+            "observed_feature_bounds": [
+              120.0688806,
+              21.9034427,
+              122.0032623,
+              25.2977885
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "tag_wrapper_count": 71028,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 0,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed"
+          },
+          "element_type_counts": {
+            "tertiary": 1702,
+            "secondary": 784,
+            "primary": 504,
+            "motorway": 317,
+            "trunk": 44
+          },
+          "generator": "rebuild_osm_cache (shared)",
+          "osm3s": null,
+          "snapshot_time_status": "unknown_not_recorded_in_cache",
+          "coverage_claim": "observed feature extent/count only; completeness unknown"
+        },
+        "water": {
+          "path": "/data1/B24041626/pp/work/osm/taiwan_water.pkl",
+          "exists": true,
+          "size_bytes": 53395462,
+          "mtime_utc": "1970-01-01T00:00:00+00:00",
+          "sha256": "c3b3a8556d19f49c1cc2e3e6e957bf8060e25b3937c9a1993dd336e74e6509d9",
+          "loader_metadata": {
+            "path": "/data1/B24041626/pp/work/osm/taiwan_water.pkl",
+            "status": "available",
+            "source_element_count": 106933,
+            "geometry_count_in_bbox": 2460,
+            "observed_feature_bounds": [
+              120.0372094,
+              21.9044466,
+              121.9948412,
+              25.2984694
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "tag_wrapper_count": 106933,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 0,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed"
+          },
+          "element_type_counts": {
+            "stream": 1717,
+            "river": 164
+          },
+          "generator": "rebuild_osm_cache (shared)",
+          "osm3s": null,
+          "snapshot_time_status": "unknown_not_recorded_in_cache",
+          "coverage_claim": "observed feature extent/count only; completeness unknown"
+        },
+        "railways": {
+          "path": "/data1/B24041626/pp/work/osm/taiwan_railways.pkl",
+          "exists": true,
+          "size_bytes": 8590907,
+          "mtime_utc": "1970-01-01T00:00:00+00:00",
+          "sha256": "8db59f57fb5c792990853fbdeb94a2f06f6c4dd76de4813dbdecaa686a66cd75",
+          "loader_metadata": {
+            "path": "/data1/B24041626/pp/work/osm/taiwan_railways.pkl",
+            "status": "available",
+            "source_element_count": 8527,
+            "geometry_count_in_bbox": 349,
+            "observed_feature_bounds": [
+              120.211887,
+              22.2652579,
+              121.9579732,
+              25.2040301
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "tag_wrapper_count": 8527,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 0,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed"
+          },
+          "element_type_counts": {
+            "rail": 298,
+            "narrow_gauge": 51
+          },
+          "generator": "rebuild_osm_cache (shared)",
+          "osm3s": null,
+          "snapshot_time_status": "unknown_not_recorded_in_cache",
+          "coverage_claim": "observed feature extent/count only; completeness unknown"
+        }
+      }
+    },
+    "TW102": {
+      "request_bbox_wgs84": [
+        121.28527559973308,
+        23.314594500096476,
+        121.461780054283,
+        23.743288100144117
+      ],
+      "reference": {
+        "source": "/data1/B24041626/pp/work/benchmark_12/TW102_real_path.shp",
+        "component_sha256": {
+          "TW102_real_path.shp": "d38807bb2d1010fd42f661feaa907c68d5cb0b8ac1ef0c15a57b4be8a0ef1500",
+          "TW102_real_path.shx": "2cd9380d0d638795e672b8c7287f21144afd0e6e0016c6112179f35fd39b6cab",
+          "TW102_real_path.dbf": "850c10891d6549d475bd4089dab615ea17561eeb79ae5fc09b5f22f44f3e124f",
+          "TW102_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+        },
+        "length_km": 48.085067207591614,
+        "expected_scored_length_km": 48.08904012521139
+      },
+      "osm_layers": {
+        "roads": {
+          "path": "/data1/B24041626/pp/work/osm/taiwan_roads.pkl",
+          "exists": true,
+          "size_bytes": 40793403,
+          "mtime_utc": "1970-01-01T00:00:00+00:00",
+          "sha256": "3539097f22c8360273afbad75282f88b63eff0fbaca577205d4545001d1dda40",
+          "loader_metadata": {
+            "path": "/data1/B24041626/pp/work/osm/taiwan_roads.pkl",
+            "status": "available",
+            "source_element_count": 71028,
+            "geometry_count_in_bbox": 484,
+            "observed_feature_bounds": [
+              120.0688806,
+              21.9034427,
+              122.0032623,
+              25.2977885
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "tag_wrapper_count": 71028,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 0,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed"
+          },
+          "element_type_counts": {
+            "tertiary": 221,
+            "primary": 193,
+            "secondary": 70
+          },
+          "generator": "rebuild_osm_cache (shared)",
+          "osm3s": null,
+          "snapshot_time_status": "unknown_not_recorded_in_cache",
+          "coverage_claim": "observed feature extent/count only; completeness unknown"
+        },
+        "water": {
+          "path": "/data1/B24041626/pp/work/osm/taiwan_water.pkl",
+          "exists": true,
+          "size_bytes": 53395462,
+          "mtime_utc": "1970-01-01T00:00:00+00:00",
+          "sha256": "c3b3a8556d19f49c1cc2e3e6e957bf8060e25b3937c9a1993dd336e74e6509d9",
+          "loader_metadata": {
+            "path": "/data1/B24041626/pp/work/osm/taiwan_water.pkl",
+            "status": "available",
+            "source_element_count": 106933,
+            "geometry_count_in_bbox": 1223,
+            "observed_feature_bounds": [
+              120.0372094,
+              21.9044466,
+              121.9948412,
+              25.2984694
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "tag_wrapper_count": 106933,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 0,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed"
+          },
+          "element_type_counts": {
+            "stream": 945,
+            "river": 64
+          },
+          "generator": "rebuild_osm_cache (shared)",
+          "osm3s": null,
+          "snapshot_time_status": "unknown_not_recorded_in_cache",
+          "coverage_claim": "observed feature extent/count only; completeness unknown"
+        },
+        "railways": {
+          "path": "/data1/B24041626/pp/work/osm/taiwan_railways.pkl",
+          "exists": true,
+          "size_bytes": 8590907,
+          "mtime_utc": "1970-01-01T00:00:00+00:00",
+          "sha256": "8db59f57fb5c792990853fbdeb94a2f06f6c4dd76de4813dbdecaa686a66cd75",
+          "loader_metadata": {
+            "path": "/data1/B24041626/pp/work/osm/taiwan_railways.pkl",
+            "status": "available",
+            "source_element_count": 8527,
+            "geometry_count_in_bbox": 131,
+            "observed_feature_bounds": [
+              120.211887,
+              22.2652579,
+              121.9579732,
+              25.2040301
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "tag_wrapper_count": 8527,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 0,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed"
+          },
+          "element_type_counts": {
+            "rail": 131
+          },
+          "generator": "rebuild_osm_cache (shared)",
+          "osm3s": null,
+          "snapshot_time_status": "unknown_not_recorded_in_cache",
+          "coverage_claim": "observed feature extent/count only; completeness unknown"
+        }
+      }
+    }
+  },
+  "metrics": {
+    "sample_step_m": 50,
+    "distance_percentiles": [
+      50,
+      90,
+      95
+    ],
+    "near_feature_thresholds_m": [
+      25,
+      50,
+      100,
+      250,
+      500,
+      1000
+    ],
+    "intersection_dedup_chainage_tolerance_m": 15,
+    "interpretation": "Exposures describe observed OSM cache features only; unknown cache date and incomplete OSM coverage prevent treating missing features as absence on the ground."
+  },
+  "route_exposure_csv_sha256": "c5bdfc800e76ceb1791839ad2ef8544e052d50fb6e367dd40ce6a3f41606b32c"
+}

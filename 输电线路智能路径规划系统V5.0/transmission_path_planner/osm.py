@@ -33,6 +33,8 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
         "path": str(pkl_path), "status": None, "source_element_count": 0,
         "geometry_count_in_bbox": 0, "observed_feature_bounds": None,
         "coverage_basis": "observed_feature_extent",
+        "cache_generator": None, "source_snapshot_timestamp": None,
+        "source_snapshot_status": "unknown_not_recorded",
         "tag_wrapper_count": 0, "tag_parse_error_count": 0,
         "geometry_repaired_count": 0,
         "nonfinite_geometry_outside_bbox_count": 0,
@@ -56,6 +58,15 @@ def load_osm_geoms_with_status(pkl_path, geom_type, bbox):
     if not isinstance(data, dict):
         metadata.update(status="invalid_cache", reason="expected_overpass_object")
         return [], metadata
+    metadata["cache_generator"] = data.get("generator")
+    osm_metadata = data.get("osm3s")
+    if isinstance(osm_metadata, dict):
+        snapshot_timestamp = osm_metadata.get("timestamp_osm_base")
+        if snapshot_timestamp:
+            metadata.update(
+                source_snapshot_timestamp=str(snapshot_timestamp),
+                source_snapshot_status="recorded",
+            )
     elems = data.get("elements", [])
     if not isinstance(elems, list):
         metadata.update(status="invalid_cache", reason="elements_not_a_list")
