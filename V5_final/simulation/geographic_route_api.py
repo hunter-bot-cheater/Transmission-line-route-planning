@@ -79,6 +79,35 @@ def _require_supported_planner_dem_crs(dem_path: Path) -> None:
             )
 
 
+def _engineering_gate_metadata() -> dict[str, Any]:
+    return {
+        "status": "not_evaluated",
+        "scope": "terrain_and_configured_constraint_screening_only",
+        "blockers": [
+            {
+                "code": "station_terminals_unverified",
+                "message": "缺少权威线路侧站端接入点名录；当前 Web 任务只能使用探索性坐标。",
+            },
+            {
+                "code": "tower_and_span_graph_not_run",
+                "message": "Web 任务未运行塔位与档距图搜索。",
+            },
+            {
+                "code": "approved_line_design_profile_missing",
+                "message": "电压等级仅作记录；没有经批准的杆塔、导线和档距设计配置。",
+            },
+            {
+                "code": "sag_and_clearance_not_evaluated",
+                "message": "未提供导线荷载、弧垂及净空计算输入，未完成逐跨校核。",
+            },
+            {
+                "code": "crossing_and_permit_review_not_evaluated",
+                "message": "交叉跨越审批、用地许可和现场地质条件未评估。",
+            },
+        ],
+    }
+
+
 def _dem_has_valid_taiwan_land_cell(dem_path: Path, land_geometry) -> bool:
     import numpy as np
     import rasterio
@@ -567,6 +596,7 @@ class GeographicRouteJobs:
             "dem_bounds_wgs84": bounds,
             "dem_crs_supported": dem_crs_supported,
             "engineering_feasibility": "not_evaluated",
+            "engineering_gate": _engineering_gate_metadata(),
             "access_token_required": True,
             "data_layers": ({
                 "dem": dem_crs_supported, "osm": "osm" in config,
@@ -678,6 +708,7 @@ class GeographicRouteJobs:
                 "job_id": job_id, "state": "queued", "created_at": self._now(),
                 "endpoint_qualification": "declared_verified_line_connection_points" if mode == "verified" else "exploratory_only_unverified_endpoints",
                 "planning_status": "queued", "engineering_feasibility": "not_evaluated",
+                "engineering_gate": _engineering_gate_metadata(),
                 "constraints_configured": "constraints" in config,
                 "data_layers": self.public_status()["data_layers"],
                 "message": "任务已排队，规划仅在服务器执行",
@@ -710,6 +741,7 @@ class GeographicRouteJobs:
             "job_id": job_id, "state": "running", "created_at": self._now(),
             "endpoint_qualification": "declared_verified_line_connection_points" if mode == "verified" else "exploratory_only_unverified_endpoints",
             "planning_status": "running", "engineering_feasibility": "not_evaluated",
+            "engineering_gate": _engineering_gate_metadata(),
             "constraints_configured": "constraints" in config,
             "data_layers": self.public_status()["data_layers"],
             "message": "DEM 读取、地形代价计算和路线搜索均在服务器端运行",

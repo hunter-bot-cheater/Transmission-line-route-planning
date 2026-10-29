@@ -26,6 +26,16 @@ from server import (_get_session, build_cost_grid, configure_session_mission, cr
 
 
 class GeographicRoutePointValidationTests(unittest.TestCase):
+    def test_public_status_explains_engineering_checks_not_evaluated(self):
+        status = geographic_route_api.GeographicRouteJobs().public_status()
+
+        self.assertEqual(status["engineering_feasibility"], "not_evaluated")
+        self.assertEqual(status["engineering_gate"]["status"], "not_evaluated")
+        blocker_codes = {item["code"] for item in status["engineering_gate"]["blockers"]}
+        self.assertIn("station_terminals_unverified", blocker_codes)
+        self.assertIn("tower_and_span_graph_not_run", blocker_codes)
+        self.assertIn("sag_and_clearance_not_evaluated", blocker_codes)
+
     def test_valid_point_is_checked_against_configured_dem(self):
         jobs = server.GEOGRAPHIC_ROUTE_JOBS
         dem_path = Path("/data1/B24041626/pp/taiwan-dem.tif")
