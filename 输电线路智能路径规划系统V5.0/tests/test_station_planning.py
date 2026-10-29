@@ -22,6 +22,7 @@ from transmission_path_planner.cli import (
     validate_endpoint_cells,
     validate_route_hard_constraints,
     validate_tower_span_lengths,
+    tower_site_hazard_exposure_diagnostic,
 )
 from transmission_path_planner.geometry import pixel_spacing_meters, rowcol_to_geo
 from transmission_path_planner.methods import _astar_parent_index_dtype, astar_search
@@ -147,6 +148,113 @@ class StationPlanningTests(unittest.TestCase):
             tower_site_pad_radius_m=15.0, pixel_spacing_m=(35.0, 70.0))
 
         self.assertTrue(site_mask[2, 2])
+
+    def test_tower_site_hazard_exposure_reports_known_overlap_for_each_layer(self):
+        layer_keys = (
+            "debris_flow_impact", "landslide_impact", "landslide_potential")
+        path = [(1, 1), (2, 2), (3, 3)]
+        for key in layer_keys:
+            with self.subTest(layer=key):
+                masks = {name: np.zeros((5, 5), dtype=np.uint8)
+                         for name in layer_keys}
+                masks[key][1, 2] = 1
+                metadata = {"layers": {
+                    name: {"coverage_status": "partial"}
+                    for name in layer_keys}}
+                result = tower_site_hazard_exposure_diagnostic(
+                    path, masks, metadata, (1.0, 1.0), 1.0,
+                    grid_shape=(5, 5))
+
+                self.assertEqual(result["status"], "known_overlap")
+                self.assertEqual(result["selection_effect"], "none_diagnostic_only")
+                self.assertEqual(result["layers"][key]["status"], "known_overlap")
+                self.assertEqual(
+                    result["layers"][key]["overlap_intermediate_site_count"], 1)
+                self.assertEqual(
+                    result["layers"][key]["coverage_status"], "partial")
+                self.assertNotIn("overlap_fraction", result["layers"][key])
+
+    def test_tower_site_hazard_exposure_requires_complete_coverage_for_no_overlap(self):
+        layer_keys = (
+            "debris_flow_impact", "landslide_impact", "landslide_potential")
+        path = [(1, 1), (2, 2), (3, 3)]
+        masks = {name: np.zeros((5, 5), dtype=np.uint8)
+                 for name in layer_keys}
+        for coverage in ("partial", "unknown"):
+            with self.subTest(coverage=coverage):
+                metadata = {"layers": {
+                    name: {"coverage_status": coverage}
+                    for name in layer_keys}}
+                result = tower_site_hazard_exposure_diagnostic(
+                    path, masks, metadata, (1.0, 1.0), 1.0,
+                    grid_shape=(5, 5))
+                self.assertEqual(result["status"], "unknown_coverage")
+                self.assertTrue(all(
+                    item["status"] == "unknown_coverage"
+                    for item in result["layers"].values()))
+
+        complete = {"layers": {
+            name: {"coverage_status": "complete"}
+            for name in layer_keys}}
+        result = tower_site_hazard_exposure_diagnostic(
+            path, masks, complete, (1.0, 1.0), 1.0,
+            grid_shape=(5, 5))
+        self.assertEqual(result["status"], "complete_coverage_no_overlap")
+        self.assertTrue(all(
+            item["status"] == "complete_coverage_no_overlap"
+            for item in result["layers"].values()))
+
+    def test_tower_site_hazard_exposure_keeps_missing_mismatch_and_unconfigured_unknown(self):
+        layer_keys = (
+            "debris_flow_impact", "landslide_impact", "landslide_potential")
+        path = [(1, 1), (2, 2), (3, 3)]
+        masks = {name: np.zeros((5, 5), dtype=np.uint8)
+                 for name in layer_keys}
+        masks.pop("landslide_impact")
+        masks["landslide_potential"] = np.zeros((4, 4), dtype=np.uint8)
+        complete = {"layers": {
+            name: {"coverage_status": "complete"}
+            for name in layer_keys}}
+        result = tower_site_hazard_exposure_diagnostic(
+            path, masks, complete, (1.0, 1.0), 1.0,
+            grid_shape=(5, 5))
+        self.assertEqual(result["status"], "unknown_coverage")
+        self.assertFalse(result["layers"]["landslide_impact"]["mask_available"])
+        self.assertFalse(result["layers"]["landslide_potential"]["mask_available"])
+
+        masks = {name: np.zeros((5, 5), dtype=np.uint8)
+                 for name in layer_keys}
+        result = tower_site_hazard_exposure_diagnostic(
+            path, masks, complete, None, None, grid_shape=(5, 5))
+        self.assertEqual(result["status"], "unknown_coverage")
+        self.assertEqual(
+            result["pad_footprint_status"],
+            "center_cell_only_pad_not_configured")
+        self.assertTrue(all(
+            item["status"] == "center_cell_only_pad_not_configured"
+            for item in result["layers"].values()))
+
+    def test_tower_site_hazard_exposure_marks_edge_pads_unknown_and_no_path_unassessed(self):
+        layer_keys = (
+            "debris_flow_impact", "landslide_impact", "landslide_potential")
+        masks = {name: np.zeros((5, 5), dtype=np.uint8)
+                 for name in layer_keys}
+        complete = {"layers": {
+            name: {"coverage_status": "complete"}
+            for name in layer_keys}}
+        edge_path = [(1, 1), (0, 0), (1, 2)]
+        result = tower_site_hazard_exposure_diagnostic(
+            edge_path, masks, complete, (1.0, 1.0), 1.0,
+            grid_shape=(5, 5))
+        self.assertEqual(result["status"], "unknown_coverage")
+        self.assertEqual(
+            result["layers"]["debris_flow_impact"][
+                "pads_not_fully_inside_raster_grid"], 1)
+
+        result = tower_site_hazard_exposure_diagnostic(
+            None, masks, complete, (1.0, 1.0), 1.0,
+            grid_shape=(5, 5))
+        self.assertEqual(result["status"], "not_assessed_no_intermediate_sites")
 
     def test_overhead_span_grade_is_explicitly_unassessed(self):
         report = overhead_span_grade_report()

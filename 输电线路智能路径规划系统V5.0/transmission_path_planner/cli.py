@@ -424,6 +424,126 @@ def validate_endpoint_cells(start, end, shape, hard_mask, blocking_layers=None):
     return start, end
 
 
+def _tower_site_pad_structure(radius_m, pixel_spacing_m):
+    radius = float(radius_m)
+    if not math.isfinite(radius) or radius <= 0:
+        raise ValueError("tower_site_pad_radius_m must be finite and positive")
+    if pixel_spacing_m is None or len(pixel_spacing_m) != 2:
+        raise ValueError("pixel_spacing_m is required for tower-site pad screening")
+    row_m, col_m = map(float, pixel_spacing_m)
+    if (not math.isfinite(row_m) or not math.isfinite(col_m)
+            or row_m <= 0 or col_m <= 0):
+        raise ValueError("pixel_spacing_m values must be finite and positive")
+
+    row_extent = math.ceil(radius / row_m + 0.5)
+    col_extent = math.ceil(radius / col_m + 0.5)
+    row_offsets = np.arange(-row_extent, row_extent + 1)[:, None]
+    col_offsets = np.arange(-col_extent, col_extent + 1)[None, :]
+    row_gap = np.maximum(np.abs(row_offsets) * row_m - row_m / 2.0, 0.0)
+    col_gap = np.maximum(np.abs(col_offsets) * col_m - col_m / 2.0, 0.0)
+    touched_cells = row_gap ** 2 + col_gap ** 2 <= radius ** 2 + 1e-9
+    rows, cols = np.nonzero(touched_cells)
+    return touched_cells[rows.min():rows.max() + 1, cols.min():cols.max() + 1]
+
+
+def tower_site_hazard_exposure_diagnostic(
+        tower_path, hazard_masks, hazard_metadata, pixel_spacing_m,
+        pad_radius_m, grid_shape=None):
+    """Report known hazard-mask overlaps for intermediate tower-site pads only.
+
+    This is diagnostic metadata: it does not change route cost, search, geometry,
+    candidate selection, or identify zero-overlap sites as safe.
+    """
+    layer_keys = (
+        "debris_flow_impact", "landslide_impact", "landslide_potential")
+    intermediate_sites = list(tower_path[1:-1]) if tower_path is not None else []
+    if pad_radius_m is None:
+        footprint = np.ones((1, 1), dtype=bool)
+        footprint_status = "center_cell_only_pad_not_configured"
+    else:
+        footprint = _tower_site_pad_structure(pad_radius_m, pixel_spacing_m)
+        footprint_status = "configured_pad_footprint"
+    center_row, center_col = footprint.shape[0] // 2, footprint.shape[1] // 2
+    layer_metadata = (hazard_metadata or {}).get("layers", {})
+    layer_results = {}
+
+    for layer in layer_keys:
+        mask = hazard_masks.get(layer) if isinstance(hazard_masks, dict) else None
+        coverage = layer_metadata.get(layer, {}).get("coverage_status", "unknown")
+        overlap_sites = 0
+        overlap_cells = 0
+        pads_outside_grid = 0
+        mask_available = mask is not None and np.asarray(mask).ndim == 2
+        if mask_available:
+            mask = np.asarray(mask) > 0
+            if grid_shape is not None and mask.shape != tuple(grid_shape):
+                mask_available = False
+
+        for site in intermediate_sites:
+            row, col = map(int, site)
+            row0, col0 = row - center_row, col - center_col
+            row1, col1 = row0 + footprint.shape[0], col0 + footprint.shape[1]
+            if not mask_available:
+                continue
+            height, width = mask.shape
+            r0, c0 = max(row0, 0), max(col0, 0)
+            r1, c1 = min(row1, height), min(col1, width)
+            if r0 >= r1 or c0 >= c1:
+                pads_outside_grid += 1
+                continue
+            footprint_r0, footprint_c0 = r0 - row0, c0 - col0
+            footprint_r1 = footprint_r0 + r1 - r0
+            footprint_c1 = footprint_c0 + c1 - c0
+            touched = (mask[r0:r1, c0:c1]
+                       & footprint[footprint_r0:footprint_r1,
+                                   footprint_c0:footprint_c1])
+            count = int(np.count_nonzero(touched))
+            overlap_cells += count
+            overlap_sites += int(count > 0)
+            if (row0 < 0 or col0 < 0 or row1 > height or col1 > width):
+                pads_outside_grid += 1
+
+        all_pads_inside_grid = pads_outside_grid == 0
+        if not intermediate_sites:
+            status = "not_assessed_no_intermediate_sites"
+        elif overlap_cells:
+            status = "known_overlap"
+        elif pad_radius_m is None:
+            status = "center_cell_only_pad_not_configured"
+        elif (mask_available and coverage == "complete"
+              and all_pads_inside_grid):
+            status = "complete_coverage_no_overlap"
+        else:
+            status = "unknown_coverage"
+        layer_results[layer] = {
+            "status": status,
+            "coverage_status": coverage,
+            "mask_available": mask_available,
+            "overlap_intermediate_site_count": overlap_sites,
+            "overlap_pad_cell_count_across_sites": overlap_cells,
+            "pads_not_fully_inside_raster_grid": pads_outside_grid,
+        }
+
+    statuses = [item["status"] for item in layer_results.values()]
+    if not intermediate_sites:
+        overall_status = "not_assessed_no_intermediate_sites"
+    elif "known_overlap" in statuses:
+        overall_status = "known_overlap"
+    elif all(status == "complete_coverage_no_overlap" for status in statuses):
+        overall_status = "complete_coverage_no_overlap"
+    else:
+        overall_status = "unknown_coverage"
+    return {
+        "status": overall_status,
+        "scope": "intermediate_tower_site_pad_footprints_only",
+        "pad_radius_m": pad_radius_m,
+        "pad_footprint_status": footprint_status,
+        "intermediate_site_count": len(intermediate_sites),
+        "layers": layer_results,
+        "selection_effect": "none_diagnostic_only",
+    }
+
+
 def build_tower_masks(dem, slope, custom_hard_mask=None,
                       max_surface_slope_deg=None, max_terrain_elevation_m=None,
                       building_mask=None, building_distance_m=None,
@@ -459,27 +579,13 @@ def build_tower_masks(dem, slope, custom_hard_mask=None,
         site_mask &= surface_slope <= max_surface_slope_deg
     if tower_site_pad_radius_m is not None:
         radius = float(tower_site_pad_radius_m)
-        if not math.isfinite(radius) or radius <= 0:
-            raise ValueError("tower_site_pad_radius_m must be finite and positive")
-        if pixel_spacing_m is None or len(pixel_spacing_m) != 2:
-            raise ValueError("pixel_spacing_m is required for tower-site pad screening")
-        row_m, col_m = map(float, pixel_spacing_m)
-        if (not math.isfinite(row_m) or not math.isfinite(col_m)
-                or row_m <= 0 or col_m <= 0):
-            raise ValueError("pixel_spacing_m values must be finite and positive")
+        touched_cells = _tower_site_pad_structure(radius, pixel_spacing_m)
         if not HAS_SCIPY:
             raise RuntimeError("SciPy is required for tower-site pad screening")
 
         pad_data_valid = span_mask & np.isfinite(surface_slope)
         if max_surface_slope_deg is not None:
             pad_data_valid &= surface_slope <= max_surface_slope_deg
-        row_extent = math.ceil(radius / row_m + 0.5)
-        col_extent = math.ceil(radius / col_m + 0.5)
-        row_offsets = np.arange(-row_extent, row_extent + 1)[:, None]
-        col_offsets = np.arange(-col_extent, col_extent + 1)[None, :]
-        row_gap = np.maximum(np.abs(row_offsets) * row_m - row_m / 2.0, 0.0)
-        col_gap = np.maximum(np.abs(col_offsets) * col_m - col_m / 2.0, 0.0)
-        touched_cells = row_gap ** 2 + col_gap ** 2 <= radius ** 2 + 1e-9
         site_mask &= binary_erosion(pad_data_valid, structure=touched_cells, border_value=0)
     return span_mask.astype(np.uint8), site_mask.astype(np.uint8)
 
@@ -1660,6 +1766,10 @@ def main():
                         goal_position_rc=goal_tower_position_rc,
                         **tower_profile_args,
                     )
+                tower_site_hazard_exposure = tower_site_hazard_exposure_diagnostic(
+                    tower_path, official_hazard_masks, official_hazard_metadata,
+                    route_pixel_spacing, args.tower_site_pad_radius_m,
+                    grid_shape=dem.shape)
                 tower_geo = ([rowcol_to_geo(row, col, transform)
                               for row, col in tower_path] if tower_path else None)
                 span_clearance_profiles = []
@@ -1711,6 +1821,7 @@ def main():
                         else "intermediate_tower_candidate_pixels_only"),
                     "selected_intermediate_tower_site_count": (
                         max(0, len(tower_path) - 2) if tower_path else 0),
+                    "tower_site_hazard_exposure": tower_site_hazard_exposure,
                     "station_terminal_slope_status": "not_evaluated_existing_station_endpoints",
                     "clearance_profile_screening": bool(tower_profile_args),
                     "clearance_profile_status": clearance_profile_status,
@@ -1947,6 +2058,8 @@ def main():
                             "selected_intermediate_tower_site_count"],
                         "station_terminal_slope_status": experimental_tower_graph_results[
                             "station_terminal_slope_status"],
+                        "tower_site_hazard_exposure": experimental_tower_graph_results[
+                            "tower_site_hazard_exposure"],
                         "dem_vertical_datum": experimental_tower_graph_results[
                             "dem_vertical_datum"],
                     })
@@ -2050,6 +2163,8 @@ def main():
                         "selected_intermediate_tower_site_count"],
                     "station_terminal_slope_status": experimental_tower_graph_results[
                         "station_terminal_slope_status"],
+                    "tower_site_hazard_exposure": experimental_tower_graph_results[
+                        "tower_site_hazard_exposure"],
                     "dem_vertical_datum": experimental_tower_graph_results[
                         "dem_vertical_datum"],
                 }
