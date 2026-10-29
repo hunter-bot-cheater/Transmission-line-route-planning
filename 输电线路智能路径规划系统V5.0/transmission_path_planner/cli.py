@@ -75,6 +75,11 @@ def _select_final_route(methods, case_metrics, select_tower_graph=False):
                 and metrics.get("tower_span_status") == "pass"
                 and metrics.get("tower_span_violation_count") == 0
                 and site_slope_assessed
+                and metrics.get("tower_site_pad_status") == "site_pad_footprint_screened"
+                and isinstance(metrics.get("tower_site_pad_radius_m"), (int, float))
+                and not isinstance(metrics.get("tower_site_pad_radius_m"), bool)
+                and math.isfinite(float(metrics["tower_site_pad_radius_m"]))
+                and metrics["tower_site_pad_radius_m"] > 0
                 and clearance_passed):
             return TOWER_GRAPH_METHOD, None, "explicit_tower_graph_configured_screens_passed"
         return None, None, "no_hard_constraint_compliant_route"
@@ -248,7 +253,9 @@ def validate_tower_span_lengths(geo, min_span_m, max_span_m, tolerance_m=0.5):
 
 
 def tower_candidate_validation_status(geo, searched_path, clearance_status,
-                                     building_geometry_status, tower_site_slope_status=None):
+                                     building_geometry_status, tower_site_slope_status=None,
+                                     tower_site_pad_status=None,
+                                     tower_site_pad_radius_m=None):
     if str(clearance_status).startswith("unknown_"):
         return "unknown_clearance_reference"
     if not geo:
@@ -257,6 +264,12 @@ def tower_candidate_validation_status(geo, searched_path, clearance_status,
         return "incomplete_building_geometry_check"
     if tower_site_slope_status != "interior_candidates_screened":
         return "site_slope_not_evaluated"
+    if (tower_site_pad_status != "site_pad_footprint_screened"
+            or isinstance(tower_site_pad_radius_m, bool)
+            or not isinstance(tower_site_pad_radius_m, (int, float))
+            or not math.isfinite(float(tower_site_pad_radius_m))
+            or tower_site_pad_radius_m <= 0):
+        return "tower_site_pad_not_screened"
     return "survived_configured_screening"
 
 
@@ -414,8 +427,13 @@ def validate_endpoint_cells(start, end, shape, hard_mask, blocking_layers=None):
 def build_tower_masks(dem, slope, custom_hard_mask=None,
                       max_surface_slope_deg=None, max_terrain_elevation_m=None,
                       building_mask=None, building_distance_m=None,
-                      building_clearance_m=0.0):
-    """Separate overhead-span traversability from candidate tower-site limits."""
+                      building_clearance_m=0.0, tower_site_pad_radius_m=None,
+                      pixel_spacing_m=None):
+    """Separate overhead-span traversability from candidate tower-site limits.
+
+    A configured pad radius screens every touched terrain cell conservatively;
+    it is a surface-support proxy, not a geotechnical foundation assessment.
+    """
     elevation = np.asarray(dem)
     surface_slope = np.asarray(slope)
     if elevation.ndim != 2 or surface_slope.shape != elevation.shape:
@@ -439,6 +457,30 @@ def build_tower_masks(dem, slope, custom_hard_mask=None,
     site_mask = span_mask.copy()
     if max_surface_slope_deg is not None:
         site_mask &= surface_slope <= max_surface_slope_deg
+    if tower_site_pad_radius_m is not None:
+        radius = float(tower_site_pad_radius_m)
+        if not math.isfinite(radius) or radius <= 0:
+            raise ValueError("tower_site_pad_radius_m must be finite and positive")
+        if pixel_spacing_m is None or len(pixel_spacing_m) != 2:
+            raise ValueError("pixel_spacing_m is required for tower-site pad screening")
+        row_m, col_m = map(float, pixel_spacing_m)
+        if (not math.isfinite(row_m) or not math.isfinite(col_m)
+                or row_m <= 0 or col_m <= 0):
+            raise ValueError("pixel_spacing_m values must be finite and positive")
+        if not HAS_SCIPY:
+            raise RuntimeError("SciPy is required for tower-site pad screening")
+
+        pad_data_valid = span_mask & np.isfinite(surface_slope)
+        if max_surface_slope_deg is not None:
+            pad_data_valid &= surface_slope <= max_surface_slope_deg
+        row_extent = math.ceil(radius / row_m + 0.5)
+        col_extent = math.ceil(radius / col_m + 0.5)
+        row_offsets = np.arange(-row_extent, row_extent + 1)[:, None]
+        col_offsets = np.arange(-col_extent, col_extent + 1)[None, :]
+        row_gap = np.maximum(np.abs(row_offsets) * row_m - row_m / 2.0, 0.0)
+        col_gap = np.maximum(np.abs(col_offsets) * col_m - col_m / 2.0, 0.0)
+        touched_cells = row_gap ** 2 + col_gap ** 2 <= radius ** 2 + 1e-9
+        site_mask &= binary_erosion(pad_data_valid, structure=touched_cells, border_value=0)
     return span_mask.astype(np.uint8), site_mask.astype(np.uint8)
 
 
@@ -607,10 +649,11 @@ def load_case_reference(path, require_single_line=True):
 
 def summarize_run_completion(expected_cases, results, failed_cases):
     failed_names = {item["case"] for item in failed_cases}
+    final_routes = [record["metrics"].get(FINAL_ROUTE_LABEL, {})
+                    for record in results]
     no_route_cases = [
-        record["case"] for record in results
-        if record["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
-        == "no_hard_constraint_compliant_route"
+        record["case"] for record, final_route in zip(results, final_routes)
+        if final_route.get("planning_status") == "no_hard_constraint_compliant_route"
     ]
     no_route_names = set(no_route_cases)
     completed = {
@@ -618,11 +661,18 @@ def summarize_run_completion(expected_cases, results, failed_cases):
         if record["case"] not in failed_names and record["case"] not in no_route_names
     }
     exploratory_cases = [
-        record["case"] for record in results
+        record["case"] for record, final_route in zip(results, final_routes)
         if record["case"] in completed
-        and record["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
-        == "exploratory_only_unverified_endpoints"
+        and final_route.get("planning_status") == "exploratory_only_unverified_endpoints"
     ]
+    coverage_unverified_candidates = [
+        record["case"] for record, final_route in zip(results, final_routes)
+        if final_route.get("planning_status", "").startswith("screening_candidate_")
+    ]
+    engineering_status_counts = {}
+    for final_route in final_routes:
+        status = final_route.get("engineering_feasibility", "not_reported")
+        engineering_status_counts[status] = engineering_status_counts.get(status, 0) + 1
     return {
         "expected_cases": expected_cases,
         "completed_cases": len(completed),
@@ -630,6 +680,8 @@ def summarize_run_completion(expected_cases, results, failed_cases):
         "failed_cases": failed_cases,
         "no_route_cases": no_route_cases,
         "exploratory_cases": exploratory_cases,
+        "coverage_unverified_candidate_cases": coverage_unverified_candidates,
+        "engineering_feasibility_status_counts": engineering_status_counts,
         "complete": expected_cases > 0 and len(completed) == expected_cases
         and not failed_cases and not no_route_cases,
     }
@@ -790,6 +842,8 @@ def main():
                     help="实验塔位图最大水平档距；必须按具体线路工程参数提供")
     ap.add_argument("--tower-candidate-stride", type=int, default=2,
                     help="塔位候选像元步长；会影响可达性，默认2，仅为栅格采样参数")
+    ap.add_argument("--tower-site-pad-radius-m", type=float, default=None,
+                    help="显式塔位地表平台筛查半径；需与 experimental tower graph 同用；仅筛查已知DEM/硬掩膜/坡度")
     ap.add_argument("--tower-attachment-height-m", type=float, default=None,
                     help="可选净空筛查参数：固定挂点高度；需与弧垂和最小净空同时提供")
     ap.add_argument("--tower-max-midspan-sag-m", type=float, default=None,
@@ -853,6 +907,8 @@ def main():
         if (args.max_surface_slope_deg is None
                 or not 0 < args.max_surface_slope_deg <= 90):
             ap.error("选择塔位图方案必须提供有效的 --max-surface-slope-deg 塔位坡度上限")
+        if args.tower_site_pad_radius_m is None:
+            ap.error("选择塔位图方案必须显式提供 --tower-site-pad-radius-m")
         if any(value is None for value in (
                 args.tower_attachment_height_m,
                 args.tower_max_midspan_sag_m,
@@ -897,6 +953,7 @@ def main():
         "--max-terrain-elevation-m": args.max_terrain_elevation_m,
         "--tower-min-span-m": args.tower_min_span_m,
         "--tower-max-span-m": args.tower_max_span_m,
+        "--tower-site-pad-radius-m": args.tower_site_pad_radius_m,
         "--tower-attachment-height-m": args.tower_attachment_height_m,
         "--tower-max-midspan-sag-m": args.tower_max_midspan_sag_m,
         "--tower-min-clearance-m": args.tower_min_clearance_m,
@@ -904,6 +961,11 @@ def main():
     for option, value in float_parameters.items():
         if value is not None and not math.isfinite(value):
             ap.error(f"{option} 必须是有限数值")
+    if args.tower_site_pad_radius_m is not None:
+        if args.tower_site_pad_radius_m <= 0:
+            ap.error("--tower-site-pad-radius-m 必须大于0")
+        if not args.experimental_tower_graph:
+            ap.error("--tower-site-pad-radius-m 必须与 --experimental-tower-graph 同用")
     if (args.building_clearance_m < 0 or args.ridge_penalty_weight < 0
             or args.landcover_penalty_weight < 0
             or args.settlement_weight < 0
@@ -1193,6 +1255,18 @@ def main():
             if args.max_surface_slope_deg is not None:
                 if not 0 < args.max_surface_slope_deg <= 90:
                     raise ValueError("--max-surface-slope-deg 必须在(0,90]内")
+            if args.tower_site_pad_radius_m is not None:
+                if (not math.isclose(transform.b, 0.0, rel_tol=0.0, abs_tol=1e-12)
+                        or not math.isclose(transform.d, 0.0, rel_tol=0.0, abs_tol=1e-12)):
+                    raise ValueError("塔位平台筛查要求北向上、无旋转或错切的 DEM")
+                lat_edges = (transform.f, transform.f + transform.e * H)
+                edge_spacings = [pixel_spacing_meters(transform, lat, crs)
+                                 for lat in lat_edges]
+                route_pixel_spacing = tuple(
+                    min(spacing[axis] for spacing in edge_spacings) for axis in range(2))
+            else:
+                lat_center = transform.f + transform.e * (H / 2.0)
+                route_pixel_spacing = pixel_spacing_meters(transform, lat_center, crs)
             tower_span_mask, tower_site_mask = build_tower_masks(
                 dem, slope,
                 custom_hard_mask=combined_hard_mask,
@@ -1201,6 +1275,8 @@ def main():
                 building_mask=building_mask,
                 building_distance_m=osm.get("building_distance_m"),
                 building_clearance_m=args.building_clearance_m,
+                tower_site_pad_radius_m=args.tower_site_pad_radius_m,
+                pixel_spacing_m=route_pixel_spacing,
             )
             endpoint_blockers = {"DEM NoData": ~np.isfinite(dem)}
             if custom_constraints:
@@ -1238,9 +1314,6 @@ def main():
             if args.include_ai_diagnostics:
                 cost_finite = np.where(np.isfinite(cost), cost, 1.0).astype(np.float32)
                 cost_vin = np.where(tower_span_mask > 0, cost_grid, 0.0).astype(np.float32)
-            lat_center = transform.f + transform.e * (H / 2.0)
-            route_pixel_spacing = pixel_spacing_meters(transform, lat_center, crs)
-
             methods = {}
             grade_reports = {}
             V_main = None
@@ -1608,7 +1681,14 @@ def main():
                     "tower_site_slope_status": (
                         "interior_candidates_screened" if args.max_surface_slope_deg is not None
                         else "not_evaluated"),
-                    "tower_site_slope_scope": "intermediate_tower_candidate_pixels_only",
+                    "tower_site_pad_radius_m": args.tower_site_pad_radius_m,
+                    "tower_site_pad_status": (
+                        "site_pad_footprint_screened"
+                        if args.tower_site_pad_radius_m is not None else "not_configured"),
+                    "tower_site_slope_scope": (
+                        "intermediate_tower_site_pad_footprint_cells"
+                        if args.tower_site_pad_radius_m is not None
+                        else "intermediate_tower_candidate_pixels_only"),
                     "selected_intermediate_tower_site_count": (
                         max(0, len(tower_path) - 2) if tower_path else 0),
                     "station_terminal_slope_status": "not_evaluated_existing_station_endpoints",
@@ -1825,7 +1905,9 @@ def main():
                         "candidate_validation_status": tower_candidate_validation_status(
                             geo, experimental_tower_graph_results["path"], clearance_status,
                             met.get("building_geometry_status"),
-                            experimental_tower_graph_results["tower_site_slope_status"]),
+                            experimental_tower_graph_results["tower_site_slope_status"],
+                            experimental_tower_graph_results["tower_site_pad_status"],
+                            experimental_tower_graph_results["tower_site_pad_radius_m"]),
                         "clearance_profile_screening": experimental_tower_graph_results[
                             "clearance_profile_screening"],
                         "clearance_profile_status": clearance_status,
@@ -1837,6 +1919,10 @@ def main():
                             "tower_site_slope_status"],
                         "tower_site_slope_scope": experimental_tower_graph_results[
                             "tower_site_slope_scope"],
+                        "tower_site_pad_radius_m": experimental_tower_graph_results[
+                            "tower_site_pad_radius_m"],
+                        "tower_site_pad_status": experimental_tower_graph_results[
+                            "tower_site_pad_status"],
                         "selected_intermediate_tower_site_count": experimental_tower_graph_results[
                             "selected_intermediate_tower_site_count"],
                         "station_terminal_slope_status": experimental_tower_graph_results[
@@ -1921,7 +2007,9 @@ def main():
                     "candidate_validation_status": tower_candidate_validation_status(
                         None, experimental_tower_graph_results["path"],
                         experimental_tower_graph_results["clearance_profile_status"],
-                        None, experimental_tower_graph_results["tower_site_slope_status"]),
+                        None, experimental_tower_graph_results["tower_site_slope_status"],
+                        experimental_tower_graph_results["tower_site_pad_status"],
+                        experimental_tower_graph_results["tower_site_pad_radius_m"]),
                     "clearance_profile_screening": experimental_tower_graph_results[
                         "clearance_profile_screening"],
                     "clearance_profile_status": experimental_tower_graph_results[
@@ -1934,6 +2022,10 @@ def main():
                         "tower_site_slope_status"],
                     "tower_site_slope_scope": experimental_tower_graph_results[
                         "tower_site_slope_scope"],
+                    "tower_site_pad_radius_m": experimental_tower_graph_results[
+                        "tower_site_pad_radius_m"],
+                    "tower_site_pad_status": experimental_tower_graph_results[
+                        "tower_site_pad_status"],
                     "selected_intermediate_tower_site_count": experimental_tower_graph_results[
                         "selected_intermediate_tower_site_count"],
                     "station_terminal_slope_status": experimental_tower_graph_results[

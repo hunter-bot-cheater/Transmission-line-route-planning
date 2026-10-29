@@ -645,6 +645,24 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         self.assertEqual(exc.exception.code, 2)
         self.assertIn("--max-surface-slope-deg", error_output.getvalue())
 
+    def test_selectable_tower_graph_requires_explicit_site_pad_radius(self):
+        args = [
+            "planner", "--experimental-tower-graph", "--select-experimental-tower-graph",
+            "--stations-csv", "stations.csv", "--route-tasks-csv", "tasks.csv",
+            "--constraint-geojson", "constraints.geojson",
+            "--tower-min-span-m", "100", "--tower-max-span-m", "500",
+            "--tower-attachment-height-m", "30", "--tower-max-midspan-sag-m", "20",
+            "--tower-min-clearance-m", "8", "--dem-vertical-datum", "TWVD2001",
+            "--max-surface-slope-deg", "30",
+        ]
+        error_output = StringIO()
+        with patch("sys.argv", args), redirect_stderr(error_output):
+            with self.assertRaises(SystemExit) as exc:
+                main()
+
+        self.assertEqual(exc.exception.code, 2)
+        self.assertIn("--tower-site-pad-radius-m", error_output.getvalue())
+
     def test_selectable_tower_graph_rejects_invalid_site_slope_limit(self):
         base_args = [
             "planner", "--experimental-tower-graph", "--select-experimental-tower-graph",
@@ -931,6 +949,21 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         self.assertTrue(summary["complete"])
         self.assertEqual(summary["completed_cases"], 1)
         self.assertEqual(summary["exploratory_cases"], ["exploratory"])
+
+    def test_batch_summary_keeps_unverified_candidate_separate_from_engineering(self):
+        results = [{"case": "candidate", "metrics": {"最终路线": {
+            "method": "Tower graph (experimental)",
+            "planning_status": "screening_candidate_coverage_unverified",
+            "endpoint_qualification": "declared_verified_line_connection_points",
+            "engineering_feasibility": "not_evaluated",
+        }}}]
+
+        summary = summarize_run_completion(1, results, [])
+
+        self.assertTrue(summary["complete"])
+        self.assertEqual(summary["coverage_unverified_candidate_cases"], ["candidate"])
+        self.assertEqual(
+            summary["engineering_feasibility_status_counts"], {"not_evaluated": 1})
 
     def test_no_route_and_failed_cases_are_unmeasured(self):
         records = [

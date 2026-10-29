@@ -97,6 +97,57 @@ class StationPlanningTests(unittest.TestCase):
         self.assertTrue(any(min(first[1], second[1]) < 2 < max(first[1], second[1])
                             for first, second in zip(route, route[1:])))
 
+    def test_tower_site_pad_rejects_local_steepness_and_nodata_but_spans_can_cross(self):
+        dem = np.zeros((5, 7), dtype=np.float64)
+        slope = np.zeros_like(dem)
+        slope[2, 2] = 45.0
+
+        span_mask, site_mask = build_tower_masks(
+            dem, slope, max_surface_slope_deg=30.0,
+            tower_site_pad_radius_m=0.5, pixel_spacing_m=(1.0, 1.0))
+
+        self.assertTrue(span_mask[2, 2])
+        self.assertFalse(site_mask[2, 1])
+        self.assertTrue(site_mask[2, 5])
+        span_path = astar_search(np.where(span_mask > 0, 1.0, np.inf), (2, 0), (2, 4))
+        self.assertIn((2, 2), span_path)
+
+        dem[2, 4] = np.nan
+        _, nodata_site_mask = build_tower_masks(
+            dem, slope, max_surface_slope_deg=30.0,
+            tower_site_pad_radius_m=0.5, pixel_spacing_m=(1.0, 1.0))
+        self.assertFalse(nodata_site_mask[2, 5])
+
+    def test_tower_site_pad_uses_exact_pixel_footprint_and_grid_edges(self):
+        dem = np.zeros((5, 5), dtype=np.float64)
+        slope = np.zeros_like(dem)
+        hard_mask = np.zeros_like(dem, dtype=np.uint8)
+        hard_mask[2, 3] = 1
+
+        _, site_mask = build_tower_masks(
+            dem, slope, custom_hard_mask=hard_mask,
+            tower_site_pad_radius_m=15.0, pixel_spacing_m=(35.0, 35.0))
+        self.assertTrue(site_mask[2, 2])
+        self.assertTrue(site_mask[0, 0])
+
+        _, touching_site_mask = build_tower_masks(
+            dem, slope, custom_hard_mask=hard_mask,
+            tower_site_pad_radius_m=17.5, pixel_spacing_m=(35.0, 35.0))
+        self.assertFalse(touching_site_mask[2, 2])
+        self.assertFalse(touching_site_mask[0, 0])
+
+    def test_tower_site_pad_supports_anisotropic_pixel_spacing(self):
+        dem = np.zeros((5, 5), dtype=np.float64)
+        slope = np.zeros_like(dem)
+        hard_mask = np.zeros_like(dem, dtype=np.uint8)
+        hard_mask[2, 3] = 1
+
+        _, site_mask = build_tower_masks(
+            dem, slope, custom_hard_mask=hard_mask,
+            tower_site_pad_radius_m=15.0, pixel_spacing_m=(35.0, 70.0))
+
+        self.assertTrue(site_mask[2, 2])
+
     def test_overhead_span_grade_is_explicitly_unassessed(self):
         report = overhead_span_grade_report()
         self.assertEqual(report["grade_limit_status"], "not_applicable_overhead_spans")
@@ -116,6 +167,8 @@ class StationPlanningTests(unittest.TestCase):
             "tower_span_violation_count": 0,
             "tower_site_slope_status": "interior_candidates_screened",
             "tower_site_max_surface_slope_deg": 30.0,
+            "tower_site_pad_status": "site_pad_footprint_screened",
+            "tower_site_pad_radius_m": 15.0,
             "clearance_profile_status": "dem_only_profile_screening",
             "clearance_profile_spans": [{"status": "sampled_clearance_ok"}],
         }
@@ -172,6 +225,26 @@ class StationPlanningTests(unittest.TestCase):
             {TOWER_GRAPH_METHOD: missing_site_slope},
             select_tower_graph=True)[0])
 
+        unassessed_site_pad = {
+            **accepted_metrics,
+            "tower_site_pad_status": "not_configured",
+        }
+        self.assertIsNone(_select_final_route(
+            {TOWER_GRAPH_METHOD: route},
+            {TOWER_GRAPH_METHOD: unassessed_site_pad},
+            select_tower_graph=True)[0])
+
+        for invalid_radius in (None, 0, -1, float("nan"), float("inf"), True, "15"):
+            with self.subTest(invalid_radius=invalid_radius):
+                invalid_pad = {
+                    **accepted_metrics,
+                    "tower_site_pad_radius_m": invalid_radius,
+                }
+                self.assertIsNone(_select_final_route(
+                    {TOWER_GRAPH_METHOD: route},
+                    {TOWER_GRAPH_METHOD: invalid_pad},
+                    select_tower_graph=True)[0])
+
         for invalid_limit in (0, -1, 91, float("nan"), float("inf"), True, "30"):
             with self.subTest(invalid_limit=invalid_limit):
                 invalid_slope = {
@@ -187,11 +260,21 @@ class StationPlanningTests(unittest.TestCase):
         route = [(121.0, 25.0), (121.003, 25.0)]
         self.assertEqual(
             tower_candidate_validation_status(
-                route, route, "not_requested", "pass", "interior_candidates_screened"),
+                route, route, "not_requested", "pass", "interior_candidates_screened",
+                "site_pad_footprint_screened", 15.0),
             "survived_configured_screening")
         self.assertEqual(
             tower_candidate_validation_status(route, route, "not_requested", "pass"),
             "site_slope_not_evaluated")
+        self.assertEqual(
+            tower_candidate_validation_status(
+                route, route, "not_requested", "pass", "interior_candidates_screened"),
+            "tower_site_pad_not_screened")
+        self.assertEqual(
+            tower_candidate_validation_status(
+                route, route, "not_requested", "pass", "interior_candidates_screened",
+                "site_pad_footprint_screened", float("nan")),
+            "tower_site_pad_not_screened")
         self.assertEqual(
             tower_candidate_validation_status(
                 None, route, "dem_only_profile_screening", "pass"),

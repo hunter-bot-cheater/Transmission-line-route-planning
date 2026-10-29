@@ -23,7 +23,7 @@ except ImportError:
 
 try:
     import scipy.ndimage as ndi
-    from scipy.ndimage import distance_transform_edt, gaussian_filter
+    from scipy.ndimage import binary_erosion, distance_transform_edt, gaussian_filter
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
