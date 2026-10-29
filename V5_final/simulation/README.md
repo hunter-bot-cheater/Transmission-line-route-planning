@@ -107,7 +107,7 @@ D:\python\python.exe simulation\benchmark.py --width 72 --height 56 --seeds 11 2
 
 ## 真实 DEM 站间规划
 
-主仿真页仍使用合成地形、网格坐标和已扫描代价场；其中的 `/api/plan` 只规划仿真网格。`/route-planner` 是单独的真实地理路线页面，使用 EPSG:4326 站点坐标和服务器上的 V5.0 DEM 规划器，不共享合成地图的坐标或代价输入。主页面顶部保留“真实站间规划”入口；真实规划页可在地图上分别点选起点和终点，服务端会验证端点并在返回成功前以不超过四分之一栅格像元的间距加密采样，同时检查路线触及的全部 DEM 栅格像元；超出 DEM 数据范围或穿过无效 DEM 像元的路线会被拒绝，再把 `final_route.geojson` 叠加到地图上。该检查针对 DEM 数据覆盖，不等同于权威海岸线或台湾陆域边界校验。模拟地图仍用于无人机扫描流程演示，不会替代真实 DEM 路线规划。
+主仿真页仍使用合成地形、网格坐标和已扫描代价场；其中的 `/api/plan` 只规划仿真网格。`/route-planner` 是单独的真实地理路线页面，使用 EPSG:4326 站点坐标和服务器上的 V5.0 DEM 规划器，不共享合成地图的坐标或代价输入。主页面顶部保留“真实站间规划”入口；真实规划页可在地图上分别点选起点和终点。服务必须配置台湾县市陆域 GeoJSON；服务端会同时检查端点是否被陆域多边形覆盖，并在返回成功前检查完整 `LineString` 是否仍被多边形覆盖。路线还需通过 DEM 有效像元检查，成功后将 `final_route.geojson` 叠加到地图上。缺少或无法读取陆域边界时，真实规划保持未就绪。县市行政边界不等同于测绘海岸线。模拟地图仍用于无人机扫描流程演示，不会替代真实 DEM 路线规划。
 
 真实规划接口默认关闭。仅当服务进程配置了位于 `/data1/B24041626/pp` 内的源码、DEM 和任务输出路径时启用；浏览器不能提交文件路径，服务不会把真实路线计算回退到本机。服务器运行时可按部署目录设置：
 
@@ -115,13 +115,14 @@ D:\python\python.exe simulation\benchmark.py --width 72 --height 56 --seeds 11 2
 export TRANSMISSION_PLANNER_ROOT=/data1/B24041626/pp/<规划器源码目录>
 export TRANSMISSION_PLANNER_PYTHON=/data1/B24041626/pp/venv/bin/python
 export TRANSMISSION_PLANNER_DEM=/data1/B24041626/pp/<DEM输入目录>/dtm_2026_20m_geographic_4326.tif
+export TRANSMISSION_PLANNER_LAND_MASK_GEOJSON=/data1/B24041626/pp/<台湾县市陆域边界目录>/county_boundaries_1140318.geojson
 export TRANSMISSION_PLANNER_JOB_ROOT=/data1/B24041626/pp/<新建的任务输出目录>
 export TRANSMISSION_PLANNER_ACCESS_TOKEN='<至少32字符的随机口令>'
 export TRANSMISSION_PLANNER_MAX_SIDE=4096
 python server.py --host 127.0.0.1 --port 8765
 ```
 
-`TRANSMISSION_PLANNER_ROOT` 需直接包含 `transmission_path_planner/`；`TRANSMISSION_PLANNER_PYTHON` 指向已安装 V5.0 依赖的服务器虚拟环境解释器。真实规划必须配置至少 32 字符的随机访问口令；浏览器只在当前页面内存中提交口令，不写入任务文件。可选环境图层由 `TRANSMISSION_PLANNER_OSM_CACHE_DIR`、`TRANSMISSION_PLANNER_CONSTRAINT_GEOJSON`、`TRANSMISSION_PLANNER_LAND_MASK_GEOJSON`、`TRANSMISSION_PLANNER_OFFICIAL_HAZARDS_DIR`、`TRANSMISSION_PLANNER_POPULATION_RASTER` 指定，路径必须位于 `/data1/B24041626/pp`。应用固定使用官方灾害权重 1.0、OSM 建成区权重 2.0、脊线权重 0.1、地形坡度权重 0.75、粗糙度权重 0.25、相邻地面坡度权重 0、A* 启发权重 1.0；启用人口栅格时使用权重 1.0 和保守的 `maximum` NoData 策略。任务仅运行 CPU 规划，不加载参考线路。接口一次只运行一个真实 DEM 任务，默认最长运行 3600 秒；路线 GeoJSON、DEM 地形预览、沿线高程剖面和溯源文件均写到唯一任务目录。用户需经 SSH 端口转发访问服务器回环地址；不要把服务绑定到公网接口。
+`TRANSMISSION_PLANNER_ROOT` 需直接包含 `transmission_path_planner/`；`TRANSMISSION_PLANNER_PYTHON` 指向已安装 V5.0 依赖的服务器虚拟环境解释器。`TRANSMISSION_PLANNER_LAND_MASK_GEOJSON` 是必填项，使用 WGS84 县市陆域 `Polygon`/`MultiPolygon` 文件；缺少或无效时服务保持未就绪。当前验证依据县市行政边界，不应解释成精确海岸线。真实规划还必须配置至少 32 字符的随机访问口令；浏览器只在当前页面内存中提交口令，不写入任务文件。其他可选环境图层由 `TRANSMISSION_PLANNER_OSM_CACHE_DIR`、`TRANSMISSION_PLANNER_CONSTRAINT_GEOJSON`、`TRANSMISSION_PLANNER_OFFICIAL_HAZARDS_DIR`、`TRANSMISSION_PLANNER_POPULATION_RASTER` 指定，路径必须位于 `/data1/B24041626/pp`。应用固定使用官方灾害权重 1.0、OSM 建成区权重 2.0、脊线权重 0.1、地形坡度权重 0.75、粗糙度权重 0.25、相邻地面坡度权重 0、A* 启发权重 1.0；启用人口栅格时使用权重 1.0 和保守的 `maximum` NoData 策略。任务仅运行 CPU 规划，不加载参考线路。接口一次只运行一个真实 DEM 任务，默认最长运行 3600 秒；路线 GeoJSON、DEM 地形预览、沿线高程剖面和溯源文件均写到唯一任务目录。用户需经 SSH 端口转发访问服务器回环地址；不要把服务绑定到公网接口。
 
 页面默认按探索性未核验端点规划；它会使用 `--allow-unverified-endpoints` 并在结果中标注代理端点。切换到“已核验线路接入点”时，页面记录用户声明的来源与凭证引用，但程序不会替用户核验。输出 `planning_status`、硬约束状态或进程完成都不代表工程可行；当前规划器也不会按电压等级校核塔型、导线、档距、弧垂和净空。OpenStreetMap 浏览底图不参与代价计算，参考线路几何不会发送给规划器。
 
@@ -137,7 +138,7 @@ python server.py --host 127.0.0.1 --port 8765
 - `POST /api/session/scan-state`：仅读取已提交的观测、任务、无人机位置、路线、累计确认航程和 `snapshot_revision`，不续期地图会话。
 - `POST /api/scan/measure`：已关闭，返回 `410 Gone`；扫描只能通过 `/api/scan/next` 获取授权后调用 `/api/scan/path`。
 - `POST /api/plan`：请求体包含 `session_id`、`start` 和 `goal`；服务端使用累计观测调用 V5 A*，未知格和硬阻断格不可通行。
-- `POST /api/routes/validate-point`：携带 `X-Planner-Token` 和 EPSG:4326 的 `lat`、`lon`，只读抽样检查所选点是否落在当前台湾 DEM 的有效像元内；不会创建规划任务或写入输出文件。
-- `POST /api/routes`：携带 `X-Planner-Token`，在服务器端提交真实 DEM 站间规划任务；路线计算和结果写入仅发生在服务器配置的 `/data1/B24041626/pp` 目录。服务端在任务标记成功前会对输出 GeoJSON 路线逐段加密采样，并拒绝落在 DEM 范围外或无效像元中的路线。
+- `POST /api/routes/validate-point`：携带 `X-Planner-Token` 和 EPSG:4326 的 `lat`、`lon`，只读检查所选点是否落在当前台湾 DEM 有效像元和台湾县市陆域多边形内；不会创建规划任务或写入输出文件。
+- `POST /api/routes`：携带 `X-Planner-Token`，在服务器端提交真实 DEM 站间规划任务；路线计算和结果写入仅发生在服务器配置的 `/data1/B24041626/pp` 目录。服务端在任务标记成功前检查端点和完整 GeoJSON 路线是否被台湾县市陆域多边形覆盖，并验证路线落在 DEM 有效像元内；任何一项失败都不会将任务标记为成功。
 
 会话保存在进程内存，最多保留最近 4 张地图；服务重启会清除会话。该设置面向本地演示，不是多用户持久化部署方案。

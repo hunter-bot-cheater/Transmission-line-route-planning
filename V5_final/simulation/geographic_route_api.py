@@ -10,6 +10,7 @@ import re
 import subprocess
 import threading
 import uuid
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +62,84 @@ def _dem_bounds_wgs84(dem_path: Path) -> dict[str, float]:
             or not -90 <= south < north <= 90):
         raise RuntimeError("服务器 DEM 范围无效")
     return bounds
+
+
+@lru_cache(maxsize=4)
+def _load_taiwan_land_geometry_cached(
+        path_text: str, modified_ns: int, size_bytes: int):
+    import rasterio
+    from shapely.geometry import shape as shapely_shape
+    from shapely.ops import unary_union
+
+    try:
+        document = json.loads(Path(path_text).read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise RuntimeError("台湾陆域边界 GeoJSON 无法读取") from error
+    features = document.get("features") if isinstance(document, dict) else None
+    if (not isinstance(document, dict) or document.get("type") != "FeatureCollection"
+            or not isinstance(features, list) or not features):
+        raise RuntimeError("台湾陆域边界必须是非空 WGS84 GeoJSON FeatureCollection")
+
+    declared_crs = document.get("crs")
+    if declared_crs:
+        properties = declared_crs.get("properties") if isinstance(declared_crs, dict) else None
+        crs_name = properties.get("name") if isinstance(properties, dict) else None
+        try:
+            parsed_crs = rasterio.crs.CRS.from_user_input(crs_name)
+        except (TypeError, ValueError) as error:
+            raise RuntimeError("台湾陆域边界 CRS 声明无效") from error
+        if parsed_crs.to_epsg() != 4326 and parsed_crs.to_string().upper() != "OGC:CRS84":
+            raise RuntimeError("台湾陆域边界必须使用 WGS84 经纬度坐标")
+
+    polygons = []
+    for index, feature in enumerate(features, start=1):
+        if not isinstance(feature, dict) or not isinstance(feature.get("geometry"), dict):
+            raise RuntimeError(f"台湾陆域边界要素 {index} 缺少 geometry")
+        try:
+            geometry = shapely_shape(feature["geometry"])
+        except (TypeError, ValueError) as error:
+            raise RuntimeError(f"台湾陆域边界要素 {index} 的 geometry 无效") from error
+        if (geometry.is_empty or geometry.geom_type not in {"Polygon", "MultiPolygon"}
+                or not geometry.is_valid):
+            raise RuntimeError(f"台湾陆域边界要素 {index} 必须是有效 Polygon 或 MultiPolygon")
+        bounds = geometry.bounds
+        if (not all(math.isfinite(value) for value in bounds)
+                or bounds[0] < -180 or bounds[2] > 180
+                or bounds[1] < -90 or bounds[3] > 90):
+            raise RuntimeError(f"台湾陆域边界要素 {index} 坐标超出 WGS84 范围")
+        polygons.append(geometry)
+
+    land_geometry = unary_union(polygons)
+    if (land_geometry.is_empty or not land_geometry.is_valid
+            or land_geometry.geom_type not in {"Polygon", "MultiPolygon"}):
+        raise RuntimeError("台湾陆域边界无法安全合并")
+    return land_geometry
+
+
+def _taiwan_land_geometry(path: Path):
+    try:
+        stat = path.stat()
+    except OSError as error:
+        raise RuntimeError("台湾陆域边界文件不存在或不可读") from error
+    return _load_taiwan_land_geometry_cached(
+        str(path.resolve()), stat.st_mtime_ns, stat.st_size,
+    )
+
+
+def _validate_taiwan_land_point(land_mask_path: Path, lon: float, lat: float, label: str) -> None:
+    from shapely.geometry import Point
+
+    if not _taiwan_land_geometry(land_mask_path).covers(Point(lon, lat)):
+        raise ValueError(f"{label}坐标位于台湾县市陆域边界外")
+
+
+def _validate_route_taiwan_land_coverage(
+        land_mask_path: Path, coordinates: list[list[float]]) -> None:
+    from shapely.geometry import LineString
+
+    line = LineString([(float(point[0]), float(point[1])) for point in coordinates])
+    if not _taiwan_land_geometry(land_mask_path).covers(line):
+        raise RuntimeError("final_route.geojson 路线超出台湾县市陆域边界")
 
 
 def _validate_route_dem_coverage(dem_path: Path, coordinates: list[list[float]]) -> None:
@@ -216,7 +295,8 @@ def _validate_route_dem_coverage(dem_path: Path, coordinates: list[list[float]])
 
 
 def _load_final_route_properties(
-        output_dir: Path, start: dict[str, str], end: dict[str, str], dem_path: Path
+        output_dir: Path, start: dict[str, str], end: dict[str, str], dem_path: Path,
+        land_mask_path: Path,
 ) -> tuple[Path, dict[str, Any]]:
     route_files = list(output_dir.rglob("final_route.geojson"))
     if len(route_files) != 1:
@@ -248,6 +328,7 @@ def _load_final_route_properties(
         if not math.isfinite(lon) or not math.isfinite(lat) or not -180 <= lon <= 180 or not -90 <= lat <= 90:
             raise RuntimeError("final_route.geojson 含无效经纬度坐标")
     _validate_route_dem_coverage(dem_path, coordinates)
+    _validate_route_taiwan_land_coverage(land_mask_path, coordinates)
 
     properties = feature.get("properties")
     required = {
@@ -368,18 +449,30 @@ class GeographicRouteJobs:
     def public_status(self) -> dict[str, Any]:
         config = self._config()
         bounds = None
+        land_mask_ready = False
         if config:
             try:
                 bounds = _dem_bounds_wgs84(config["dem"])
             except (ImportError, OSError, RuntimeError, ValueError):
                 pass
-        ready = config is not None and bounds is not None
+            if "land_mask" in config:
+                try:
+                    _taiwan_land_geometry(config["land_mask"])
+                    land_mask_ready = True
+                except (ImportError, OSError, RuntimeError, ValueError):
+                    pass
+        ready = config is not None and bounds is not None and land_mask_ready
+        message = (
+            "台湾 DEM 与陆域边界已就绪" if ready else
+            "台湾陆域边界 GeoJSON 未配置或无效；台湾范围规划已禁用"
+            if config and not land_mask_ready else
+            "无法读取服务器 DEM 覆盖范围；规划未启用" if config else
+            "真实 DEM 规划未启用；请在服务器配置 pp 内的规划器、DEM 和任务输出目录"
+        )
         return {
             "ready": ready,
             "mode": "server_dem_station_route" if ready else "disabled",
-            "message": ("服务器端真实 DEM 站间规划已就绪" if ready else
-                        "无法读取服务器 DEM 覆盖范围；规划未启用" if config else
-                        "真实 DEM 规划未启用；请在服务器配置 pp 内的规划器、DEM 和任务输出目录"),
+            "message": message,
             "max_side": config["max_side"] if config else None,
             "dem_bounds_wgs84": bounds,
             "engineering_feasibility": "not_evaluated",
@@ -387,7 +480,7 @@ class GeographicRouteJobs:
             "data_layers": ({
                 "dem": True, "osm": "osm" in config,
                 "project_constraints": "constraints" in config,
-                "land_mask": "land_mask" in config,
+                "land_mask": land_mask_ready,
                 "official_hazards": "hazards" in config,
                 "population": "population" in config,
             } if config else {}),
@@ -446,17 +539,22 @@ class GeographicRouteJobs:
         config = self._config()
         if config is None:
             raise RuntimeError("服务器真实 DEM 规划未配置")
+        if "land_mask" not in config:
+            raise RuntimeError("未配置台湾陆域边界 GeoJSON，无法进行台湾范围点选")
         lat = _number(payload.get("lat"), "纬度", -90, 90)
         lon = _number(payload.get("lon"), "经度", -180, 180)
         self._validate_dem_point(
             config["dem"], {"lat": str(lat), "lon": str(lon)}, "地图所选位置",
         )
+        _validate_taiwan_land_point(config["land_mask"], lon, lat, "地图所选位置")
         return {"valid": True, "lat": lat, "lon": lon}
 
     def submit(self, payload: dict[str, Any]) -> dict[str, Any]:
         config = self._config()
         if config is None:
             raise RuntimeError("服务器真实 DEM 规划未配置或配置路径不在 /data1/B24041626/pp 内")
+        if "land_mask" not in config:
+            raise RuntimeError("未配置台湾陆域边界 GeoJSON，台湾范围规划已禁用")
         mode = payload.get("endpoint_mode")
         if mode not in {"verified", "exploratory"}:
             raise ValueError("endpoint_mode 只能是 verified 或 exploratory")
@@ -466,6 +564,12 @@ class GeographicRouteJobs:
             raise ValueError("起点与终点编号不能相同")
         self._validate_dem_point(config["dem"], start, "起点")
         self._validate_dem_point(config["dem"], end, "终点")
+        _validate_taiwan_land_point(
+            config["land_mask"], float(start["lon"]), float(start["lat"]), "起点",
+        )
+        _validate_taiwan_land_point(
+            config["land_mask"], float(end["lon"]), float(end["lat"]), "终点",
+        )
         voltage = str(payload.get("voltage_kv", "")).strip()
         if len(voltage) > 32:
             raise ValueError("电压等级文本过长")
@@ -567,7 +671,7 @@ class GeographicRouteJobs:
             profile_files = list(output_dir.rglob("elevation_profile.csv"))
             provenance_files = list(output_dir.rglob("run_provenance.json"))
             route_path, properties = _load_final_route_properties(
-                output_dir, start, end, config["dem"],
+                output_dir, start, end, config["dem"], config["land_mask"],
             )
             state.update({
                 "state": "succeeded", "finished_at": self._now(),

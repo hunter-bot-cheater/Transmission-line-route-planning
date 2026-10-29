@@ -4,6 +4,7 @@ import math
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -26,23 +27,93 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
     def test_valid_point_is_checked_against_configured_dem(self):
         jobs = server.GEOGRAPHIC_ROUTE_JOBS
         dem_path = Path("/data1/B24041626/pp/taiwan-dem.tif")
-        with patch.object(jobs, "_config", return_value={"dem": dem_path}), \
-                patch.object(jobs, "_validate_dem_point") as validate_dem_point:
+        land_mask_path = Path("/data1/B24041626/pp/taiwan-land-mask.geojson")
+        with patch.object(jobs, "_config", return_value={
+                "dem": dem_path, "land_mask": land_mask_path}), \
+                patch.object(jobs, "_validate_dem_point") as validate_dem_point, \
+                patch.object(geographic_route_api, "_validate_taiwan_land_point") as validate_land:
             result = jobs.validate_point({"lat": 23.5, "lon": 120.9})
 
         self.assertEqual(result, {"valid": True, "lat": 23.5, "lon": 120.9})
         validate_dem_point.assert_called_once_with(
             dem_path, {"lat": "23.5", "lon": "120.9"}, "地图所选位置",
         )
+        validate_land.assert_called_once_with(land_mask_path, 120.9, 23.5, "地图所选位置")
 
     def test_out_of_range_point_is_rejected_before_dem_sampling(self):
         jobs = server.GEOGRAPHIC_ROUTE_JOBS
-        with patch.object(jobs, "_config", return_value={"dem": Path("dem.tif")}), \
+        with patch.object(jobs, "_config", return_value={
+                "dem": Path("dem.tif"), "land_mask": Path("land-mask.geojson")}), \
                 patch.object(jobs, "_validate_dem_point") as validate_dem_point:
             with self.assertRaisesRegex(ValueError, "纬度超出允许范围"):
                 jobs.validate_point({"lat": 91, "lon": 120.9})
 
         validate_dem_point.assert_not_called()
+
+    def test_point_validation_requires_taiwan_land_mask(self):
+        jobs = server.GEOGRAPHIC_ROUTE_JOBS
+        with patch.object(jobs, "_config", return_value={"dem": Path("dem.tif")}):
+            with self.assertRaisesRegex(RuntimeError, "未配置台湾陆域边界"):
+                jobs.validate_point({"lat": 23.5, "lon": 120.9})
+
+    def test_submit_requires_taiwan_land_mask(self):
+        jobs = server.GEOGRAPHIC_ROUTE_JOBS
+        with patch.object(jobs, "_config", return_value={"dem": Path("dem.tif")}):
+            with self.assertRaisesRegex(RuntimeError, "台湾范围规划已禁用"):
+                jobs.submit({})
+
+    def test_submit_rejects_endpoint_outside_land_mask_before_creating_job(self):
+        jobs = geographic_route_api.GeographicRouteJobs()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            land_mask = GeographicRouteOutputValidationTests._write_land_mask(
+                root / "land-mask.geojson",
+            )
+            job_root = root / "jobs"
+            config = {
+                "dem": root / "dem.tif", "land_mask": land_mask,
+                "job_root": job_root, "access_token": "x" * 32,
+            }
+            payload = {
+                "endpoint_mode": "exploratory",
+                "start": {"station_id": "A", "name": "海上", "lat": 23.5, "lon": 122.5},
+                "end": {"station_id": "B", "name": "台湾", "lat": 23.5, "lon": 120.9},
+            }
+            with patch.object(jobs, "_config", return_value=config), \
+                    patch.object(jobs, "_validate_dem_point"):
+                with self.assertRaisesRegex(ValueError, "起点坐标位于台湾县市陆域边界外"):
+                    jobs.submit(payload)
+
+            self.assertFalse(job_root.exists())
+
+    def test_public_status_is_not_ready_without_taiwan_land_mask(self):
+        jobs = geographic_route_api.GeographicRouteJobs()
+        config = {"dem": Path("dem.tif"), "max_side": 4096}
+        with patch.object(jobs, "_config", return_value=config), \
+                patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
+                    "west": 120.0, "south": 22.0, "east": 122.0, "north": 25.0,
+                }):
+            status = jobs.public_status()
+
+        self.assertFalse(status["ready"])
+        self.assertFalse(status["data_layers"]["land_mask"])
+        self.assertIn("台湾陆域边界", status["message"])
+
+    def test_public_status_requires_both_dem_and_valid_taiwan_land_mask(self):
+        jobs = geographic_route_api.GeographicRouteJobs()
+        config = {
+            "dem": Path("dem.tif"), "land_mask": Path("land-mask.geojson"),
+            "max_side": 4096,
+        }
+        with patch.object(jobs, "_config", return_value=config), \
+                patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
+                    "west": 120.0, "south": 22.0, "east": 122.0, "north": 25.0,
+                }), \
+                patch.object(geographic_route_api, "_taiwan_land_geometry"):
+            status = jobs.public_status()
+
+        self.assertTrue(status["ready"])
+        self.assertTrue(status["data_layers"]["land_mask"])
 
     def test_point_validation_requires_planner_configuration(self):
         jobs = server.GEOGRAPHIC_ROUTE_JOBS
@@ -117,6 +188,47 @@ class GeographicRouteOutputValidationTests(unittest.TestCase):
                 Path("/data1/B24041626/pp/taiwan-dem.tif"), coordinates,
             )
 
+    @staticmethod
+    def _write_land_mask(path, *, hole=None):
+        exterior = [[120, 22], [122, 22], [122, 25], [120, 25], [120, 22]]
+        rings = [exterior]
+        if hole:
+            rings.append([[hole[0], hole[1]], [hole[2], hole[1]],
+                          [hole[2], hole[3]], [hole[0], hole[3]],
+                          [hole[0], hole[1]]])
+        document = {
+            "type": "FeatureCollection",
+            "features": [{"type": "Feature", "geometry": {
+                "type": "Polygon", "coordinates": rings,
+            }}],
+        }
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
+    def test_taiwan_land_mask_accepts_inside_point_and_rejects_outside_point(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            land_mask = self._write_land_mask(Path(temp_dir) / "land-mask.geojson")
+            geographic_route_api._validate_taiwan_land_point(
+                land_mask, 120.9, 23.5, "起点",
+            )
+            with self.assertRaisesRegex(ValueError, "位于台湾县市陆域边界外"):
+                geographic_route_api._validate_taiwan_land_point(
+                    land_mask, 122.5, 23.5, "起点",
+                )
+
+    def test_final_route_must_be_covered_by_taiwan_land_polygon(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            land_mask = self._write_land_mask(
+                Path(temp_dir) / "land-mask.geojson", hole=(120.8, 23.4, 121.0, 23.6),
+            )
+            geographic_route_api._validate_route_taiwan_land_coverage(
+                land_mask, [[120.2, 23.0], [120.6, 23.0]],
+            )
+            with self.assertRaisesRegex(RuntimeError, "路线超出台湾县市陆域边界"):
+                geographic_route_api._validate_route_taiwan_land_coverage(
+                    land_mask, [[120.5, 23.5], [121.5, 23.5]],
+                )
+
     def test_route_inside_valid_dem_cells_is_accepted(self):
         self._validate([[120.1875, 24.8125], [121.0625, 24.8125]])
 
@@ -172,15 +284,19 @@ class GeographicRouteOutputValidationTests(unittest.TestCase):
             }],
         }
         dem_path = Path("/data1/B24041626/pp/taiwan-dem.tif")
+        land_mask_path = Path("/data1/B24041626/pp/taiwan-land-mask.geojson")
         with patch.object(Path, "rglob", return_value=[route_path]), \
                 patch.object(Path, "read_text", return_value=json.dumps(route_data)), \
-                patch.object(geographic_route_api, "_validate_route_dem_coverage") as validate:
+                patch.object(geographic_route_api, "_validate_route_dem_coverage") as validate_dem, \
+                patch.object(geographic_route_api, "_validate_route_taiwan_land_coverage") as validate_land:
             result = geographic_route_api._load_final_route_properties(
-                Path("results"), start, end, dem_path,
+                Path("results"), start, end, dem_path, land_mask_path,
             )
 
         self.assertEqual(result, (route_path, route_data["features"][0]["properties"]))
-        validate.assert_called_once_with(dem_path, route_data["features"][0]["geometry"]["coordinates"])
+        coordinates = route_data["features"][0]["geometry"]["coordinates"]
+        validate_dem.assert_called_once_with(dem_path, coordinates)
+        validate_land.assert_called_once_with(land_mask_path, coordinates)
 
 
 class PlanPathTests(unittest.TestCase):
