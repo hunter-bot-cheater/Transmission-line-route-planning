@@ -979,6 +979,10 @@ def main():
                     help="实验塔位图最大水平档距；必须按具体线路工程参数提供")
     ap.add_argument("--tower-candidate-stride", type=int, default=2,
                     help="塔位候选像元步长；会影响可达性，默认2，仅为栅格采样参数")
+    ap.add_argument("--tower-candidate-phase-row", type=int, default=0,
+                    help="塔位候选行相位；必须在 [0, stride) 内，仅用于塔位图相位敏感性复测")
+    ap.add_argument("--tower-candidate-phase-col", type=int, default=0,
+                    help="塔位候选列相位；必须在 [0, stride) 内，仅用于塔位图相位敏感性复测")
     ap.add_argument("--tower-site-pad-radius-m", type=float, default=None,
                     help="显式塔位地表平台筛查半径；需与 experimental tower graph 同用；仅筛查已知DEM/硬掩膜/坡度")
     ap.add_argument("--tower-site-cost-equivalent-distance-m", type=float, default=0.0,
@@ -1154,11 +1158,16 @@ def main():
             ap.error("塔位图档距必须满足 0 <= 最小档距 < 最大档距")
         if args.tower_candidate_stride < 1:
             ap.error("--tower-candidate-stride 必须是正整数")
+        if not (0 <= args.tower_candidate_phase_row < args.tower_candidate_stride
+                and 0 <= args.tower_candidate_phase_col < args.tower_candidate_stride):
+            ap.error("塔位候选相位必须满足 0 <= 行/列相位 < --tower-candidate-stride")
         if any(value is not None for value in tower_profile) and any(
                 value is None for value in tower_profile):
             ap.error("净空筛查必须同时提供挂点高度、最大跨中弧垂和最小净空")
     elif (args.tower_min_span_m is not None or args.tower_max_span_m is not None
           or args.tower_site_cost_equivalent_distance_m > 0
+          or args.tower_candidate_phase_row != 0
+          or args.tower_candidate_phase_col != 0
           or any(value is not None for value in tower_profile)):
         ap.error("塔位图参数必须与 --experimental-tower-graph 同时使用")
 
@@ -1783,6 +1792,8 @@ def main():
                         (sr, sc), (er, ec), args.tower_min_span_m,
                         args.tower_max_span_m, pixel_spacing=route_pixel_spacing,
                         candidate_stride=args.tower_candidate_stride,
+                        candidate_phase=(args.tower_candidate_phase_row,
+                                         args.tower_candidate_phase_col),
                         tower_cost_raster=tower_site_cost,
                         turn_penalty_weight=args.search_turn_penalty_weight,
                         start_position_rc=start_tower_position_rc,
@@ -1835,6 +1846,8 @@ def main():
                     "span_min_m": args.tower_min_span_m,
                     "span_max_m": args.tower_max_span_m,
                     "candidate_stride": args.tower_candidate_stride,
+                    "candidate_phase": [args.tower_candidate_phase_row,
+                                        args.tower_candidate_phase_col],
                     "turn_penalty_weight": args.search_turn_penalty_weight,
                     "tower_site_max_surface_slope_deg": args.max_surface_slope_deg,
                     "tower_site_slope_status": (

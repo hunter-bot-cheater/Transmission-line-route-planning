@@ -351,6 +351,35 @@ def test_candidate_stride_can_change_reachability():
     assert sparse is None
 
 
+def test_candidate_phase_can_recover_sites_omitted_by_grid_origin():
+    cost = np.ones((5, 5), dtype=np.float64)
+    traversable = np.ones(cost.shape, dtype=bool)
+    tower_allowed = np.zeros(cost.shape, dtype=bool)
+    tower_allowed[1, 1] = True
+    tower_allowed[1, 3] = True
+
+    origin_phase = tower_graph_route(
+        cost, traversable, tower_allowed, (2, 0), (2, 4), 1.0, 2.5,
+        candidate_stride=2, candidate_phase=(0, 0))
+    shifted_phase = tower_graph_route(
+        cost, traversable, tower_allowed, (2, 0), (2, 4), 1.0, 2.5,
+        candidate_stride=2, candidate_phase=(1, 1))
+
+    assert origin_phase is None
+    assert shifted_phase is not None
+    assert (1.0, 1.0) in shifted_phase
+    assert (1.0, 3.0) in shifted_phase
+
+
+def test_candidate_phase_must_fit_stride():
+    cost = np.ones((3, 3), dtype=np.float64)
+    with pytest.raises(ValueError, match="candidate_phase offsets"):
+        tower_graph_route(
+            cost, np.ones(cost.shape, dtype=bool), np.ones(cost.shape, dtype=bool),
+            (0, 0), (2, 2), 0.0, 4.0,
+            candidate_stride=2, candidate_phase=(2, 0))
+
+
 def test_zero_turn_search_matches_independent_two_path_cost_oracle():
     cost = np.ones((3, 5), dtype=np.float64)
     tower_allowed = np.zeros(cost.shape, dtype=bool)

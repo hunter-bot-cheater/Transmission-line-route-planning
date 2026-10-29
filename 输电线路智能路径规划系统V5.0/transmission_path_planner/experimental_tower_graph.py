@@ -110,6 +110,7 @@ def _span_turn_penalty(previous, current, following, previous_span_cost,
 def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                       start_rc, goal_rc, min_span_m, max_span_m,
                       pixel_spacing=(1.0, 1.0), candidate_stride=2,
+                      candidate_phase=(0, 0),
                       tower_cost_raster=None, turn_penalty_weight=0.0,
                       dem_raster=None, attachment_height_m=None,
                       max_midspan_sag_m=None, minimum_clearance_m=None,
@@ -122,8 +123,10 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
     ``cost_raster`` is a non-negative per-metre span resistance. Optional
     ``tower_cost_raster`` contains per-site penalties in compatible objective
     units. Start and goal are fixed terminals and do not need to pass the tower
-    siting mask. ``turn_penalty_weight`` is a dimensionless multiplier. Invalid
-    terminal cells are rejected; no snapping is performed. Optional continuous
+    siting mask. ``turn_penalty_weight`` is a dimensionless multiplier.
+    ``candidate_phase`` selects the row and column origin of the stride-sampled
+    tower lattice. Invalid terminal cells are rejected; no snapping is
+    performed. Optional continuous
     terminal positions use cell-center row/column coordinates and must remain in
     their declared terminal cells. If all four profile
     inputs are supplied, each span also needs a complete DEM profile and must
@@ -143,11 +146,19 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
         stride = int(candidate_stride)
         if stride != candidate_stride or stride < 1:
             raise ValueError
+        if len(candidate_phase) != 2:
+            raise ValueError
+        phase_row, phase_col = (int(value) for value in candidate_phase)
+        if any(isinstance(value, bool) or phase != value
+               for phase, value in zip((phase_row, phase_col), candidate_phase)):
+            raise ValueError
         min_span = float(min_span_m)
         max_span = float(max_span_m)
         turn_weight = float(turn_penalty_weight)
     except (TypeError, ValueError, OverflowError) as exc:
-        raise ValueError("invalid span, stride, or turn-penalty parameter") from exc
+        raise ValueError("invalid span, stride, candidate phase, or turn-penalty parameter") from exc
+    if not (0 <= phase_row < stride and 0 <= phase_col < stride):
+        raise ValueError("candidate_phase offsets must be within candidate_stride")
     if (not math.isfinite(min_span) or not math.isfinite(max_span)
             or min_span < 0.0 or max_span <= min_span):
         raise ValueError("span limits must be finite with 0 <= min < max")
@@ -233,9 +244,10 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
             goal_ground_elevation_m, start_ground_elevation_m)
 
     candidate_rows, candidate_cols = np.nonzero(
-        tower_allowed[::stride, ::stride] & traversable[::stride, ::stride])
-    candidate_nodes = np.column_stack((candidate_rows * stride,
-                                       candidate_cols * stride))
+        tower_allowed[phase_row::stride, phase_col::stride]
+        & traversable[phase_row::stride, phase_col::stride])
+    candidate_nodes = np.column_stack((candidate_rows * stride + phase_row,
+                                       candidate_cols * stride + phase_col))
     nodes = candidate_nodes.astype(np.float64)
     for terminal in sorted((start_node, goal_node)):
         first = int(np.searchsorted(nodes[:, 0], terminal[0], side="left"))
