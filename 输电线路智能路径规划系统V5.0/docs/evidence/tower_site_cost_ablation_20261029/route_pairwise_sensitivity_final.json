@@ -1,0 +1,94 @@
+{
+  "scope": "exploratory route-to-route sensitivity only; no true line geometry was loaded",
+  "planner_inputs": {
+    "dem": "/data1/B24041626/pp/dtm_2026_planner_input_20261028_01/dtm_2026_20m_geographic_4326.tif",
+    "station_pair": "Deepmei E/S to Dongshan E/S; OSM site-centroid endpoints unverified",
+    "candidate_stride": 4,
+    "candidate_grid_spacing_approx_m": 80,
+    "span_min_m": 0,
+    "span_max_m": 500,
+    "search_turn_penalty_weight": 0,
+    "site_proxy_model": "local span resistance times equivalent distance; uncalibrated sensitivity proxy",
+    "site_proxy_values_m": [
+      0,
+      20,
+      100
+    ],
+    "gpu_used": false
+  },
+  "runs": {
+    "0 m": {
+      "folder": "results_site_cost_0m_retry1",
+      "route_sha256": "6a41be85a01f3debeb06caf8a9693d9bd52bd1b379759dd22b517ee88f305697",
+      "length_km_cli": 44.479,
+      "span_cost_meter": 217613.313,
+      "intermediate_sites": 163,
+      "span_count": 164,
+      "span_min_m": 79.02,
+      "span_median_m": 254.14,
+      "span_max_m": 489.49,
+      "span_status": "pass",
+      "hard_violations": 0,
+      "tower_site_slope_status": "not_evaluated",
+      "clearance_profile_status": "not_requested",
+      "projected_length_km": 44.34955187085723
+    },
+    "20 m": {
+      "folder": "results_site_cost_20m_retry1",
+      "route_sha256": "29d66287a405586fd49d4d696482eb9db09b0f703fbf02b0074d306b00284087",
+      "length_km_cli": 44.096,
+      "span_cost_meter": 218776.349,
+      "intermediate_sites": 109,
+      "span_count": 110,
+      "span_min_m": 80.51,
+      "span_median_m": 432.45,
+      "span_max_m": 489.49,
+      "span_status": "pass",
+      "hard_violations": 0,
+      "tower_site_slope_status": "not_evaluated",
+      "clearance_profile_status": "not_requested",
+      "projected_length_km": 43.96495962909288
+    },
+    "100 m": {
+      "folder": "results_site_cost_100m_retry1",
+      "route_sha256": "9b53935205ab628789cfafded8c3e2d08688b4e937aff95035eb3668e14ae6aa",
+      "length_km_cli": 44.199,
+      "span_cost_meter": 221060.278,
+      "intermediate_sites": 96,
+      "span_count": 97,
+      "span_min_m": 241.52,
+      "span_median_m": 467.37,
+      "span_max_m": 489.49,
+      "span_status": "pass",
+      "hard_violations": 0,
+      "tower_site_slope_status": "not_evaluated",
+      "clearance_profile_status": "not_requested",
+      "projected_length_km": 44.06917781693729
+    }
+  },
+  "pairwise_route_dispersion_epsg3826": {
+    "0 m vs 20 m": {
+      "sample_step_m": 40,
+      "symmetric_mean_m": 41.74442767962765,
+      "symmetric_p95_m": 198.91168599628898,
+      "symmetric_max_sampled_m": 436.7857909893296,
+      "hausdorff_m": 441.2349935499722
+    },
+    "0 m vs 100 m": {
+      "sample_step_m": 40,
+      "symmetric_mean_m": 885.2940216471001,
+      "symmetric_p95_m": 2843.407692123867,
+      "symmetric_max_sampled_m": 3087.469837802252,
+      "hausdorff_m": 3088.2861257809295
+    },
+    "100 m vs 20 m": {
+      "sample_step_m": 40,
+      "symmetric_mean_m": 904.5659549991537,
+      "symmetric_p95_m": 2841.6380938060697,
+      "symmetric_max_sampled_m": 3086.8116320861227,
+      "hausdorff_m": 3088.2861257809295
+    }
+  },
+  "figure": "/data1/B24041626/pp/tower_site_cost_ablation_20261029/comparison_20261029_v1/tower_site_cost_sensitivity_final.png",
+  "display_figure": "comparison_20261029_v1/tower_site_cost_sensitivity_final.png"
+}
