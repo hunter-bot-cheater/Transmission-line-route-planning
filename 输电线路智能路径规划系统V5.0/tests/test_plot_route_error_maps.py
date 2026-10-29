@@ -19,6 +19,43 @@ SPEC.loader.exec_module(plotter)
 
 
 class RouteErrorMapTests(unittest.TestCase):
+    def test_chain_error_profile_plot_shows_both_directions(self):
+        profile = {
+            "version": 1,
+            "bin_count": 2,
+            "directions": {
+                "planned_to_reference": [
+                    {"start_fraction": 0.0, "end_fraction": 0.5,
+                     "p50_m": 40.0, "p95_m": 90.0,
+                     "coverage_within_m": {"100": 0.9}},
+                    {"start_fraction": 0.5, "end_fraction": 1.0,
+                     "p50_m": 600.0, "p95_m": 900.0,
+                     "coverage_within_m": {"100": 0.1}},
+                ],
+                "reference_to_planned": [
+                    {"start_fraction": 0.0, "end_fraction": 0.5,
+                     "p50_m": 45.0, "p95_m": 95.0,
+                     "coverage_within_m": {"100": 0.85}},
+                    {"start_fraction": 0.5, "end_fraction": 1.0,
+                     "p50_m": 550.0, "p95_m": 850.0,
+                     "coverage_within_m": {"100": 0.15}},
+                ],
+            },
+        }
+        before = set(visualization.plt.get_fignums())
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "profile.png"
+            self.assertTrue(plotter.plot_chain_error_profile("case", profile, output))
+            self.assertGreater(output.stat().st_size, 0)
+        self.assertEqual(set(visualization.plt.get_fignums()), before)
+
+    def test_chain_error_profile_plot_skips_unknown_versions(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "profile.png"
+            self.assertFalse(plotter.plot_chain_error_profile(
+                "case", {"version": 2, "directions": {}}, output))
+            self.assertFalse(output.exists())
+
     def test_multifeature_reference_is_loaded_and_colored_in_full(self):
         document = {
             "type": "FeatureCollection",

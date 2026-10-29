@@ -2128,7 +2128,8 @@ def main():
                         if not geo or method not in case_metrics:
                             continue
                         dev = compute_deviation(
-                            geo, real_geo, planning_bounds_wgs84=planning_bounds)
+                            geo, real_geo, planning_bounds_wgs84=planning_bounds,
+                            chain_profile_bins=10)
                         if not dev:
                             continue
                         metrics = case_metrics[method]

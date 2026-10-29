@@ -181,6 +181,70 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
     plt.close(fig)
 
 
+def plot_chain_error_profile(case, profile, out_path):
+    """Plot post-hoc error by equal-distance bins in both route directions."""
+    if not profile or profile.get("version") != 1:
+        return False
+    directions = profile.get("directions", {})
+    direction_specs = (
+        ("planned_to_reference", "规划线 → 参考线"),
+        ("reference_to_planned", "参考线 → 规划线"),
+    )
+    if any(not isinstance(directions.get(key), list) for key, _ in direction_specs):
+        return False
+
+    fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True,
+                             constrained_layout=True)
+    try:
+        for ax, (key, label) in zip(axes, direction_specs):
+            bins = directions[key]
+            fractions = [
+                50.0 * (float(item["start_fraction"]) + float(item["end_fraction"]))
+                for item in bins
+            ]
+            p50_km = [
+                float(item["p50_m"]) / 1000 if item.get("p50_m") is not None else np.nan
+                for item in bins
+            ]
+            p95_km = [
+                float(item["p95_m"]) / 1000 if item.get("p95_m") is not None else np.nan
+                for item in bins
+            ]
+            coverage_100m_pct = [
+                100.0 * float(item["coverage_within_m"]["100"])
+                if item.get("coverage_within_m", {}).get("100") is not None else np.nan
+                for item in bins
+            ]
+            ax.plot(fractions, p50_km, marker="o", label="距离中位数 P50")
+            ax.plot(fractions, p95_km, marker="s", linestyle="--",
+                    label="距离 P95")
+            ax.set_ylabel("到另一条线路的距离（km）")
+            ax.set_title(label)
+            ax.grid(alpha=0.25)
+
+            coverage_ax = ax.twinx()
+            coverage_ax.plot(fractions, coverage_100m_pct, color="#238b57",
+                             marker=".", linestyle=":", label="单向 100 米内覆盖")
+            coverage_ax.set_ylim(0, 100)
+            coverage_ax.set_ylabel("100 米内覆盖（%）")
+
+            handles, labels = ax.get_legend_handles_labels()
+            coverage_handles, coverage_labels = coverage_ax.get_legend_handles_labels()
+            ax.legend(handles + coverage_handles, labels + coverage_labels,
+                      loc="upper left", ncol=3, fontsize=8)
+
+        axes[-1].set_xlabel("按较近端点对齐的线路长度位置（%）")
+        fig.suptitle(
+            f"{case}｜端点对齐分段误差（{profile.get('bin_count', len(directions['planned_to_reference']))} 等分）"
+        )
+        fig.text(0.5, -0.01, "事后诊断；端点对齐不代表站端身份已核验，也不参与规划选路。",
+                 ha="center", fontsize=9)
+        fig.savefig(out_path, dpi=180, bbox_inches="tight")
+    finally:
+        plt.close(fig)
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results-dir", type=Path, required=True)
@@ -212,6 +276,10 @@ def main():
     for case, (planned, reference, metrics) in routes.items():
         safe_name = re.sub(r"[^\w.-]+", "_", case, flags=re.UNICODE).strip("_.")
         plot_case(case, planned, reference, metrics, out_dir / f"{safe_name}_error_map.png", cmap, norm, args.sample_interval_m)
+        plot_chain_error_profile(
+            case, metrics.get("route_similarity", {}).get("chain_error_profile"),
+            out_dir / f"{safe_name}_chain_error_profile.png",
+        )
 
     print(f"Rendered {len(routes)} route cases to {out_dir}")
 
