@@ -80,7 +80,7 @@ class GeographicRouteOutputValidationTests(unittest.TestCase):
             from affine import Affine
 
             self.crs = "EPSG:4326"
-            self.transform = Affine(0.01, 0.0, 120.0, 0.0, -0.01, 25.0)
+            self.transform = Affine(0.125, 0.0, 120.0, 0.0, -0.125, 25.0)
             self.width = 10
             self.height = 10
             self.invalid_cells = set(invalid_cells)
@@ -118,29 +118,44 @@ class GeographicRouteOutputValidationTests(unittest.TestCase):
             )
 
     def test_route_inside_valid_dem_cells_is_accepted(self):
-        self._validate([[120.015, 24.985], [120.085, 24.985]])
+        self._validate([[120.1875, 24.8125], [121.0625, 24.8125]])
+
+    def test_diagonal_route_inside_valid_dem_cells_is_accepted(self):
+        self._validate([[120.1875, 24.8125], [121.0625, 23.9375]])
 
     def test_route_crossing_dem_nodata_between_valid_vertices_is_rejected(self):
         with self.assertRaisesRegex(RuntimeError, "穿过无效数据区"):
             self._validate(
-                [[120.015, 24.985], [120.085, 24.985]], invalid_cells={(1, 5)},
+                [[120.1875, 24.8125], [121.0625, 24.8125]], invalid_cells={(1, 5)},
+            )
+
+    def test_route_touching_nodata_cell_only_at_diagonal_corner_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "像元边界接触"):
+            self._validate(
+                [[120.1875, 24.8125], [120.3125, 24.6875]], invalid_cells={(1, 2)},
+            )
+
+    def test_route_following_nodata_cell_edge_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "像元边界接触"):
+            self._validate(
+                [[120.1875, 24.75], [120.3125, 24.75]], invalid_cells={(1, 1)},
             )
 
     def test_route_vertex_outside_dem_is_rejected(self):
         with self.assertRaisesRegex(RuntimeError, "超出数据范围"):
-            self._validate([[120.015, 24.985], [120.105, 24.985]])
+            self._validate([[120.1875, 24.8125], [121.3125, 24.8125]])
 
     def test_successful_route_load_requires_dem_coverage_validation(self):
         route_path = Path("results/final_route.geojson")
-        start = {"station_id": "A", "lon": "120.015", "lat": "24.985"}
-        end = {"station_id": "B", "lon": "120.085", "lat": "24.985"}
+        start = {"station_id": "A", "lon": "120.1875", "lat": "24.8125"}
+        end = {"station_id": "B", "lon": "120.8125", "lat": "24.8125"}
         route_data = {
             "type": "FeatureCollection",
             "features": [{
                 "type": "Feature",
                 "geometry": {
                     "type": "LineString",
-                    "coordinates": [[120.015, 24.985], [120.085, 24.985]],
+                    "coordinates": [[120.1875, 24.8125], [120.8125, 24.8125]],
                 },
                 "properties": {
                     "planning_status": "screening_candidate",

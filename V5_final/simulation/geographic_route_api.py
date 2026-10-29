@@ -64,17 +64,20 @@ def _dem_bounds_wgs84(dem_path: Path) -> dict[str, float]:
 
 
 def _validate_route_dem_coverage(dem_path: Path, coordinates: list[list[float]]) -> None:
-    """Reject a route whose vertices or densely sampled segments leave valid DEM cells."""
+    """Reject a route that leaves valid DEM cells, including cells touched at corners."""
     import numpy as np
     import rasterio
     from rasterio.warp import transform
 
+    max_route_vertex_count = 250_000
     max_sample_count = 2_000_000
     chunk_size = 10_000
+    raster_segment_chunk_size = 256
+    pixel_epsilon = 1e-9
     with rasterio.open(dem_path) as dataset:
         if dataset.crs is None:
             raise RuntimeError("服务器 DEM 未声明坐标系，无法核验完整路线覆盖")
-        if len(coordinates) > max_sample_count:
+        if len(coordinates) > max_route_vertex_count:
             raise RuntimeError("final_route.geojson 过长，无法安全完成 DEM 覆盖核验")
 
         longitudes = [float(point[0]) for point in coordinates]
@@ -92,7 +95,7 @@ def _validate_route_dem_coverage(dem_path: Path, coordinates: list[list[float]])
             if not all(math.isfinite(value) for value in (
                     first_col, first_row, second_col, second_row)):
                 raise RuntimeError("final_route.geojson 无法投影到服务器 DEM")
-            steps = max(1, math.ceil(2 * max(
+            steps = max(1, math.ceil(4 * max(
                 abs(second_col - first_col), abs(second_row - first_row),
             )))
             sample_count += steps
@@ -100,13 +103,78 @@ def _validate_route_dem_coverage(dem_path: Path, coordinates: list[list[float]])
                 raise RuntimeError("final_route.geojson 过长，无法安全完成 DEM 覆盖核验")
             steps_by_segment.append(steps)
 
+        previous_pixel: tuple[float, float] | None = None
+
+        def segment_intersects_cell(
+                first: tuple[float, float], second: tuple[float, float], col: int, row: int,
+        ) -> bool:
+            x1, y1 = first
+            x2, y2 = second
+            dx, dy = x2 - x1, y2 - y1
+            left, right = col - pixel_epsilon, col + 1 + pixel_epsilon
+            top, bottom = row - pixel_epsilon, row + 1 + pixel_epsilon
+            lower, upper = 0.0, 1.0
+            for direction, distance in (
+                    (-dx, x1 - left), (dx, right - x1),
+                    (-dy, y1 - top), (dy, bottom - y1)):
+                if direction == 0:
+                    if distance < 0:
+                        return False
+                    continue
+                fraction = distance / direction
+                if direction < 0:
+                    if fraction > upper:
+                        return False
+                    lower = max(lower, fraction)
+                else:
+                    if fraction < lower:
+                        return False
+                    upper = min(upper, fraction)
+            return lower <= upper
+
+        def validate_raster_segments(pixel_points: list[tuple[float, float]]) -> None:
+            if len(pixel_points) < 2:
+                return
+
+            touched_cells: set[tuple[int, int]] = set()
+            for first, second in zip(pixel_points, pixel_points[1:]):
+                col_start = math.ceil(min(first[0], second[0]) - 1 - pixel_epsilon)
+                col_stop = math.floor(max(first[0], second[0]) + pixel_epsilon)
+                row_start = math.ceil(min(first[1], second[1]) - 1 - pixel_epsilon)
+                row_stop = math.floor(max(first[1], second[1]) + pixel_epsilon)
+                for row in range(row_start, row_stop + 1):
+                    for col in range(col_start, col_stop + 1):
+                        if not segment_intersects_cell(first, second, col, row):
+                            continue
+                        if not (0 <= col < dataset.width and 0 <= row < dataset.height):
+                            raise RuntimeError(
+                                "final_route.geojson 路线触及 DEM 数据范围之外的栅格像元"
+                            )
+                        touched_cells.add((row, col))
+
+            if not touched_cells:
+                raise RuntimeError("final_route.geojson 路线无法映射到 DEM 栅格")
+
+            cell_centers = [
+                dataset.transform * (col + 0.5, row + 0.5)
+                for row, col in sorted(touched_cells)
+            ]
+            values = dataset.sample(cell_centers, indexes=1, masked=True)
+            for value in values:
+                sample = np.ma.asarray(value).reshape(-1)[0]
+                if np.ma.is_masked(sample) or not math.isfinite(float(sample)):
+                    raise RuntimeError(
+                        "final_route.geojson 路线穿过无效 DEM 像元（包含像元边界接触）"
+                    )
+
         def validate_chunk(chunk: list[tuple[float, float]], first_sample_index: int) -> None:
+            nonlocal previous_pixel
             sample_x, sample_y = transform(
                 "EPSG:4326", dataset.crs,
                 [point[0] for point in chunk], [point[1] for point in chunk],
             )
-            for local_index, (x, y) in enumerate(zip(sample_x, sample_y)):
-                col, row = inverse * (x, y)
+            sample_pixel_points = [inverse * (x, y) for x, y in zip(sample_x, sample_y)]
+            for local_index, (col, row) in enumerate(sample_pixel_points):
                 if not (0 <= col < dataset.width and 0 <= row < dataset.height):
                     raise RuntimeError(
                         f"final_route.geojson 路线第 {first_sample_index + local_index + 1} "
@@ -121,6 +189,13 @@ def _validate_route_dem_coverage(dem_path: Path, coordinates: list[list[float]])
                         "final_route.geojson 路线第 "
                         f"{first_sample_index + local_index + 1} 个 DEM 样点穿过无效数据区"
                     )
+
+            if previous_pixel is not None:
+                sample_pixel_points.insert(0, previous_pixel)
+            for offset in range(0, len(sample_pixel_points) - 1, raster_segment_chunk_size):
+                end = min(offset + raster_segment_chunk_size + 1, len(sample_pixel_points))
+                validate_raster_segments(sample_pixel_points[offset:end])
+            previous_pixel = sample_pixel_points[-1]
 
         chunk: list[tuple[float, float]] = []
         processed_samples = 0
