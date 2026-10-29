@@ -2096,6 +2096,10 @@ def main():
                             experimental_tower_graph_results["tower_site_slope_status"],
                             experimental_tower_graph_results["tower_site_pad_status"],
                             experimental_tower_graph_results["tower_site_pad_radius_m"]),
+                        "candidate_stride": experimental_tower_graph_results[
+                            "candidate_stride"],
+                        "candidate_phase": experimental_tower_graph_results[
+                            "candidate_phase"],
                         "clearance_profile_screening": experimental_tower_graph_results[
                             "clearance_profile_screening"],
                         "clearance_profile_status": clearance_status,
@@ -2200,6 +2204,10 @@ def main():
                         None, experimental_tower_graph_results["tower_site_slope_status"],
                         experimental_tower_graph_results["tower_site_pad_status"],
                         experimental_tower_graph_results["tower_site_pad_radius_m"]),
+                    "candidate_stride": experimental_tower_graph_results[
+                        "candidate_stride"],
+                    "candidate_phase": experimental_tower_graph_results[
+                        "candidate_phase"],
                     "clearance_profile_screening": experimental_tower_graph_results[
                         "clearance_profile_screening"],
                     "clearance_profile_status": experimental_tower_graph_results[
