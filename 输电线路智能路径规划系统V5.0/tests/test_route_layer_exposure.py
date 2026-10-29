@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 from affine import Affine
 
+from transmission_path_planner.geometry import pixel_spacing_meters
 from transmission_path_planner.metrics import route_layer_exposure
 
 
@@ -38,9 +39,11 @@ class RouteLayerExposureTests(unittest.TestCase):
         self.assertAlmostEqual(result["surface_slope_deg"]["mean"], 20.0)
         self.assertAlmostEqual(result["roughness_27_m"]["p95"], 2.9)
         self.assertAlmostEqual(result["terrain_factor_support"]["mean"], 0.5)
-        self.assertAlmostEqual(result["terrain_factor_support"]["p05"], 0.05)
+        self.assertAlmostEqual(result["terrain_factor_support"]["p05"], 0.0)
         self.assertAlmostEqual(
-            result["terrain_factor_support"]["full_support_cell_fraction"], 1 / 3)
+            result["terrain_factor_support"]["full_support_route_length_fraction"], 0.25)
+        self.assertAlmostEqual(
+            result["terrain_factor_support"]["valid_route_length_fraction"], 1.0)
         self.assertAlmostEqual(result["mapped_settlement_proxy_mean"], (0.2 + 0.5 + 1.0) / 3)
         self.assertAlmostEqual(result["mapped_forest_wetland_cell_fraction"], 2 / 3)
         self.assertAlmostEqual(result["hazard_cell_fractions"]["landslide"], 1 / 3)
@@ -52,6 +55,49 @@ class RouteLayerExposureTests(unittest.TestCase):
         self.assertIn("coverage completeness is unverified",
                       result["mapped_osm_exposure_scope"])
         self.assertIn("not length weighted", result["fraction_denominator"])
+
+    def test_terrain_support_ignores_cells_only_touched_at_diagonal_corners(self):
+        support = np.ones((3, 3), dtype=np.float32)
+        support[0, 1] = 0.0
+        transform = Affine(0.0009, 0.0, 121.0, 0.0, -0.0009, 25.0)
+        result = route_layer_exposure(
+            [(121.00045, 24.99955), (121.00225, 24.99775)], transform, (3, 3),
+            {"terrain_support_ratio": support}, {}, {},
+        )
+
+        row_m, col_m = pixel_spacing_meters(transform, 24.99865)
+        self.assertAlmostEqual(result["terrain_factor_support"]["mean"], 1.0)
+        self.assertAlmostEqual(
+            result["terrain_factor_support"]["full_support_route_length_fraction"], 1.0)
+        self.assertLessEqual(
+            result["terrain_factor_support"]["max_sample_spacing_m"],
+            0.5 * min(row_m, col_m))
+
+    def test_terrain_support_counts_nodata_and_outside_distance_as_zero(self):
+        support = np.ones((3, 3), dtype=np.float32)
+        support[1, 1] = np.nan
+        result = route_layer_exposure(
+            [(-0.5, 1.5), (2.5, 1.5)], Affine.identity(), (3, 3),
+            {"terrain_support_ratio": support}, {}, {},
+        )
+
+        summary = result["terrain_factor_support"]
+        self.assertAlmostEqual(summary["mean"], 0.5, places=2)
+        self.assertAlmostEqual(summary["valid_route_length_fraction"], 0.5, places=2)
+        self.assertAlmostEqual(summary["full_support_route_length_fraction"], 0.5, places=2)
+        self.assertEqual(summary["minimum"], 0.0)
+
+    def test_terrain_support_reports_proximity_to_raster_window_edge(self):
+        transform = Affine(0.0009, 0.0, 121.0, 0.0, -0.0009, 25.0)
+        result = route_layer_exposure(
+            [(121.00045, 24.99955), (121.00225, 24.99955)], transform, (3, 3),
+            {"terrain_support_ratio": np.ones((3, 3), dtype=np.float32)}, {}, {},
+        )
+
+        support = result["terrain_factor_support"]
+        self.assertLess(support["minimum_window_edge_clearance_m"], 60.0)
+        self.assertAlmostEqual(support["route_length_within_900m_of_window_edge_fraction"], 1.0)
+        self.assertLessEqual(support["max_sample_spacing_m"], 50.0)
 
     def test_missing_osm_layer_status_is_reported_as_unavailable(self):
         shape = (3, 3)
@@ -117,6 +163,7 @@ class RouteLayerExposureTests(unittest.TestCase):
     def test_exposure_rejects_rasters_on_a_different_grid(self):
         cases = (
             ({"slope": np.ones((2, 2))}, {}, {}),
+            ({"terrain_support_ratio": np.ones((2, 2))}, {}, {}),
             ({}, {"building_density": np.ones((2, 2))}, {}),
             ({}, {}, {"landslide": np.ones((2, 2))}),
         )

@@ -271,19 +271,97 @@ def route_layer_exposure(geo, transform, shape, terrain, osm, hazard_masks,
             "valid_cell_fraction": float(len(values) / count),
         } if values.size else None)
 
-    support = route_band(terrain, "terrain_support_ratio", dtype=np.float32)
-    if support is None:
+    support_band = terrain.get("terrain_support_ratio")
+    if support_band is None:
         result["terrain_factor_support"] = None
     else:
-        support = np.clip(support[np.isfinite(support)], 0.0, 1.0)
-        result["terrain_factor_support"] = ({
-            "minimum": float(np.min(support)),
-            "p05": float(np.percentile(support, 5)),
-            "mean": float(np.mean(support)),
-            "full_support_cell_fraction": float(np.mean(support == 1.0)),
-            "valid_cell_fraction": float(len(support) / count),
-            "fraction_denominator": "all_touched_route_cells; approximate, not length weighted",
-        } if support.size else None)
+        support = np.asarray(support_band, dtype=np.float32)
+        if support.shape != tuple(shape):
+            raise ValueError(
+                f"terrain_support_ratio shape {support.shape} does not match route grid {tuple(shape)}")
+        inverse = ~transform
+        center_lat = float(np.mean([lat for _, lat in geo]))
+        row_m, col_m = pixel_spacing_meters(transform, center_lat)
+        values, weights = [], []
+        valid_length_m = 0.0
+        route_length_m = 0.0
+        edge_clearances_m = []
+        endpoint_edge_clearances_m = []
+        max_sample_spacing_m = 0.0
+        height, width = shape
+        for lon, lat in geo:
+            col, row = inverse * (lon, lat)
+            if 0 <= row <= height and 0 <= col <= width:
+                endpoint_edge_clearances_m.append(max(float(min(
+                    row * row_m, (height - row) * row_m,
+                    col * col_m, (width - col) * col_m,
+                )), 0.0))
+            else:
+                endpoint_edge_clearances_m.append(0.0)
+        for (lon0, lat0), (lon1, lat1) in zip(geo, geo[1:]):
+            segment_length_m = haversine_km(lon0, lat0, lon1, lat1) * 1000.0
+            if segment_length_m <= 0.0:
+                continue
+            route_length_m += segment_length_m
+            col0, row0 = inverse * (lon0, lat0)
+            col1, row1 = inverse * (lon1, lat1)
+            max_spacing_m = 0.5 * min(row_m, col_m)
+            steps = max(1, int(math.ceil(segment_length_m / max_spacing_m)))
+            sample_length_m = segment_length_m / steps
+            max_sample_spacing_m = max(max_sample_spacing_m, sample_length_m)
+            for index in range(steps):
+                fraction = (index + 0.5) / steps
+                col = col0 + fraction * (col1 - col0)
+                row = row0 + fraction * (row1 - row0)
+                cell_row, cell_col = math.floor(row), math.floor(col)
+                if 0 <= cell_row < height and 0 <= cell_col < width:
+                    cell_support = float(support[cell_row, cell_col])
+                    if np.isfinite(cell_support):
+                        valid_length_m += sample_length_m
+                        cell_support = float(np.clip(cell_support, 0.0, 1.0))
+                    else:
+                        cell_support = 0.0
+                    edge_clearance = min(
+                        row * row_m, (height - row) * row_m,
+                        col * col_m, (width - col) * col_m,
+                    )
+                    edge_clearances_m.append(max(float(edge_clearance), 0.0))
+                else:
+                    cell_support = 0.0
+                    edge_clearances_m.append(0.0)
+                values.append(cell_support)
+                weights.append(sample_length_m)
+
+        if values and route_length_m > 0.0:
+            support_values = np.asarray(values, dtype=np.float64)
+            support_weights = np.asarray(weights, dtype=np.float64)
+            order = np.argsort(support_values)
+            cumulative_length = np.cumsum(support_weights[order])
+            p05_index = min(
+                int(np.searchsorted(cumulative_length, 0.05 * route_length_m, side="left")),
+                len(order) - 1,
+            )
+            result["terrain_factor_support"] = {
+                "minimum": float(np.min(support_values)),
+                "p05": float(support_values[order[p05_index]]),
+                "mean": float(np.average(support_values, weights=support_weights)),
+                "full_support_route_length_fraction": float(
+                    support_weights[support_values == 1.0].sum() / route_length_m),
+                "valid_route_length_fraction": float(valid_length_m / route_length_m),
+                "route_length_m": float(route_length_m),
+                "max_sample_spacing_m": float(max_sample_spacing_m),
+                "sampling_method": "haversine_length_weighted_midpoints_max_half_pixel_spacing",
+                "minimum_window_edge_clearance_m": float(min(
+                    edge_clearances_m + endpoint_edge_clearances_m)),
+                "route_length_within_900m_of_window_edge_fraction": float(
+                    support_weights[np.asarray(edge_clearances_m) <= 900.0].sum()
+                    / route_length_m),
+                "window_edge_clearance_note": (
+                    "approximate pixel-axis distance; 900 m matches the widest terrain neighborhood"),
+                "missing_or_outside_support_treated_as": 0.0,
+            }
+        else:
+            result["terrain_factor_support"] = None
 
     layer_status = osm_layer_metadata or {}
     result["mapped_osm_layer_status"] = {
