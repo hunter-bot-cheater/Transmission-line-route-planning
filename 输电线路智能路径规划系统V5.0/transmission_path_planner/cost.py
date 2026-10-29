@@ -203,6 +203,16 @@ def build_route_cost(terrain, osm, settlement_weight=2.0, model_cost=None,
     )
     terrain_cost += max(float(ridge_penalty_weight), 0.0) * ridge_proxy
 
+    # Missing DEM neighborhoods have less reliable terrain factors. Keep the
+    # uncertainty visible in the screening cost instead of treating NaNs as flat.
+    support = np.broadcast_to(np.asarray(
+        terrain.get("terrain_support_ratio", np.ones_like(terrain_cost)), dtype=np.float32),
+        terrain_cost.shape)
+    support = np.clip(np.nan_to_num(support, nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
+    uncertainty_weight = sum(max(float(weight), 0.0) for weight in (
+        terrain_slope_weight, roughness_weight, ridge_penalty_weight))
+    terrain_cost += (1.0 - support) * uncertainty_weight
+
     density = np.broadcast_to(np.asarray(
         osm.get("building_density", np.zeros_like(terrain_cost)), dtype=np.float32),
         terrain_cost.shape)

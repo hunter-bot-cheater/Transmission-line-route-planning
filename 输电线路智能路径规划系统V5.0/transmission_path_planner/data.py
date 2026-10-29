@@ -337,6 +337,43 @@ def _terrain_gradient(z, row_m, col_m):
     return dy, dx
 
 
+def _masked_gradient_axis(z, valid, spacing, axis):
+    size = z.shape[axis]
+    gradient = np.zeros(z.shape, dtype=np.float64)
+    support = np.ones(z.shape, dtype=np.float32)
+    if size <= 1:
+        support[~valid] = 0.0
+        return gradient, support
+
+    has_prev = np.roll(valid, 1, axis=axis)
+    has_next = np.roll(valid, -1, axis=axis)
+    prev_in_bounds = np.ones(z.shape, dtype=bool)
+    next_in_bounds = np.ones(z.shape, dtype=bool)
+    first = [slice(None)] * z.ndim
+    last = [slice(None)] * z.ndim
+    first[axis] = 0
+    last[axis] = -1
+    has_prev[tuple(first)] = False
+    has_next[tuple(last)] = False
+    prev_in_bounds[tuple(first)] = False
+    next_in_bounds[tuple(last)] = False
+
+    prev = np.roll(z, 1, axis=axis)
+    next_ = np.roll(z, -1, axis=axis)
+    both = valid & has_prev & has_next
+    only_prev = valid & has_prev & ~has_next
+    only_next = valid & has_next & ~has_prev
+    gradient[both] = (next_[both] - prev[both]) / (2.0 * spacing)
+    gradient[only_prev] = (z[only_prev] - prev[only_prev]) / spacing
+    gradient[only_next] = (next_[only_next] - z[only_next]) / spacing
+
+    expected = prev_in_bounds.astype(np.float32) + next_in_bounds.astype(np.float32)
+    observed = has_prev.astype(np.float32) + has_next.astype(np.float32)
+    support = np.divide(observed, expected, out=np.ones_like(observed), where=expected > 0)
+    support[~valid] = 0.0
+    return gradient, support
+
+
 def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
     if transform is not None:
         row_m, col_m = pixel_spacing_meters(
@@ -346,51 +383,58 @@ def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
     else:
         row_m, col_m = map(float, pixel_m)
     neighborhood_m = math.sqrt(row_m * col_m)
-    z = _fill(dem).astype(np.float32)
-    dy, dx = _terrain_gradient(z, row_m, col_m)
+    raw = np.asarray(dem, dtype=np.float32)
+    valid = np.isfinite(raw)
+    z = _fill(raw).astype(np.float32)
+    dy, support_y = _masked_gradient_axis(raw, valid, row_m, axis=0)
+    dx, support_x = _masked_gradient_axis(raw, valid, col_m, axis=1)
     slope = np.degrees(np.arctan(np.sqrt(dx ** 2 + dy ** 2)))
     aspect = np.arctan2(dy, -dx)
     aspect_cos = np.cos(aspect)
     aspect_sin = np.sin(aspect)
 
-    def local_std(size):
-        values = z.astype(np.float64, copy=False)
+    def local_stats(size):
+        weights = valid.astype(np.float64)
+        values = np.where(valid, raw, 0.0).astype(np.float64, copy=False)
+        support = ndi.uniform_filter(weights, size=size, mode="reflect")
         mean = ndi.uniform_filter(values, size=size, mode="reflect")
+        mean = np.divide(mean, support, out=np.zeros_like(mean), where=support > 0)
         mean_sq = ndi.uniform_filter(values * values, size=size, mode="reflect")
+        mean_sq = np.divide(mean_sq, support, out=np.zeros_like(mean_sq), where=support > 0)
         np.subtract(mean_sq, mean * mean, out=mean_sq)
         np.maximum(mean_sq, 0.0, out=mean_sq)
         np.sqrt(mean_sq, out=mean_sq)
-        return mean_sq.astype(np.float32)
+        mean[~valid] = 0.0
+        mean_sq[~valid] = 0.0
+        support[~valid] = 0.0
+        return mean.astype(np.float32), mean_sq.astype(np.float32), support.astype(np.float32)
 
-    tri = local_std(3) if HAS_SCIPY else np.abs(z - z)
+    tri = local_stats(3)[1] if HAS_SCIPY else np.zeros_like(raw)
 
     def px_of_m(m):
         return max(1, int(round(m / neighborhood_m)))
 
-    def tpi_at(radius_px):
+    def local_features(radius_px):
         if HAS_SCIPY:
             size = 2 * radius_px + 1
-            mean = ndi.uniform_filter(z, size=size, mode="reflect")
-            return z - mean
-        return z - z
+            mean, roughness, support = local_stats(size)
+            tpi = raw - mean
+            tpi[~valid] = 0.0
+            return tpi, roughness, support
+        return np.zeros_like(raw), np.zeros_like(raw), valid.astype(np.float32)
 
-    def rough_at(radius_px):
-        if HAS_SCIPY:
-            return local_std(2 * radius_px + 1)
-        return np.abs(z - z)
-
-    tpi_100 = tpi_at(px_of_m(100))
-    tpi_300 = tpi_at(px_of_m(300))
-    tpi_900 = tpi_at(px_of_m(900))
-    rough_3 = rough_at(px_of_m(100))
-    rough_9 = rough_at(px_of_m(300))
-    rough_27 = rough_at(px_of_m(900))
+    tpi_100, rough_3, _ = local_features(px_of_m(100))
+    tpi_300, rough_9, support_300 = local_features(px_of_m(300))
+    tpi_900, rough_27, support_900 = local_features(px_of_m(900))
 
     if HAS_SCIPY:
-        curv = ndi.laplace(z) / (neighborhood_m ** 2)
+        curvature_valid = ndi.minimum_filter(valid.astype(np.uint8), size=3, mode="reflect").astype(bool)
+        curv = ndi.laplace(np.where(valid, raw, 0.0)) / (neighborhood_m ** 2)
+        curv[~curvature_valid] = 0.0
     else:
-        curv = np.zeros_like(z)
-    curv = np.nan_to_num(curv, nan=0.0)
+        curv = np.zeros_like(raw)
+
+    terrain_support = np.minimum.reduce((support_x, support_y, support_300, support_900))
 
     return {
         "elevation": z,
@@ -406,6 +450,7 @@ def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
         "roughness_3": np.nan_to_num(rough_3, nan=0.0).astype(np.float32),
         "roughness_9": np.nan_to_num(rough_9, nan=0.0).astype(np.float32),
         "roughness_27": np.nan_to_num(rough_27, nan=0.0).astype(np.float32),
+        "terrain_support_ratio": terrain_support.astype(np.float32),
     }
 
 

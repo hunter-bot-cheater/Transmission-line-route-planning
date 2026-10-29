@@ -144,6 +144,31 @@ class GeospatialSpacingTests(unittest.TestCase):
             float(terrain["roughness_3"][15, 15]), float(window.std()), delta=1e-4
         )
 
+    def test_terrain_factors_at_nodata_edge_ignore_distant_elevations(self):
+        dem_a = np.zeros((41, 41), dtype=np.float32)
+        dem_a[20, 21] = np.nan
+        dem_b = dem_a.copy()
+        rows, cols = np.indices(dem_b.shape)
+        distant = np.maximum(np.abs(rows - 20), np.abs(cols - 20)) > 10
+        dem_b[distant] = 1000.0
+
+        factors_a = compute_terrain_factors(dem_a, 100.0)
+        factors_b = compute_terrain_factors(dem_b, 100.0)
+
+        for name in (
+            "slope", "aspect_cos", "aspect_sin", "tri",
+            "roughness_3", "roughness_9", "roughness_27",
+            "tpi_100", "tpi_300", "tpi_900",
+            "profile_curvature", "plan_curvature", "terrain_support_ratio",
+        ):
+            with self.subTest(factor=name):
+                np.testing.assert_allclose(
+                    factors_a[name][20, 20], factors_b[name][20, 20],
+                    rtol=0.0, atol=1e-6, equal_nan=True,
+                )
+        self.assertGreater(float(factors_a["terrain_support_ratio"][20, 20]), 0.0)
+        self.assertLess(float(factors_a["terrain_support_ratio"][20, 20]), 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

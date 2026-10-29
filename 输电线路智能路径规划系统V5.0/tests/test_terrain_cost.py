@@ -33,6 +33,21 @@ class TerrainCostTests(unittest.TestCase):
         np.testing.assert_allclose(expected, without_tpi)
         np.testing.assert_allclose(expected, [[0.0, 0.0]])
 
+    def test_low_terrain_support_adds_conservative_screening_cost(self):
+        terrain = {
+            "slope": np.zeros((1, 3), dtype=np.float32),
+            "roughness_27": np.zeros((1, 3), dtype=np.float32),
+            "terrain_support_ratio": np.array([[1.0, 0.5, 0.0]], dtype=np.float32),
+        }
+
+        cost = build_route_cost(
+            terrain, {}, settlement_weight=0.0,
+            terrain_slope_weight=0.75, roughness_weight=0.25,
+            ridge_penalty_weight=0.10,
+        )
+
+        np.testing.assert_allclose(cost, [[0.0, 0.55, 1.10]])
+
     def test_forest_and_wetland_add_soft_cost_only_when_mapped(self):
         terrain = {
             "slope": np.zeros((1, 4), dtype=np.float32),
