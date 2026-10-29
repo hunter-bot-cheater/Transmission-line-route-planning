@@ -311,11 +311,14 @@ class StationPlanningTests(unittest.TestCase):
             stations = self._csv(folder, "stations.csv",
                                  ["station_id", "name", "lat", "lon", "coordinate_crs", "voltage_kv",
                                   "source", "point_role", "verification_status", "verification_reference",
+                                  "reference_independence",
                                   "ground_elevation_m", "ground_elevation_source", "vertical_datum"],
                                  [["S1", "North", 24.1, 120.1, "EPSG:4326", 220, "survey A",
-                                   "line_connection_point", "verified", "record-A", 120.5, "survey A", "datum A"],
+                                   "line_connection_point", "verified", "record-A",
+                                   "independent_of_reference", 120.5, "survey A", "datum A"],
                                   ["S2", "South", 24.2, 120.2, "EPSG:4326", 220, "survey B",
-                                   "line_connection_point", "verified", "record-B", 143.0, "survey B", "datum A"]])
+                                   "line_connection_point", "verified", "record-B",
+                                   "independent_of_reference", 143.0, "survey B", "datum A"]])
             tasks = self._csv(folder, "routes.csv",
                               ["route_id", "from_station_id", "to_station_id"], [["R1", "S1", "S2"]])
             result = load_station_tasks(stations, tasks)
@@ -332,6 +335,14 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(result[0]["endpoint_qualification"], "declared_verified_line_connection_points")
         self.assertEqual(station_endpoint_properties(result[0])["from_station_point_role"],
                          "line_connection_point")
+        self.assertEqual(
+            station_endpoint_properties(result[0])["station_endpoint_reference_independence"],
+            "declared_independent_of_reference",
+        )
+        self.assertEqual(
+            station_endpoint_properties(result[0])["from_station_reference_independence"],
+            "independent_of_reference",
+        )
 
     def test_unverified_or_non_connection_endpoints_are_rejected_by_default(self):
         headers = ["station_id", "lat", "lon", "coordinate_crs", "source", "point_role",
@@ -367,6 +378,7 @@ class StationPlanningTests(unittest.TestCase):
             result = load_station_tasks(stations, tasks, allow_unverified=True)[0]
 
         self.assertEqual(result["endpoint_qualification"], "exploratory_only_unverified_endpoints")
+        self.assertEqual(result["from_station"]["reference_independence"], "unknown")
         self.assertEqual(route_planning_status([(1.0, 1.0), (2.0, 2.0)], result, []),
                          "exploratory_only_unverified_endpoints")
         self.assertEqual(route_planning_status(None, result, []), "no_hard_constraint_compliant_route")
@@ -378,6 +390,20 @@ class StationPlanningTests(unittest.TestCase):
                                   osm_coverage_unverified=True),
             "screening_candidate_data_incomplete",
         )
+
+    def test_invalid_station_reference_independence_is_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stations = self._csv(
+                folder, "stations.csv",
+                ["station_id", "lat", "lon", "coordinate_crs", "reference_independence"],
+                [["S1", 24.1, 120.1, "EPSG:4326", "maybe"],
+                 ["S2", 24.2, 120.2, "EPSG:4326", "independent_of_reference"]],
+            )
+            tasks = self._csv(folder, "routes.csv",
+                              ["route_id", "from_station_id", "to_station_id"],
+                              [["R1", "S1", "S2"]])
+            with self.assertRaisesRegex(ValueError, "reference_independence 无效"):
+                load_station_tasks(stations, tasks, allow_unverified=True)
 
     def test_declared_verified_endpoint_does_not_open_blocked_dem_or_building_cell(self):
         hard_mask = np.ones((3, 3), dtype=np.uint8)

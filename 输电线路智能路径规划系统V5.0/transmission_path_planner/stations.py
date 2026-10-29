@@ -26,12 +26,22 @@ def station_coordinate_crs_properties(station_task):
 def station_endpoint_properties(station_task):
     if not station_task:
         return {}
-    result = {"station_endpoint_qualification": station_task["endpoint_qualification"]}
+    source_independence = all(
+        station_task[key]["reference_independence"] == "independent_of_reference"
+        for key in ("from_station", "to_station")
+    )
+    result = {
+        "station_endpoint_qualification": station_task["endpoint_qualification"],
+        "station_endpoint_reference_independence": (
+            "declared_independent_of_reference" if source_independence else "not_established"
+        ),
+    }
     for prefix, key in (("from", "from_station"), ("to", "to_station")):
         station = station_task[key]
         result.update({
             f"{prefix}_station_point_role": station["point_role"],
             f"{prefix}_station_verification_status": station["verification_status"],
+            f"{prefix}_station_reference_independence": station["reference_independence"],
             f"{prefix}_station_source": station["source"] or None,
             f"{prefix}_station_verification_reference": station["verification_reference"] or None,
         })
@@ -142,6 +152,12 @@ def load_station_tasks(stations_csv, route_tasks_csv, allow_unverified=False):
                 raise ValueError(f"站点 {station_id} 的 point_role 无效")
             if verification_status not in {"verified", "unverified", "unknown"}:
                 raise ValueError(f"站点 {station_id} 的 verification_status 无效")
+            reference_independence = (
+                row.get("reference_independence") or "unknown"
+            ).strip().casefold()
+            if reference_independence not in {
+                    "independent_of_reference", "reference_derived_or_shared", "unknown"}:
+                raise ValueError(f"站点 {station_id} 的 reference_independence 无效")
             stations[station_id] = {
                 "station_id": station_id,
                 "name": (row.get("name") or station_id).strip(),
@@ -154,6 +170,7 @@ def load_station_tasks(stations_csv, route_tasks_csv, allow_unverified=False):
                 "verified": (row.get("verified") or "").strip(),
                 "point_role": point_role,
                 "verification_status": verification_status,
+                "reference_independence": reference_independence,
                 "verification_reference": (row.get("verification_reference") or "").strip(),
                 "ground_elevation_m": ground_elevation,
                 "ground_elevation_source": (row.get("ground_elevation_source") or "").strip(),

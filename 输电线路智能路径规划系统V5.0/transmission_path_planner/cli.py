@@ -710,30 +710,50 @@ def format_case_error(exc):
 
 def method_visual_similarity_summary(results, method, expected_cases=None, failed_case_names=None):
     excluded = set(failed_case_names or ())
-    eligible = [record for record in results
-                if record["case"] not in excluded
-                and record["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")
-                != "no_hard_constraint_compliant_route"]
-    comparisons = [record["metrics"].get(method, {}).get("route_similarity")
-                   for record in eligible]
-    comparisons = [value for value in comparisons if value]
+    declared_independent = []
+    exploratory = []
+    for record in results:
+        if record["case"] in excluded:
+            continue
+        final_route = record["metrics"].get(FINAL_ROUTE_LABEL, {})
+        if final_route.get("planning_status") == "no_hard_constraint_compliant_route":
+            continue
+        has_declared_independent_endpoints = (
+            final_route.get("station_endpoint_qualification")
+            == "declared_verified_line_connection_points"
+            and final_route.get("station_endpoint_reference_independence")
+            == "declared_independent_of_reference"
+        )
+        (declared_independent if has_declared_independent_endpoints else exploratory).append(record)
     total_cases = max(len(results), expected_cases or 0)
-    p95 = [value["symmetric"]["p95_m"] for value in comparisons]
-    hausdorff = [value["symmetric"]["sampled_hausdorff_m"] for value in comparisons]
-    coverage = [value["symmetric"]["coverage_f1_within_m"]["1000"]
-                for value in comparisons]
-    coverage_100m = [value["symmetric"]["coverage_f1_within_m"].get("100")
-                     for value in comparisons]
-    coverage_100m = [value for value in coverage_100m if value is not None]
-    length_error = [value["length"]["absolute_difference_pct"] for value in comparisons]
+
+    def summarize(records):
+        comparisons = [record["metrics"].get(method, {}).get("route_similarity")
+                       for record in records]
+        comparisons = [value for value in comparisons if value]
+        p95 = [value["symmetric"]["p95_m"] for value in comparisons]
+        hausdorff = [value["symmetric"]["sampled_hausdorff_m"] for value in comparisons]
+        coverage = [value["symmetric"]["coverage_f1_within_m"]["1000"]
+                    for value in comparisons]
+        coverage_100m = [value["symmetric"]["coverage_f1_within_m"].get("100")
+                         for value in comparisons]
+        coverage_100m = [value for value in coverage_100m if value is not None]
+        length_error = [value["length"]["absolute_difference_pct"]
+                        for value in comparisons]
+        return {
+            "endpoint_cases": len(records),
+            "measured": len(comparisons),
+            "unmeasured": max(0, len(records) - len(comparisons)),
+            "median_symmetric_p95_m": float(np.median(p95)) if p95 else None,
+            "median_sampled_hausdorff_m": float(np.median(hausdorff)) if hausdorff else None,
+            "median_coverage_f1_100m": float(np.median(coverage_100m)) if coverage_100m else None,
+            "median_coverage_f1_1km": float(np.median(coverage)) if coverage else None,
+            "median_length_difference_pct": float(np.median(length_error)) if length_error else None,
+        }
     return {
-        "measured": len(comparisons),
-        "unmeasured": max(0, total_cases - len(comparisons)),
-        "median_symmetric_p95_m": float(np.median(p95)) if p95 else None,
-        "median_sampled_hausdorff_m": float(np.median(hausdorff)) if hausdorff else None,
-        "median_coverage_f1_100m": float(np.median(coverage_100m)) if coverage_100m else None,
-        "median_coverage_f1_1km": float(np.median(coverage)) if coverage else None,
-        "median_length_difference_pct": float(np.median(length_error)) if length_error else None,
+        "declared_independent_endpoints": summarize(declared_independent),
+        "exploratory_or_independence_unproven": summarize(exploratory),
+        "unclassified_cases": max(0, total_cases - len(declared_independent) - len(exploratory)),
     }
 
 
@@ -2593,38 +2613,44 @@ def main():
         for rec in all_results:
             if rec["case"] in failed_case_names or rec["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status") == "no_hard_constraint_compliant_route":
                 continue
+            final_route = rec["metrics"].get(FINAL_ROUTE_LABEL, {})
+            endpoint_group = (
+                "声明独立端点" if (
+                    final_route.get("station_endpoint_qualification")
+                    == "declared_verified_line_connection_points"
+                    and final_route.get("station_endpoint_reference_independence")
+                    == "declared_independent_of_reference"
+                ) else "探索诊断/独立性未证"
+            )
             for m in candidate_methods:
                 met = rec["metrics"].get(m, {})
                 similarity = met.get("route_similarity")
                 if similarity:
                     symmetric = similarity["symmetric"]
-                    print(f"  {rec['case']:16s} {m:16s} "
+                    print(f"  {rec['case']:16s} {m:16s} [{endpoint_group}] "
                           f"{symmetric['p95_m']:11.0f} "
                           f"{symmetric['sampled_hausdorff_m']:12.0f} "
                           f"{symmetric['coverage_f1_within_m']['100']:8.1%} "
                           f"{symmetric['coverage_f1_within_m']['1000']:8.1%} "
                           f"{similarity['length']['absolute_difference_km']:11.2f}")
-        print("  说明：误差与覆盖率只作事后诊断，不设贴合率达标线，也不参与选路。")
+        print("  说明：误差与覆盖率只作事后诊断，不参与选路；独立性分组读取站点表声明，"
+              "程序不认证声明真实性或其相对参考线的独立性。")
         print("-" * 70)
         for m in candidate_methods:
             summary = method_visual_similarity_summary(
                 all_results, m, expected_cases=len(cases),
                 failed_case_names=failed_case_names,
             )
-            p95 = summary["median_symmetric_p95_m"]
-            max_offset = summary["median_sampled_hausdorff_m"]
-            f1_100m = summary["median_coverage_f1_100m"]
-            f1 = summary["median_coverage_f1_1km"]
-            length_difference = summary["median_length_difference_pct"]
-            p95_text = f"{p95:.1f}m" if p95 is not None else "NA"
-            max_text = f"{max_offset:.1f}m" if max_offset is not None else "NA"
-            f1_100m_text = f"{f1_100m:.1%}" if f1_100m is not None else "NA"
-            f1_text = f"{f1:.1%}" if f1 is not None else "NA"
-            length_text = f"{length_difference:.1f}%" if length_difference is not None else "NA"
-            print(f"  {m:16s} 已测={summary['measured']:2d} 未测={summary['unmeasured']:2d} "
-                  f"中位较差方向P95={p95_text} 中位最大偏移={max_text} "
-                  f"中位F1@100m={f1_100m_text} 中位F1@1km={f1_text} "
-                  f"中位长度差={length_text}")
+            independent = summary["declared_independent_endpoints"]
+            exploratory = summary["exploratory_or_independence_unproven"]
+            independent_p95 = independent["median_symmetric_p95_m"]
+            exploratory_p95 = exploratory["median_symmetric_p95_m"]
+            independent_p95_text = f"{independent_p95:.1f}m" if independent_p95 is not None else "NA"
+            exploratory_p95_text = f"{exploratory_p95:.1f}m" if exploratory_p95 is not None else "NA"
+            print(f"  {m:16s} 声明独立端点={independent['measured']}/{independent['endpoint_cases']} "
+                  f"中位P95={independent_p95_text}；探索/独立性未证={exploratory['measured']}/"
+                  f"{exploratory['endpoint_cases']} 中位P95={exploratory_p95_text} "
+                  f"未分类={summary['unclassified_cases']}")
         heuristic_selected = [r["case"] for r in all_results
                           if r["case"] not in failed_case_names
                           and r["metrics"].get(FINAL_ROUTE_LABEL, {}).get("planning_status")

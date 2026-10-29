@@ -979,10 +979,17 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         self.assertEqual(
             method_visual_similarity_summary(records, "VIN-Grad", expected_cases=2,
                                              failed_case_names={"failed-after-record"}),
-            {"measured": 0, "unmeasured": 2, "median_symmetric_p95_m": None,
-             "median_sampled_hausdorff_m": None, "median_coverage_f1_100m": None,
-             "median_coverage_f1_1km": None,
-             "median_length_difference_pct": None},
+            {"declared_independent_endpoints": {
+                 "endpoint_cases": 0, "measured": 0, "unmeasured": 0,
+                 "median_symmetric_p95_m": None, "median_sampled_hausdorff_m": None,
+                 "median_coverage_f1_100m": None, "median_coverage_f1_1km": None,
+                 "median_length_difference_pct": None},
+             "exploratory_or_independence_unproven": {
+                 "endpoint_cases": 0, "measured": 0, "unmeasured": 0,
+                 "median_symmetric_p95_m": None, "median_sampled_hausdorff_m": None,
+                 "median_coverage_f1_100m": None, "median_coverage_f1_1km": None,
+                 "median_length_difference_pct": None},
+             "unclassified_cases": 2},
         )
 
     def test_mixed_valid_and_invalid_real_cases_csv_is_rejected(self):
@@ -1159,7 +1166,7 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
     def test_missing_method_rows_are_reported_as_unmeasured(self):
         route_similarity = {
             "symmetric": {"p95_m": 120, "sampled_hausdorff_m": 400,
-                          "coverage_f1_within_m": {"1000": 0.75}},
+                          "coverage_f1_within_m": {"100": 0.8, "1000": 0.75}},
             "length": {"absolute_difference_pct": 5.0},
         }
         records = [
@@ -1168,18 +1175,79 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
         ]
         self.assertEqual(
             method_visual_similarity_summary(records, "VIN-Grad"),
-            {"measured": 0, "unmeasured": 2, "median_symmetric_p95_m": None,
-             "median_sampled_hausdorff_m": None, "median_coverage_f1_100m": None,
-             "median_coverage_f1_1km": None,
-             "median_length_difference_pct": None},
+            {"declared_independent_endpoints": {
+                 "endpoint_cases": 0, "measured": 0, "unmeasured": 0,
+                 "median_symmetric_p95_m": None, "median_sampled_hausdorff_m": None,
+                 "median_coverage_f1_100m": None, "median_coverage_f1_1km": None,
+                 "median_length_difference_pct": None},
+             "exploratory_or_independence_unproven": {
+                 "endpoint_cases": 2, "measured": 0, "unmeasured": 2,
+                 "median_symmetric_p95_m": None, "median_sampled_hausdorff_m": None,
+                 "median_coverage_f1_100m": None, "median_coverage_f1_1km": None,
+                 "median_length_difference_pct": None},
+             "unclassified_cases": 0},
         )
         self.assertEqual(
             method_visual_similarity_summary(records, "A*(baseline)", expected_cases=3),
-            {"measured": 1, "unmeasured": 2, "median_symmetric_p95_m": 120.0,
-             "median_sampled_hausdorff_m": 400.0, "median_coverage_f1_100m": None,
-             "median_coverage_f1_1km": 0.75,
-             "median_length_difference_pct": 5.0},
+            {"declared_independent_endpoints": {
+                 "endpoint_cases": 0, "measured": 0, "unmeasured": 0,
+                 "median_symmetric_p95_m": None, "median_sampled_hausdorff_m": None,
+                 "median_coverage_f1_100m": None, "median_coverage_f1_1km": None,
+                 "median_length_difference_pct": None},
+             "exploratory_or_independence_unproven": {
+                 "endpoint_cases": 2, "measured": 1, "unmeasured": 1,
+                 "median_symmetric_p95_m": 120.0,
+                 "median_sampled_hausdorff_m": 400.0,
+                 "median_coverage_f1_100m": 0.8,
+                 "median_coverage_f1_1km": 0.75,
+                 "median_length_difference_pct": 5.0},
+             "unclassified_cases": 1},
         )
+
+    def test_route_similarity_keeps_unverified_and_non_independent_cases_out_of_primary_group(self):
+        route_similarity = {
+            "symmetric": {"p95_m": 100, "sampled_hausdorff_m": 300,
+                          "coverage_f1_within_m": {"100": 0.9, "1000": 0.95}},
+            "length": {"absolute_difference_pct": 2.0},
+        }
+        records = [
+            {"case": "declared-independent", "metrics": {
+                "最终路线": {
+                    "planning_status": "screening_candidate_coverage_unverified",
+                    "station_endpoint_qualification": "declared_verified_line_connection_points",
+                    "station_endpoint_reference_independence": "declared_independent_of_reference",
+                },
+                "A*(baseline)": {"route_similarity": route_similarity},
+            }},
+            {"case": "exploratory", "metrics": {
+                "最终路线": {"planning_status": "exploratory_only_unverified_endpoints"},
+                "A*(baseline)": {"route_similarity": {
+                    **route_similarity,
+                    "symmetric": {**route_similarity["symmetric"], "p95_m": 9000},
+                }},
+            }},
+            {"case": "reference-derived", "metrics": {
+                "最终路线": {
+                    "planning_status": "screening_candidate",
+                    "station_endpoint_qualification": "declared_verified_line_connection_points",
+                    "station_endpoint_reference_independence": "not_established",
+                },
+                "A*(baseline)": {"route_similarity": {
+                    **route_similarity,
+                    "symmetric": {**route_similarity["symmetric"], "p95_m": 7000},
+                }},
+            }},
+        ]
+
+        summary = method_visual_similarity_summary(records, "A*(baseline)")
+
+        self.assertEqual(summary["declared_independent_endpoints"]["measured"], 1)
+        self.assertEqual(
+            summary["declared_independent_endpoints"]["median_symmetric_p95_m"], 100.0)
+        self.assertEqual(
+            summary["exploratory_or_independence_unproven"]["measured"], 2)
+        self.assertEqual(
+            summary["exploratory_or_independence_unproven"]["median_symmetric_p95_m"], 8000.0)
 
     def test_direct_real_shp_rejects_multiple_line_features(self):
         line = LineString([(121.0, 24.0), (121.1, 24.1)])
