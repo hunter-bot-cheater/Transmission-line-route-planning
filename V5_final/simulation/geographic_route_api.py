@@ -707,7 +707,8 @@ class GeographicRouteJobs:
             self._write_state(job_dir, {
                 "job_id": job_id, "state": "queued", "created_at": self._now(),
                 "endpoint_qualification": "declared_verified_line_connection_points" if mode == "verified" else "exploratory_only_unverified_endpoints",
-                "planning_status": "queued", "engineering_feasibility": "not_evaluated",
+                "planning_status": "queued", "reference_geometry_read": False,
+                "engineering_feasibility": "not_evaluated",
                 "engineering_gate": _engineering_gate_metadata(),
                 "constraints_configured": "constraints" in config,
                 "data_layers": self.public_status()["data_layers"],
@@ -740,7 +741,8 @@ class GeographicRouteJobs:
         state: dict[str, Any] = {
             "job_id": job_id, "state": "running", "created_at": self._now(),
             "endpoint_qualification": "declared_verified_line_connection_points" if mode == "verified" else "exploratory_only_unverified_endpoints",
-            "planning_status": "running", "engineering_feasibility": "not_evaluated",
+            "planning_status": "running", "reference_geometry_read": False,
+            "engineering_feasibility": "not_evaluated",
             "engineering_gate": _engineering_gate_metadata(),
             "constraints_configured": "constraints" in config,
             "data_layers": self.public_status()["data_layers"],

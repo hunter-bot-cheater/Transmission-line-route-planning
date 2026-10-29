@@ -508,6 +508,58 @@ class GeographicRouteOutputValidationTests(unittest.TestCase):
         validate_land.assert_called_once_with(land_mask_path, coordinates)
 
 
+class GeographicRouteJobExecutionTests(unittest.TestCase):
+    def test_web_job_does_not_pass_reference_geometry_and_records_it_as_unused(self):
+        jobs = geographic_route_api.GeographicRouteJobs()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            job_id = "a" * 32
+            job_dir = root / job_id
+            job_dir.mkdir()
+            output_dir = job_dir / "results"
+            route_path = output_dir / "final_route.geojson"
+            start = jobs._station(
+                {"station_id": "A", "name": "起点", "lat": 23.5, "lon": 120.9},
+                "起点", "exploratory",
+            )
+            end = jobs._station(
+                {"station_id": "B", "name": "终点", "lat": 23.6, "lon": 121.0},
+                "终点", "exploratory",
+            )
+            config = {
+                "package_root": root, "python": Path(sys.executable),
+                "dem": root / "dem.tif", "land_mask": root / "land-mask.geojson",
+                "max_side": 4096, "timeout": 60,
+            }
+            properties = {
+                "planning_status": "screening_candidate",
+                "hard_constraint_status": "pass", "hard_violations": 0,
+                "length_km": 1.0, "dem_sample_count": 2,
+                "dem_valid_sample_count": 2, "dem_sample_coverage_ratio": 1.0,
+            }
+
+            def fake_run(argv, **kwargs):
+                self.assertFalse(any(
+                    str(arg).lower().startswith(("--real", "--reference"))
+                    for arg in argv
+                ))
+                self.assertIn("--stations-csv", argv)
+                self.assertIn("--route-tasks-csv", argv)
+                (output_dir / "run_provenance.json").write_text("{}", encoding="utf-8")
+                return subprocess.CompletedProcess(argv, 0)
+
+            with patch.object(jobs, "public_status", return_value={"data_layers": {}}), \
+                    patch.object(geographic_route_api.subprocess, "run", side_effect=fake_run), \
+                    patch.object(geographic_route_api, "_load_final_route_properties",
+                                 return_value=(route_path, properties)):
+                jobs._run(job_id, config, job_dir, start, end, "", "exploratory")
+
+            state = json.loads((job_dir / "state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["state"], "succeeded")
+            self.assertIs(state["reference_geometry_read"], False)
+            self.assertEqual(state["engineering_feasibility"], "not_evaluated")
+
+
 class GeographicRouteArtifactTests(unittest.TestCase):
     def test_route_http_download_includes_engineering_gate_without_modifying_planner_file(self):
         jobs = geographic_route_api.GeographicRouteJobs()
