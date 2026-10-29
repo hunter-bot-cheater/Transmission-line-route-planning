@@ -271,6 +271,20 @@ def route_layer_exposure(geo, transform, shape, terrain, osm, hazard_masks,
             "valid_cell_fraction": float(len(values) / count),
         } if values.size else None)
 
+    support = route_band(terrain, "terrain_support_ratio", dtype=np.float32)
+    if support is None:
+        result["terrain_factor_support"] = None
+    else:
+        support = np.clip(support[np.isfinite(support)], 0.0, 1.0)
+        result["terrain_factor_support"] = ({
+            "minimum": float(np.min(support)),
+            "p05": float(np.percentile(support, 5)),
+            "mean": float(np.mean(support)),
+            "full_support_cell_fraction": float(np.mean(support == 1.0)),
+            "valid_cell_fraction": float(len(support) / count),
+            "fraction_denominator": "all_touched_route_cells; approximate, not length weighted",
+        } if support.size else None)
+
     layer_status = osm_layer_metadata or {}
     result["mapped_osm_layer_status"] = {
         name: layer_status.get(name, {}).get("status", "unknown")

@@ -15,6 +15,8 @@ class RouteLayerExposureTests(unittest.TestCase):
         }
         terrain["slope"][1] = [10.0, 20.0, 30.0]
         terrain["roughness_27"][1] = [1.0, 2.0, 3.0]
+        terrain["terrain_support_ratio"] = np.ones(shape, dtype=np.float32)
+        terrain["terrain_support_ratio"][1] = [1.0, 0.5, 0.0]
         osm = {
             "building_density": np.zeros(shape, dtype=np.float32),
             "residential_landuse_mask": np.zeros(shape, dtype=np.float32),
@@ -35,6 +37,10 @@ class RouteLayerExposureTests(unittest.TestCase):
         self.assertEqual(result["route_cell_count"], 3)
         self.assertAlmostEqual(result["surface_slope_deg"]["mean"], 20.0)
         self.assertAlmostEqual(result["roughness_27_m"]["p95"], 2.9)
+        self.assertAlmostEqual(result["terrain_factor_support"]["mean"], 0.5)
+        self.assertAlmostEqual(result["terrain_factor_support"]["p05"], 0.05)
+        self.assertAlmostEqual(
+            result["terrain_factor_support"]["full_support_cell_fraction"], 1 / 3)
         self.assertAlmostEqual(result["mapped_settlement_proxy_mean"], (0.2 + 0.5 + 1.0) / 3)
         self.assertAlmostEqual(result["mapped_forest_wetland_cell_fraction"], 2 / 3)
         self.assertAlmostEqual(result["hazard_cell_fractions"]["landslide"], 1 / 3)
@@ -57,6 +63,7 @@ class RouteLayerExposureTests(unittest.TestCase):
 
         self.assertIsNone(result["mapped_settlement_proxy_mean"])
         self.assertIsNone(result["mapped_forest_wetland_cell_fraction"])
+        self.assertIsNone(result["terrain_factor_support"])
         self.assertEqual(result["hazard_coverage_status"], "partial")
 
     def test_incomplete_hazard_coverage_never_reports_zero_risk_fraction(self):
