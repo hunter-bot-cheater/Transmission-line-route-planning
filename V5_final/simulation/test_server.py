@@ -15,6 +15,7 @@ from urllib.request import Request, urlopen
 
 import benchmark
 import server
+import geographic_route_api
 from benchmark import build_cost as benchmark_cost, path_cost, run_policy, valid_route
 from server import (_get_session, build_cost_grid, configure_session_mission, create_world_session,
                     make_world, plan_path, plan_session, select_scan_target, select_session_scan,
@@ -71,6 +72,100 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
             httpd.shutdown()
             httpd.server_close()
             thread.join(timeout=1)
+
+
+class GeographicRouteOutputValidationTests(unittest.TestCase):
+    class FakeDataset:
+        def __init__(self, invalid_cells=()):
+            from affine import Affine
+
+            self.crs = "EPSG:4326"
+            self.transform = Affine(0.01, 0.0, 120.0, 0.0, -0.01, 25.0)
+            self.width = 10
+            self.height = 10
+            self.invalid_cells = set(invalid_cells)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def sample(self, coordinates, indexes=1, masked=False):
+            import numpy as np
+
+            self.assert_sample_options(indexes, masked)
+            inverse = ~self.transform
+            for x, y in coordinates:
+                col, row = inverse * (x, y)
+                cell = (math.floor(row), math.floor(col))
+                yield np.ma.array(
+                    [1.0], mask=[cell in self.invalid_cells],
+                )
+
+        @staticmethod
+        def assert_sample_options(indexes, masked):
+            if indexes != 1 or masked is not True:
+                raise AssertionError("DEM coverage validation must request masked band-1 samples")
+
+    def _validate(self, coordinates, invalid_cells=()):
+        import rasterio
+
+        dataset = self.FakeDataset(invalid_cells)
+        with patch.object(rasterio, "open", return_value=dataset):
+            geographic_route_api._validate_route_dem_coverage(
+                Path("/data1/B24041626/pp/taiwan-dem.tif"), coordinates,
+            )
+
+    def test_route_inside_valid_dem_cells_is_accepted(self):
+        self._validate([[120.015, 24.985], [120.085, 24.985]])
+
+    def test_route_crossing_dem_nodata_between_valid_vertices_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "穿过无效数据区"):
+            self._validate(
+                [[120.015, 24.985], [120.085, 24.985]], invalid_cells={(1, 5)},
+            )
+
+    def test_route_vertex_outside_dem_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "超出数据范围"):
+            self._validate([[120.015, 24.985], [120.105, 24.985]])
+
+    def test_successful_route_load_requires_dem_coverage_validation(self):
+        route_path = Path("results/final_route.geojson")
+        start = {"station_id": "A", "lon": "120.015", "lat": "24.985"}
+        end = {"station_id": "B", "lon": "120.085", "lat": "24.985"}
+        route_data = {
+            "type": "FeatureCollection",
+            "features": [{
+                "type": "Feature",
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [[120.015, 24.985], [120.085, 24.985]],
+                },
+                "properties": {
+                    "planning_status": "screening_candidate",
+                    "hard_constraint_status": "pass",
+                    "hard_violations": 0,
+                    "length_km": 1.0,
+                    "dem_sample_count": 2,
+                    "dem_valid_sample_count": 2,
+                    "dem_sample_coverage_ratio": 1.0,
+                    "engineering_feasibility": "not_evaluated",
+                    "from_station_id": "A",
+                    "to_station_id": "B",
+                },
+            }],
+        }
+        dem_path = Path("/data1/B24041626/pp/taiwan-dem.tif")
+        with patch.object(Path, "rglob", return_value=[route_path]), \
+                patch.object(Path, "read_text", return_value=json.dumps(route_data)), \
+                patch.object(geographic_route_api, "_validate_route_dem_coverage") as validate:
+            result = geographic_route_api._load_final_route_properties(
+                Path("results"), start, end, dem_path,
+            )
+
+        self.assertEqual(result, (route_path, route_data["features"][0]["properties"]))
+        validate.assert_called_once_with(dem_path, route_data["features"][0]["geometry"]["coordinates"])
 
 
 class PlanPathTests(unittest.TestCase):

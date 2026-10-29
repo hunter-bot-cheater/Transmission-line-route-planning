@@ -63,8 +63,85 @@ def _dem_bounds_wgs84(dem_path: Path) -> dict[str, float]:
     return bounds
 
 
+def _validate_route_dem_coverage(dem_path: Path, coordinates: list[list[float]]) -> None:
+    """Reject a route whose vertices or densely sampled segments leave valid DEM cells."""
+    import numpy as np
+    import rasterio
+    from rasterio.warp import transform
+
+    max_sample_count = 2_000_000
+    chunk_size = 10_000
+    with rasterio.open(dem_path) as dataset:
+        if dataset.crs is None:
+            raise RuntimeError("服务器 DEM 未声明坐标系，无法核验完整路线覆盖")
+        if len(coordinates) > max_sample_count:
+            raise RuntimeError("final_route.geojson 过长，无法安全完成 DEM 覆盖核验")
+
+        longitudes = [float(point[0]) for point in coordinates]
+        latitudes = [float(point[1]) for point in coordinates]
+        projected_x, projected_y = transform(
+            "EPSG:4326", dataset.crs, longitudes, latitudes,
+        )
+        inverse = ~dataset.transform
+        pixel_points = [inverse * (x, y) for x, y in zip(projected_x, projected_y)]
+        steps_by_segment = []
+        sample_count = 1
+        for index, (first, second) in enumerate(zip(coordinates, coordinates[1:])):
+            first_col, first_row = pixel_points[index]
+            second_col, second_row = pixel_points[index + 1]
+            if not all(math.isfinite(value) for value in (
+                    first_col, first_row, second_col, second_row)):
+                raise RuntimeError("final_route.geojson 无法投影到服务器 DEM")
+            steps = max(1, math.ceil(2 * max(
+                abs(second_col - first_col), abs(second_row - first_row),
+            )))
+            sample_count += steps
+            if sample_count > max_sample_count:
+                raise RuntimeError("final_route.geojson 过长，无法安全完成 DEM 覆盖核验")
+            steps_by_segment.append(steps)
+
+        def validate_chunk(chunk: list[tuple[float, float]], first_sample_index: int) -> None:
+            sample_x, sample_y = transform(
+                "EPSG:4326", dataset.crs,
+                [point[0] for point in chunk], [point[1] for point in chunk],
+            )
+            for local_index, (x, y) in enumerate(zip(sample_x, sample_y)):
+                col, row = inverse * (x, y)
+                if not (0 <= col < dataset.width and 0 <= row < dataset.height):
+                    raise RuntimeError(
+                        f"final_route.geojson 路线第 {first_sample_index + local_index + 1} "
+                        "个 DEM 样点超出数据范围"
+                    )
+
+            values = dataset.sample(zip(sample_x, sample_y), indexes=1, masked=True)
+            for local_index, value in enumerate(values):
+                sample = np.ma.asarray(value).reshape(-1)[0]
+                if np.ma.is_masked(sample) or not math.isfinite(float(sample)):
+                    raise RuntimeError(
+                        "final_route.geojson 路线第 "
+                        f"{first_sample_index + local_index + 1} 个 DEM 样点穿过无效数据区"
+                    )
+
+        chunk: list[tuple[float, float]] = []
+        processed_samples = 0
+        for index, (first, second) in enumerate(zip(coordinates, coordinates[1:])):
+            steps = steps_by_segment[index]
+            for step in range(steps):
+                fraction = step / steps
+                chunk.append((
+                    float(first[0]) + (float(second[0]) - float(first[0])) * fraction,
+                    float(first[1]) + (float(second[1]) - float(first[1])) * fraction,
+                ))
+                if len(chunk) == chunk_size:
+                    validate_chunk(chunk, processed_samples)
+                    processed_samples += len(chunk)
+                    chunk.clear()
+        chunk.append((float(coordinates[-1][0]), float(coordinates[-1][1])))
+        validate_chunk(chunk, processed_samples)
+
+
 def _load_final_route_properties(
-        output_dir: Path, start: dict[str, str], end: dict[str, str]
+        output_dir: Path, start: dict[str, str], end: dict[str, str], dem_path: Path
 ) -> tuple[Path, dict[str, Any]]:
     route_files = list(output_dir.rglob("final_route.geojson"))
     if len(route_files) != 1:
@@ -95,6 +172,7 @@ def _load_final_route_properties(
         lon, lat = map(float, point[:2])
         if not math.isfinite(lon) or not math.isfinite(lat) or not -180 <= lon <= 180 or not -90 <= lat <= 90:
             raise RuntimeError("final_route.geojson 含无效经纬度坐标")
+    _validate_route_dem_coverage(dem_path, coordinates)
 
     properties = feature.get("properties")
     required = {
@@ -413,7 +491,9 @@ class GeographicRouteJobs:
             map_files = list(output_dir.rglob("path_comparison_*.png"))
             profile_files = list(output_dir.rglob("elevation_profile.csv"))
             provenance_files = list(output_dir.rglob("run_provenance.json"))
-            route_path, properties = _load_final_route_properties(output_dir, start, end)
+            route_path, properties = _load_final_route_properties(
+                output_dir, start, end, config["dem"],
+            )
             state.update({
                 "state": "succeeded", "finished_at": self._now(),
                 "planning_status": properties["planning_status"],
