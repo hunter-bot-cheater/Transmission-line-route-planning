@@ -1443,8 +1443,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if len(parts) == 4:
                 try:
-                    artifact, extension = GEOGRAPHIC_ROUTE_JOBS.artifact(parts[2], parts[3])
-                    body = artifact.read_bytes()
+                    body, extension = GEOGRAPHIC_ROUTE_JOBS.read_artifact(parts[2], parts[3])
                 except KeyError:
                     self._json(404, {"error": "任务或结果文件不存在"})
                     return

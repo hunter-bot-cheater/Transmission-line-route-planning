@@ -508,6 +508,53 @@ class GeographicRouteOutputValidationTests(unittest.TestCase):
         validate_land.assert_called_once_with(land_mask_path, coordinates)
 
 
+class GeographicRouteArtifactTests(unittest.TestCase):
+    def test_route_http_download_includes_engineering_gate_without_modifying_planner_file(self):
+        jobs = geographic_route_api.GeographicRouteJobs()
+        job_id = "a" * 32
+        gate = {
+            "status": "not_evaluated",
+            "blockers": [{"code": "tower_and_span_graph_not_run", "message": "未运行塔位与档距图搜索。"}],
+        }
+        route_data = {
+            "type": "FeatureCollection",
+            "features": [{"type": "Feature", "geometry": {"type": "LineString",
+                         "coordinates": [[120.0, 23.0], [120.1, 23.1]]},
+                         "properties": {"engineering_feasibility": "not_evaluated"}}],
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            job_root = Path(temp_dir)
+            job_dir = job_root / job_id
+            output_dir = job_dir / "results"
+            output_dir.mkdir(parents=True)
+            route_path = output_dir / "final_route.geojson"
+            original = json.dumps(route_data, ensure_ascii=False).encode("utf-8")
+            route_path.write_bytes(original)
+            (job_dir / "state.json").write_text(json.dumps({
+                "job_id": job_id, "state": "succeeded", "engineering_gate": gate,
+            }), encoding="utf-8")
+
+            httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            thread = Thread(target=httpd.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch.object(jobs, "_config", return_value={"job_root": job_root}), \
+                        patch.object(server, "GEOGRAPHIC_ROUTE_JOBS", jobs):
+                    with urlopen(
+                            f"http://127.0.0.1:{httpd.server_port}/api/routes/{job_id}/route",
+                            timeout=5) as response:
+                        self.assertEqual(response.headers.get_content_type(), "application/geo+json")
+                        downloaded = json.loads(response.read())
+            finally:
+                httpd.shutdown()
+                httpd.server_close()
+                thread.join(timeout=1)
+
+            self.assertEqual(downloaded["features"][0]["properties"]["engineering_gate"], gate)
+            self.assertEqual(route_path.read_bytes(), original)
+
+
 class PlanPathTests(unittest.TestCase):
     def test_diagonal_cannot_cut_across_unobserved_corner(self):
         result = plan_path(

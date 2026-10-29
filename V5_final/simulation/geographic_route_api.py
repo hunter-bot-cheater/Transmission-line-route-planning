@@ -876,5 +876,30 @@ class GeographicRouteJobs:
             raise FileNotFoundError(kind)
         return candidates[0], _ARTIFACTS[kind]
 
+    def read_artifact(self, job_id: str, kind: str) -> tuple[bytes, str]:
+        path, extension = self.artifact(job_id, kind)
+        body = path.read_bytes()
+        if kind != "route":
+            return body, extension
+
+        try:
+            route_data = json.loads(body)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise RuntimeError("final_route.geojson 无法读取") from error
+        features = route_data.get("features") if isinstance(route_data, dict) else None
+        if (not isinstance(route_data, dict) or route_data.get("type") != "FeatureCollection"
+                or not isinstance(features, list)):
+            raise RuntimeError("final_route.geojson 不是有效 FeatureCollection")
+
+        gate = self.get_status(job_id).get("engineering_gate")
+        if not isinstance(gate, dict):
+            gate = _engineering_gate_metadata()
+        for feature in features:
+            properties = feature.get("properties") if isinstance(feature, dict) else None
+            if not isinstance(properties, dict):
+                raise RuntimeError("final_route.geojson 要素缺少 properties")
+            properties["engineering_gate"] = gate
+        return json.dumps(route_data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), extension
+
 
 GEOGRAPHIC_ROUTE_JOBS = GeographicRouteJobs()
