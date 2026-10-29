@@ -37,6 +37,35 @@ def _checked_position(value, name):
     return position
 
 
+def tower_site_proxy_cost_raster(span_cost_raster, equivalent_distance_m):
+    """Convert local span resistance into an explicit per-tower proxy cost.
+
+    Each eligible site receives ``local_span_cost * equivalent_distance_m``
+    objective units. The distance is an experimental tradeoff, not an estimate
+    of construction cost or an engineering standard. A value of zero preserves
+    the existing no-site-cost behavior.
+    """
+    try:
+        equivalent_distance = float(equivalent_distance_m)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("equivalent_distance_m must be finite and non-negative") from exc
+    if not math.isfinite(equivalent_distance) or equivalent_distance < 0.0:
+        raise ValueError("equivalent_distance_m must be finite and non-negative")
+    span_cost = np.asarray(span_cost_raster, dtype=np.float64)
+    if span_cost.ndim != 2:
+        raise ValueError("span_cost_raster must be a 2D array")
+    if np.isnan(span_cost).any():
+        raise ValueError("span_cost_raster must not contain NaN")
+    finite = np.isfinite(span_cost)
+    if np.any(span_cost[finite] < 0.0):
+        raise ValueError("span_cost_raster must be non-negative")
+    site_cost = np.zeros(span_cost.shape, dtype=np.float32)
+    if equivalent_distance > 0.0:
+        site_cost[finite] = (
+            span_cost[finite] * equivalent_distance).astype(np.float32)
+    return site_cost
+
+
 def _dem_data_and_validity(dem_raster, dem_valid_mask=None,
                            dem_nodata_value=None):
     masked_dem = np.ma.asarray(dem_raster, dtype=np.float64)

@@ -21,7 +21,11 @@ from .experimental_theta_star import (
     integrate_polyline_cost,
     theta_star_cost_path,
 )
-from .experimental_tower_graph import span_clearance_status, tower_graph_route
+from .experimental_tower_graph import (
+    span_clearance_status,
+    tower_graph_route,
+    tower_site_proxy_cost_raster,
+)
 from .experimental_astar_16 import (
     NEIGHBORS_8,
     NEIGHBORS_16,
@@ -976,6 +980,8 @@ def main():
                     help="塔位候选像元步长；会影响可达性，默认2，仅为栅格采样参数")
     ap.add_argument("--tower-site-pad-radius-m", type=float, default=None,
                     help="显式塔位地表平台筛查半径；需与 experimental tower graph 同用；仅筛查已知DEM/硬掩膜/坡度")
+    ap.add_argument("--tower-site-cost-equivalent-distance-m", type=float, default=0.0,
+                    help="塔址软成本敏感性参数：每个中间塔增加‘当地跨越代价×等效米数’；0关闭；不是工程造价")
     ap.add_argument("--tower-attachment-height-m", type=float, default=None,
                     help="可选净空筛查参数：固定挂点高度；需与弧垂和最小净空同时提供")
     ap.add_argument("--tower-max-midspan-sag-m", type=float, default=None,
@@ -1086,6 +1092,8 @@ def main():
         "--tower-min-span-m": args.tower_min_span_m,
         "--tower-max-span-m": args.tower_max_span_m,
         "--tower-site-pad-radius-m": args.tower_site_pad_radius_m,
+        "--tower-site-cost-equivalent-distance-m": (
+            args.tower_site_cost_equivalent_distance_m),
         "--tower-attachment-height-m": args.tower_attachment_height_m,
         "--tower-max-midspan-sag-m": args.tower_max_midspan_sag_m,
         "--tower-min-clearance-m": args.tower_min_clearance_m,
@@ -1106,6 +1114,7 @@ def main():
             or args.terrain_slope_weight < 0
             or args.roughness_weight < 0
             or args.official_hazard_weight < 0
+            or args.tower_site_cost_equivalent_distance_m < 0
             or args.turn_penalty_weight < 0
             or args.search_turn_penalty_weight < 0
             or args.smoothing_turn_penalty_weight < 0):
@@ -1148,6 +1157,7 @@ def main():
                 value is None for value in tower_profile):
             ap.error("净空筛查必须同时提供挂点高度、最大跨中弧垂和最小净空")
     elif (args.tower_min_span_m is not None or args.tower_max_span_m is not None
+          or args.tower_site_cost_equivalent_distance_m > 0
           or any(value is not None for value in tower_profile)):
         ap.error("塔位图参数必须与 --experimental-tower-graph 同时使用")
 
@@ -1761,12 +1771,18 @@ def main():
                 goal_tower_position_rc = (goal_row_corner - 0.5,
                                           goal_col_corner - 0.5)
                 tower_path = None
+                tower_site_cost = (
+                    tower_site_proxy_cost_raster(
+                        tower_span_cost_grid,
+                        args.tower_site_cost_equivalent_distance_m)
+                    if args.tower_site_cost_equivalent_distance_m > 0 else None)
                 if clearance_profile_ready:
                     tower_path = tower_graph_route(
                         tower_span_cost_grid, tower_span_mask.astype(bool), tower_site_mask.astype(bool),
                         (sr, sc), (er, ec), args.tower_min_span_m,
                         args.tower_max_span_m, pixel_spacing=route_pixel_spacing,
                         candidate_stride=args.tower_candidate_stride,
+                        tower_cost_raster=tower_site_cost,
                         turn_penalty_weight=args.search_turn_penalty_weight,
                         start_position_rc=start_tower_position_rc,
                         goal_position_rc=goal_tower_position_rc,
@@ -1833,7 +1849,12 @@ def main():
                     "clearance_profile_status": clearance_profile_status,
                     "clearance_profile_spans": span_clearance_profiles,
                     "dem_vertical_datum": args.dem_vertical_datum,
-                    "site_cost_model": "zero; no validated tower-construction cost supplied",
+                    "tower_site_cost_equivalent_distance_m": (
+                        args.tower_site_cost_equivalent_distance_m),
+                    "site_cost_model": (
+                        "local_span_cost_times_equivalent_distance_unvalidated_proxy"
+                        if args.tower_site_cost_equivalent_distance_m > 0
+                        else "zero; no validated tower-construction cost supplied"),
                 }
                 print(f"  [{TOWER_GRAPH_METHOD}] 路径 {len(tower_geo) if tower_geo else 0} 点, "
                       f"耗时 {t_tower_graph:.1f}s；不参与最终选路")

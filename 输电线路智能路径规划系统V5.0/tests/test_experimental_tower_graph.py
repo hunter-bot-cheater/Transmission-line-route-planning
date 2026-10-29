@@ -6,6 +6,7 @@ import pytest
 from transmission_path_planner.experimental_tower_graph import (
     span_clearance_status,
     tower_graph_route,
+    tower_site_proxy_cost_raster,
 )
 
 
@@ -156,6 +157,25 @@ def test_tower_site_cost_and_exclusion_apply_to_nodes_not_span_cells():
     assert all(row != 4 for row, _ in route[1:-1])
     assert any(a[1] < 20 < b[1] or b[1] < 20 < a[1]
                for a, b in zip(route, route[1:]))
+
+
+def test_tower_site_proxy_cost_uses_equivalent_distance_and_preserves_blocked_cells():
+    span_cost = np.array([[1.0, 2.5, np.inf]], dtype=np.float64)
+
+    site_cost = tower_site_proxy_cost_raster(span_cost, 40.0)
+
+    np.testing.assert_allclose(site_cost, [[40.0, 100.0, 0.0]])
+    assert site_cost.dtype == np.float32
+
+
+def test_tower_site_proxy_cost_rejects_negative_or_nonfinite_inputs():
+    for distance in (-1.0, np.inf, np.nan):
+        with pytest.raises(ValueError, match="equivalent_distance_m"):
+            tower_site_proxy_cost_raster(np.ones((1, 1)), distance)
+    with pytest.raises(ValueError, match="span_cost_raster"):
+        tower_site_proxy_cost_raster(np.array([[1.0, -0.1]]), 20.0)
+    with pytest.raises(ValueError, match="span_cost_raster"):
+        tower_site_proxy_cost_raster(np.array([[1.0, np.nan]]), 20.0)
 
 
 def test_tower_graph_returns_no_path_across_a_hard_wall():
