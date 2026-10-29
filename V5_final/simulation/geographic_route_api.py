@@ -66,6 +66,19 @@ def _dem_bounds_wgs84(dem_path: Path) -> dict[str, float]:
     return bounds
 
 
+def _require_supported_planner_dem_crs(dem_path: Path) -> None:
+    import rasterio
+
+    with rasterio.open(dem_path) as dataset:
+        supported_crs = rasterio.crs.CRS.from_epsg(4326)
+        if dataset.crs != supported_crs:
+            current_crs = str(dataset.crs) if dataset.crs is not None else "未声明"
+            raise RuntimeError(
+                "当前真实线路 CLI 仅支持 EPSG:4326 DEM；"
+                f"当前 DEM 坐标系为 {current_crs}，请先重投影"
+            )
+
+
 def _dem_has_valid_taiwan_land_cell(dem_path: Path, land_geometry) -> bool:
     import numpy as np
     import rasterio
@@ -503,9 +516,16 @@ class GeographicRouteJobs:
     def public_status(self) -> dict[str, Any]:
         config = self._config()
         bounds = None
+        dem_crs_supported = False
+        dem_crs_error = None
         land_mask_ready = False
         valid_land_dem_data = False
         if config:
+            try:
+                _require_supported_planner_dem_crs(config["dem"])
+                dem_crs_supported = True
+            except (ImportError, OSError, RuntimeError, ValueError) as error:
+                dem_crs_error = str(error)
             try:
                 bounds = _dem_bounds_wgs84(config["dem"])
             except (ImportError, OSError, RuntimeError, ValueError):
@@ -519,13 +539,13 @@ class GeographicRouteJobs:
                         bounds["west"], bounds["south"], bounds["east"], bounds["north"],
                     )) if bounds else None
                     land_mask_ready = bool(overlap is not None and overlap.area > 0)
-                    if land_mask_ready:
+                    if land_mask_ready and dem_crs_supported:
                         valid_land_dem_data = _dem_has_valid_taiwan_land_cell(
                             config["dem"], land_geometry,
                         )
                 except (ImportError, OSError, RuntimeError, ValueError):
                     pass
-        ready = (config is not None and bounds is not None and land_mask_ready
+        ready = (config is not None and dem_crs_supported and bounds is not None and land_mask_ready
                  and valid_land_dem_data)
         if ready:
             message = "台湾 DEM 与陆域边界已就绪"
@@ -533,6 +553,8 @@ class GeographicRouteJobs:
             message = "真实 DEM 规划未启用；请在服务器配置 pp 内的规划器、DEM 和任务输出目录"
         elif bounds is None:
             message = "无法读取服务器 DEM 覆盖范围；规划未启用"
+        elif not dem_crs_supported:
+            message = dem_crs_error or "DEM 坐标系不受当前规划器支持；请先重投影到 EPSG:4326"
         elif land_mask_ready and not valid_land_dem_data:
             message = "台湾陆域范围内没有有效 DEM 像元；台湾范围规划已禁用"
         else:
@@ -543,10 +565,11 @@ class GeographicRouteJobs:
             "message": message,
             "max_side": config["max_side"] if config else None,
             "dem_bounds_wgs84": bounds,
+            "dem_crs_supported": dem_crs_supported,
             "engineering_feasibility": "not_evaluated",
             "access_token_required": True,
             "data_layers": ({
-                "dem": True, "osm": "osm" in config,
+                "dem": dem_crs_supported, "osm": "osm" in config,
                 "project_constraints": "constraints" in config,
                 "land_mask": land_mask_ready,
                 "official_hazards": "hazards" in config,
@@ -611,6 +634,7 @@ class GeographicRouteJobs:
             raise RuntimeError("未配置台湾陆域边界 GeoJSON，无法进行台湾范围点选")
         lat = _number(payload.get("lat"), "纬度", -90, 90)
         lon = _number(payload.get("lon"), "经度", -180, 180)
+        _require_supported_planner_dem_crs(config["dem"])
         self._validate_dem_point(
             config["dem"], {"lat": str(lat), "lon": str(lon)}, "地图所选位置",
         )
@@ -623,6 +647,7 @@ class GeographicRouteJobs:
             raise RuntimeError("服务器真实 DEM 规划未配置或配置路径不在 /data1/B24041626/pp 内")
         if "land_mask" not in config:
             raise RuntimeError("未配置台湾陆域边界 GeoJSON，台湾范围规划已禁用")
+        _require_supported_planner_dem_crs(config["dem"])
         mode = payload.get("endpoint_mode")
         if mode not in {"verified", "exploratory"}:
             raise ValueError("endpoint_mode 只能是 verified 或 exploratory")

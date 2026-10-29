@@ -32,6 +32,7 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
         land_mask_path = Path("/data1/B24041626/pp/taiwan-land-mask.geojson")
         with patch.object(jobs, "_config", return_value={
                 "dem": dem_path, "land_mask": land_mask_path}), \
+                patch.object(geographic_route_api, "_require_supported_planner_dem_crs"), \
                 patch.object(jobs, "_validate_dem_point") as validate_dem_point, \
                 patch.object(geographic_route_api, "_validate_taiwan_land_point") as validate_land:
             result = jobs.validate_point({"lat": 23.5, "lon": 120.9})
@@ -82,6 +83,7 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
                 "end": {"station_id": "B", "name": "台湾", "lat": 23.5, "lon": 120.9},
             }
             with patch.object(jobs, "_config", return_value=config), \
+                    patch.object(geographic_route_api, "_require_supported_planner_dem_crs"), \
                     patch.object(jobs, "_validate_dem_point"), \
                     patch.object(geographic_route_api, "_TAIWAN_LAND_MASK_SHA256",
                                  hashlib.sha256(land_mask.read_bytes()).hexdigest()):
@@ -94,6 +96,7 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
         jobs = geographic_route_api.GeographicRouteJobs()
         config = {"dem": Path("dem.tif"), "max_side": 4096}
         with patch.object(jobs, "_config", return_value=config), \
+                patch.object(geographic_route_api, "_require_supported_planner_dem_crs"), \
                 patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
                     "west": 120.0, "south": 22.0, "east": 122.0, "north": 25.0,
                 }):
@@ -112,6 +115,7 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
         from shapely.geometry import box
 
         with patch.object(jobs, "_config", return_value=config), \
+                patch.object(geographic_route_api, "_require_supported_planner_dem_crs"), \
                 patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
                     "west": 120.0, "south": 22.0, "east": 122.0, "north": 25.0,
                 }), \
@@ -125,6 +129,7 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
         self.assertTrue(status["data_layers"]["land_mask"])
 
         with patch.object(jobs, "_config", return_value=config), \
+                patch.object(geographic_route_api, "_require_supported_planner_dem_crs"), \
                 patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
                     "west": 120.0, "south": 22.0, "east": 122.0, "north": 25.0,
                 }), \
@@ -136,6 +141,7 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
         self.assertFalse(disjoint_status["data_layers"]["land_mask"])
 
         with patch.object(jobs, "_config", return_value=config), \
+                patch.object(geographic_route_api, "_require_supported_planner_dem_crs"), \
                 patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
                     "west": 120.8, "south": 22.0, "east": 121.2, "north": 25.0,
                 }), \
@@ -145,6 +151,67 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
 
         self.assertFalse(touching_status["ready"])
         self.assertFalse(touching_status["data_layers"]["land_mask"])
+
+    def test_public_status_rejects_projected_dem_even_when_land_checks_pass(self):
+        import numpy as np
+        import rasterio
+        from rasterio.transform import from_origin
+        from shapely.geometry import box
+
+        jobs = geographic_route_api.GeographicRouteJobs()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dem_path = Path(temp_dir) / "projected-dem.tif"
+            with rasterio.open(
+                    dem_path, "w", driver="GTiff", width=2, height=2, count=1,
+                    dtype="float32", crs="EPSG:3826",
+                    transform=from_origin(250000, 2800000, 20, 20)) as dataset:
+                dataset.write(np.ones((2, 2), dtype=np.float32), 1)
+            config = {
+                "dem": dem_path, "land_mask": Path("land-mask.geojson"),
+                "max_side": 4096,
+            }
+            with patch.object(jobs, "_config", return_value=config), \
+                    patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
+                        "west": 120.0, "south": 22.0, "east": 122.0, "north": 25.0,
+                    }), \
+                    patch.object(geographic_route_api, "_taiwan_land_geometry",
+                                 return_value=box(120.0, 22.0, 122.0, 25.0)), \
+                    patch.object(geographic_route_api, "_dem_has_valid_taiwan_land_cell",
+                                 return_value=True) as check_valid_cell:
+                status = jobs.public_status()
+
+        self.assertFalse(status["ready"])
+        self.assertFalse(status["dem_crs_supported"])
+        self.assertFalse(status["data_layers"]["dem"])
+        self.assertIn("EPSG:4326", status["message"])
+        check_valid_cell.assert_not_called()
+
+    def test_projected_dem_is_rejected_before_point_validation_or_job_creation(self):
+        import numpy as np
+        import rasterio
+        from rasterio.transform import from_origin
+
+        jobs = geographic_route_api.GeographicRouteJobs()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            dem_path = root / "projected-dem.tif"
+            with rasterio.open(
+                    dem_path, "w", driver="GTiff", width=2, height=2, count=1,
+                    dtype="float32", crs="EPSG:3826",
+                    transform=from_origin(250000, 2800000, 20, 20)) as dataset:
+                dataset.write(np.ones((2, 2), dtype=np.float32), 1)
+            config = {
+                "dem": dem_path, "land_mask": root / "land-mask.geojson",
+                "job_root": root / "jobs", "access_token": "x" * 32,
+                "max_side": 4096,
+            }
+            with patch.object(jobs, "_config", return_value=config):
+                with self.assertRaisesRegex(RuntimeError, "仅支持 EPSG:4326"):
+                    jobs.validate_point({"lat": 23.5, "lon": 120.9})
+                with self.assertRaisesRegex(RuntimeError, "仅支持 EPSG:4326"):
+                    jobs.submit({})
+
+            self.assertFalse(config["job_root"].exists())
 
     def test_public_status_requires_a_valid_dem_pixel_inside_taiwan_land(self):
         import numpy as np
