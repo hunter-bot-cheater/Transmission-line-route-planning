@@ -46,6 +46,12 @@ SHARED_SEARCH_ROUTE_TAGS = {
 }
 
 
+def route_comparison_title(case_name, reference_line_loaded):
+    title = ("规划路线与参考线路对比"
+             if reference_line_loaded else "规划路线图")
+    return f"{title} - {case_name}"
+
+
 def _select_final_route(methods, case_metrics, select_tower_graph=False):
     if select_tower_graph:
         metrics = case_metrics.get(TOWER_GRAPH_METHOD, {})
@@ -2499,13 +2505,14 @@ def main():
                         json.dump(pareto_manifest, _pf, ensure_ascii=False, indent=2)
             except Exception as exc:
                 raise RuntimeError(f"最终路线必需文件写出失败: {exc}") from exc
-            # 逐走廊绘制规划路线与参考线对比图并导出矢量。
+            # 逐走廊绘制路线图；仅在有参考线时标为对比图。
             safe = route_output_name(cname)
             cdir = OUT / safe
             cdir.mkdir(parents=True, exist_ok=True)
             plot_comparison(dem, transform, methods, start_ll, end_ll,
                             cdir / f"path_comparison_{safe}.png",
-                            title=f"规划路线与参考线路对比 - {cname}", real_ll=real_geo,
+                            title=route_comparison_title(cname, bool(real_geo)),
+                            real_ll=real_geo,
                             hazard_masks=official_hazard_masks)
             if args.experimental_sampled_pareto:
                 sampled_methods = {
@@ -2589,7 +2596,8 @@ def main():
                 main_done = True
                 try:
                     plot_comparison(dem, transform, methods, start_ll, end_ll,
-                                    OUT / "path_comparison.png", title=f"规划路线与参考线路对比 - {cname}",
+                                    OUT / "path_comparison.png",
+                                    title=route_comparison_title(cname, bool(real_geo)),
                                     real_ll=real_geo, hazard_masks=official_hazard_masks)
                 except Exception as _pe:
                     print(f"[WARN] 主对比图绘制失败(跳过, 不影响本走廊其余产出): {_pe}")

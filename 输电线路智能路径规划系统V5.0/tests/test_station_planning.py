@@ -23,6 +23,7 @@ from transmission_path_planner.cli import (
     validate_route_hard_constraints,
     validate_tower_span_lengths,
     tower_site_hazard_exposure_diagnostic,
+    route_comparison_title,
 )
 from transmission_path_planner.geometry import pixel_spacing_meters, rowcol_to_geo
 from transmission_path_planner.methods import _astar_parent_index_dtype, astar_search
@@ -54,6 +55,12 @@ class StationPlanningTests(unittest.TestCase):
             writer.writerow(headers)
             writer.writerows(rows)
         return path
+
+    def test_route_map_title_only_claims_reference_comparison_when_loaded(self):
+        self.assertEqual(route_comparison_title("case-a", False), "规划路线图 - case-a")
+        self.assertEqual(
+            route_comparison_title("case-a", True),
+            "规划路线与参考线路对比 - case-a")
 
     def test_tower_masks_allow_steep_spans_but_not_steep_sites(self):
         dem = np.zeros((5, 5), dtype=np.float64)
