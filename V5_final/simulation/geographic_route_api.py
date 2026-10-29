@@ -66,6 +66,45 @@ def _dem_bounds_wgs84(dem_path: Path) -> dict[str, float]:
     return bounds
 
 
+def _dem_has_valid_taiwan_land_cell(dem_path: Path, land_geometry) -> bool:
+    import numpy as np
+    import rasterio
+    from rasterio.errors import RasterioError, WindowError
+    from rasterio.features import geometry_mask, geometry_window
+    from rasterio.warp import transform_geom
+    from rasterio.windows import Window
+    from shapely.geometry import mapping
+
+    with rasterio.open(dem_path) as dataset:
+        if dataset.crs is None:
+            raise RuntimeError("服务器 DEM 未声明坐标系，无法检查台湾陆域有效像元")
+        try:
+            geometry = transform_geom(
+                "EPSG:4326", dataset.crs, mapping(land_geometry), precision=-1,
+            )
+        except RasterioError as error:
+            raise RuntimeError("无法将台湾陆域边界投影到 DEM 坐标系") from error
+        try:
+            window = geometry_window(dataset, [geometry])
+        except WindowError:
+            return False
+        width = int(window.width)
+        first_row = int(window.row_off)
+        last_row = first_row + int(window.height)
+        for row in range(first_row, last_row, 256):
+            height = min(256, last_row - row)
+            chunk = Window(window.col_off, row, window.width, height)
+            elevations = dataset.read(1, window=chunk)
+            valid = (dataset.read_masks(1, window=chunk) > 0) & np.isfinite(elevations)
+            land = geometry_mask(
+                [geometry], out_shape=(height, width),
+                transform=dataset.window_transform(chunk), invert=True,
+            )
+            if np.any(valid & land):
+                return True
+    return False
+
+
 @lru_cache(maxsize=4)
 def _load_taiwan_land_geometry_cached(
         path_text: str, content_sha256: str):
@@ -465,6 +504,7 @@ class GeographicRouteJobs:
         config = self._config()
         bounds = None
         land_mask_ready = False
+        valid_land_dem_data = False
         if config:
             try:
                 bounds = _dem_bounds_wgs84(config["dem"])
@@ -479,15 +519,22 @@ class GeographicRouteJobs:
                         bounds["west"], bounds["south"], bounds["east"], bounds["north"],
                     )) if bounds else None
                     land_mask_ready = bool(overlap is not None and overlap.area > 0)
+                    if land_mask_ready:
+                        valid_land_dem_data = _dem_has_valid_taiwan_land_cell(
+                            config["dem"], land_geometry,
+                        )
                 except (ImportError, OSError, RuntimeError, ValueError):
                     pass
-        ready = config is not None and bounds is not None and land_mask_ready
+        ready = (config is not None and bounds is not None and land_mask_ready
+                 and valid_land_dem_data)
         if ready:
             message = "台湾 DEM 与陆域边界已就绪"
         elif config is None:
             message = "真实 DEM 规划未启用；请在服务器配置 pp 内的规划器、DEM 和任务输出目录"
         elif bounds is None:
             message = "无法读取服务器 DEM 覆盖范围；规划未启用"
+        elif land_mask_ready and not valid_land_dem_data:
+            message = "台湾陆域范围内没有有效 DEM 像元；台湾范围规划已禁用"
         else:
             message = "台湾陆域边界 GeoJSON 未配置、版本未核验或与 DEM 不相交；台湾范围规划已禁用"
         return {

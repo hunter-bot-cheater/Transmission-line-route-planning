@@ -116,7 +116,9 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
                     "west": 120.0, "south": 22.0, "east": 122.0, "north": 25.0,
                 }), \
                 patch.object(geographic_route_api, "_taiwan_land_geometry",
-                             return_value=box(120.0, 22.0, 122.0, 25.0)):
+                             return_value=box(120.0, 22.0, 122.0, 25.0)), \
+                patch.object(geographic_route_api, "_dem_has_valid_taiwan_land_cell",
+                             return_value=True):
             status = jobs.public_status()
 
         self.assertTrue(status["ready"])
@@ -143,6 +145,50 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
 
         self.assertFalse(touching_status["ready"])
         self.assertFalse(touching_status["data_layers"]["land_mask"])
+
+    def test_public_status_requires_a_valid_dem_pixel_inside_taiwan_land(self):
+        import numpy as np
+        import rasterio
+        from rasterio.transform import from_origin
+        from shapely.geometry import box
+
+        jobs = geographic_route_api.GeographicRouteJobs()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dem_path = Path(temp_dir) / "dem.tif"
+            nodata = -9999.0
+            with rasterio.open(
+                    dem_path, "w", driver="GTiff", width=2, height=2, count=1,
+                    dtype="float32", crs="EPSG:4326", transform=from_origin(120, 25, 1, 1),
+                    nodata=nodata) as dataset:
+                dataset.write(np.array([[nodata, 1.0], [2.0, 3.0]], dtype=np.float32), 1)
+            config = {
+                "dem": dem_path, "land_mask": Path("land-mask.geojson"),
+                "max_side": 4096,
+            }
+            land_geometry = box(120.1, 24.1, 120.9, 24.9)
+            with patch.object(jobs, "_config", return_value=config), \
+                    patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
+                        "west": 120.0, "south": 23.0, "east": 122.0, "north": 25.0,
+                    }), \
+                    patch.object(geographic_route_api, "_taiwan_land_geometry",
+                                 return_value=land_geometry):
+                nodata_status = jobs.public_status()
+
+            self.assertFalse(nodata_status["ready"])
+            self.assertTrue(nodata_status["data_layers"]["land_mask"])
+            self.assertIn("没有有效 DEM 像元", nodata_status["message"])
+
+            with rasterio.open(dem_path, "r+") as dataset:
+                dataset.write(np.array([[123.0, nodata], [nodata, nodata]], dtype=np.float32), 1)
+            with patch.object(jobs, "_config", return_value=config), \
+                    patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
+                        "west": 120.0, "south": 23.0, "east": 122.0, "north": 25.0,
+                    }), \
+                    patch.object(geographic_route_api, "_taiwan_land_geometry",
+                                 return_value=land_geometry):
+                valid_status = jobs.public_status()
+
+            self.assertTrue(valid_status["ready"])
 
     def test_point_validation_requires_planner_configuration(self):
         jobs = server.GEOGRAPHIC_ROUTE_JOBS
