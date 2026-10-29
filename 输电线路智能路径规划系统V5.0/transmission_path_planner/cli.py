@@ -24,6 +24,7 @@ from .experimental_theta_star import (
 from .experimental_tower_graph import (
     span_clearance_status,
     tower_graph_route,
+    tower_graph_path_objective,
     tower_site_proxy_cost_raster,
 )
 from .experimental_astar_16 import (
@@ -1788,6 +1789,11 @@ def main():
                         goal_position_rc=goal_tower_position_rc,
                         **tower_profile_args,
                     )
+                tower_search_objective = tower_graph_path_objective(
+                    tower_path, tower_span_cost_grid,
+                    pixel_spacing=route_pixel_spacing,
+                    tower_cost_raster=tower_site_cost,
+                    turn_penalty_weight=args.search_turn_penalty_weight)
                 tower_site_hazard_exposure = tower_site_hazard_exposure_diagnostic(
                     tower_path, official_hazard_masks, official_hazard_metadata,
                     route_pixel_spacing, args.tower_site_pad_radius_m,
@@ -1824,6 +1830,7 @@ def main():
                 t_tower_graph = time.time() - started
                 experimental_tower_graph_results = {
                     "path": tower_path,
+                    "search_objective": tower_search_objective,
                     "time_s": t_tower_graph,
                     "span_min_m": args.tower_min_span_m,
                     "span_max_m": args.tower_max_span_m,
@@ -2028,18 +2035,28 @@ def main():
                     if m == TOWER_GRAPH_METHOD and experimental_tower_graph_results:
                         met["search_objective_model"] = "candidate_tower_graph_screening"
                         met["search_path_objective"] = {
-                            "status": ("measured" if geo else
-                                       "rejected_after_search" if experimental_tower_graph_results["path"]
-                                       else "no_path"),
-                            "unit": "cost_meter_plus_turn_penalty",
+                            "status": ("measured" if experimental_tower_graph_results[
+                                "search_objective"] else "no_path"),
+                            "unit": "cost_meter",
+                            "search_geometry_scope": (
+                                "raw_tower_graph_path_before_endpoint_restoration"),
+                            "objective_components": experimental_tower_graph_results[
+                                "search_objective"],
                             "tower_graph_parameters": {
                                 key: value for key, value in experimental_tower_graph_results.items()
-                                if key not in ("path", "time_s")
+                                if key not in ("path", "search_objective", "time_s")
                             },
                             "objective_scope": (
-                                "screening only; zero tower-site cost; optional parabolic DEM clearance "
-                                "is not conductor or load-case certification"),
+                                "screening only; tower-site cost is an uncalibrated proxy; "
+                                "optional parabolic DEM clearance is not conductor or "
+                                "load-case certification"
+                                if args.tower_site_cost_equivalent_distance_m > 0.0 else
+                                "screening only; zero tower-site cost; optional parabolic DEM "
+                                "clearance is not conductor or load-case certification"),
                         }
+                        met["post_search_route_geometry_scope"] = (
+                            "post-endpoint-restoration candidate geometry; validation outcome is reported separately"
+                            if geo else "not_available_no_route_geometry")
                         met["candidate_validation_status"] = _candidate_validation_status(
                             experimental_tower_graph_results["path"], geo)
                     if not station_task:

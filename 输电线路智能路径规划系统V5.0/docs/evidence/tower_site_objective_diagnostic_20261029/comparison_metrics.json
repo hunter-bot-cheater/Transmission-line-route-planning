@@ -1,0 +1,1664 @@
+[
+  {
+    "case": "SHENMEI_DONGSHAN_EXPLORATORY",
+    "metrics": {
+      "A*(baseline)": {
+        "length_km": 46.655,
+        "cum_relief_m": 7296.0,
+        "net_relief_m": 34.4,
+        "start_dem_elevation_m": 43.5,
+        "end_dem_elevation_m": 77.9,
+        "endpoint_dem_elevation_delta_m": 34.4,
+        "route_min_elevation_m": 5.6,
+        "route_max_elevation_m": 1116.7,
+        "cumulative_ascent_m": 3665.2,
+        "cumulative_descent_m": 3630.8,
+        "max_sampled_ground_grade_pct": 149.86,
+        "dem_sample_count": 2197,
+        "dem_valid_sample_count": 2197,
+        "dem_sample_coverage_ratio": 1.0,
+        "mean_cost": 4.7061,
+        "path_cost_integral": {
+          "status": "measured",
+          "base_cost_meter": 219932.313,
+          "grade_cost_meter": 0.0,
+          "turn_cost_meter": 0.0,
+          "total_cost_meter": 219932.313,
+          "base_cost_method": "piecewise_constant_grid_cell_exact",
+          "grade_cost_method": "one_pixel_sampled_segment_estimate",
+          "turn_cost_method": "disabled"
+        },
+        "sinuosity": 1.143,
+        "hard_violations": 0,
+        "n_points": 2067,
+        "weight_independent_exposure": {
+          "status": "measured",
+          "route_cell_count": 2623,
+          "fraction_denominator": "all_touched_route_cells; approximate, not length weighted",
+          "surface_slope_deg": {
+            "mean": 11.989996989402497,
+            "p90": 29.138298416137697,
+            "p95": 33.853623199462895,
+            "valid_cell_fraction": 1.0
+          },
+          "roughness_27_m": {
+            "mean": 62.144956712362834,
+            "p90": 109.61182098388676,
+            "p95": 140.2954513549805,
+            "valid_cell_fraction": 1.0
+          },
+          "terrain_factor_support": {
+            "minimum": 1.0,
+            "p05": 1.0,
+            "mean": 1.0,
+            "full_support_route_length_fraction": 0.9999999999999816,
+            "valid_route_length_fraction": 1.0000000000000102,
+            "route_length_m": 46655.37715467248,
+            "max_sample_spacing_m": 9.87999408423502,
+            "sampling_method": "haversine_length_weighted_midpoints_max_half_pixel_spacing",
+            "minimum_window_edge_clearance_m": 28316.05927675569,
+            "route_length_within_900m_of_window_edge_fraction": 0.0,
+            "window_edge_clearance_note": "approximate pixel-axis distance; 900 m matches the widest terrain neighborhood",
+            "missing_or_outside_support_treated_as": 0.0
+          },
+          "mapped_osm_layer_status": {
+            "buildings": "available",
+            "landuse": "available"
+          },
+          "mapped_osm_coverage_status": {
+            "buildings": "features_observed",
+            "landuse": "features_observed"
+          },
+          "mapped_osm_exposure_scope": "mapped-feature inventory only; coverage completeness is unverified unless each layer reports complete",
+          "hazard_coverage_status": "complete",
+          "mapped_building_density_mean": 0.005704772658646107,
+          "mapped_residential_landuse_cell_fraction": 0.0,
+          "mapped_forest_wetland_cell_fraction": 0.0,
+          "mapped_settlement_proxy_mean": 0.005704772658646107,
+          "mapped_osm_metric_status": {
+            "building_density": "mapped_features_only",
+            "landuse": "mapped_features_only",
+            "residential_landuse": "mapped_features_only"
+          },
+          "hazard_layer_coverage_status": {
+            "debris_flow_impact": "complete",
+            "landslide_potential": "complete",
+            "landslide_impact": "complete"
+          },
+          "hazard_positive_route_cell_counts_scope": "observed positive cells in loaded masks only; incomplete coverage may omit cells",
+          "hazard_observed_positive_route_cell_counts": {
+            "debris_flow_impact": 0,
+            "landslide_potential": 0,
+            "landslide_impact": 0
+          },
+          "hazard_cell_fractions": {
+            "debris_flow_impact": 0.0,
+            "landslide_potential": 0.0,
+            "landslide_impact": 0.0
+          }
+        },
+        "custom_constraint_route_exposure": {
+          "status": "measured",
+          "route_cell_count": 2623,
+          "soft_affected_route_cell_count": 0,
+          "soft_affected_route_cell_fraction": 0.0,
+          "summed_soft_weight_cells": 0.0,
+          "fraction_denominator": "all_touched_route_cells; approximate, not length weighted"
+        },
+        "population_data_coverage": {
+          "status": "incomplete_unknown_population_cells",
+          "route_cell_count": 2623,
+          "unknown_route_cell_count": 806,
+          "coverage_ratio": 0.6927182615325962,
+          "cell_fraction_is_approximate": true
+        },
+        "search_window_margin_deg": 0.3,
+        "search_window_edge_clearance_m": 28316.06,
+        "search_turn_penalty_weight": 0.0,
+        "smoothing_turn_penalty_weight": 0.0,
+        "astar_search_path_objective": {
+          "status": "measured",
+          "unit": "cost_meter",
+          "base_cost": 219953.468553,
+          "grade_cost": 0.0,
+          "turn_cost": 0.0,
+          "total_cost": 219953.468553
+        },
+        "astar_raw_vs_post_cost_diagnostics": {
+          "raw_at_search_weight": {
+            "status": "measured",
+            "base_cost_meter": 219953.469,
+            "grade_cost_meter": 0.0,
+            "turn_cost_meter": 0.0,
+            "total_cost_meter": 219953.469,
+            "base_cost_method": "piecewise_constant_grid_cell_exact",
+            "grade_cost_method": "one_pixel_sampled_segment_estimate",
+            "turn_cost_method": "disabled"
+          },
+          "post_at_search_weight": {
+            "status": "measured",
+            "base_cost_meter": 219932.313,
+            "grade_cost_meter": 0.0,
+            "turn_cost_meter": 0.0,
+            "total_cost_meter": 219932.313,
+            "base_cost_method": "piecewise_constant_grid_cell_exact",
+            "grade_cost_method": "one_pixel_sampled_segment_estimate",
+            "turn_cost_method": "disabled"
+          },
+          "raw_at_smoothing_weight": {
+            "status": "measured",
+            "base_cost_meter": 219953.469,
+            "grade_cost_meter": 0.0,
+            "turn_cost_meter": 0.0,
+            "total_cost_meter": 219953.469,
+            "base_cost_method": "piecewise_constant_grid_cell_exact",
+            "grade_cost_method": "one_pixel_sampled_segment_estimate",
+            "turn_cost_method": "disabled"
+          },
+          "post_at_smoothing_weight": {
+            "status": "measured",
+            "base_cost_meter": 219932.313,
+            "grade_cost_meter": 0.0,
+            "turn_cost_meter": 0.0,
+            "total_cost_meter": 219932.313,
+            "base_cost_method": "piecewise_constant_grid_cell_exact",
+            "grade_cost_method": "one_pixel_sampled_segment_estimate",
+            "turn_cost_method": "disabled"
+          },
+          "post_minus_raw_at_search_weight_meter": -21.15600000001723,
+          "post_minus_raw_at_smoothing_weight_meter": -21.15600000001723
+        },
+        "astar_heuristic_weight": 1.0,
+        "ridge_penalty_weight": 0.1,
+        "landcover_penalty_weight": 0.0,
+        "official_hazard_weight": 1.0,
+        "time_s": 127.43,
+        "grade_limit_status": "not_configured",
+        "grade_limit_violation_count": 0,
+        "grade_limit_unassessed_count": 0,
+        "grade_limit_max_sampled_grade_ratio": null,
+        "grade_limit_threshold_ratio": null,
+        "hard_constraint_status": "pass",
+        "hard_constraint_validation_scope": "loaded_raster_masks_only",
+        "hard_constraint_completeness_status": "not_independently_verified",
+        "building_geometry_status": "pass",
+        "building_geometry_intersections": 0,
+        "building_geometry_repaired_features": 0,
+        "endpoint_rasterization_exceptions": [
+          {
+            "label": "起点",
+            "row": 1650,
+            "col": 1530,
+            "point_xy": [
+              121.62447,
+              25.00267
+            ]
+          }
+        ],
+        "building_geometry_coverage_status": "features_observed",
+        "building_geometry_coverage_reason": null,
+        "building_geometry_check_scope": "loaded_osm_features_only",
+        "building_geometry_source_repair_count": 5,
+        "building_geometry_skipped_nonfinite_count": 0,
+        "from_station_to_grid_center_offset_m": 7.23,
+        "to_station_to_grid_center_offset_m": 11.97,
+        "route_id": "SHENMEI_DONGSHAN_EXPLORATORY",
+        "from_station_id": "SHENMEI",
+        "from_station_name": "深美超高壓變電所（OSM站區位置）",
+        "from_station_type": null,
+        "from_station_source": "OpenStreetMap way 135638663 via Mapcarta",
+        "from_station_verified": null,
+        "to_station_id": "DONGSHAN",
+        "to_station_name": "冬山超高壓變電所（OSM站區位置）",
+        "to_station_type": null,
+        "to_station_source": "OpenStreetMap way 135762164 via Mapcarta",
+        "to_station_verified": null,
+        "station_endpoint_qualification": "exploratory_only_unverified_endpoints",
+        "station_endpoint_reference_independence": "not_established",
+        "from_station_point_role": "station_centroid",
+        "from_station_verification_status": "unverified",
+        "from_station_reference_independence": "unknown",
+        "from_station_verification_reference": "https://mapcarta.com/W135638663",
+        "to_station_point_role": "station_centroid",
+        "to_station_verification_status": "unverified",
+        "to_station_reference_independence": "unknown",
+        "to_station_verification_reference": "https://mapcarta.com/W135762164",
+        "voltage_kv": null,
+        "from_station_coordinate_crs": "EPSG:4326",
+        "to_station_coordinate_crs": "EPSG:4326",
+        "from_station_ground_elevation_m": null,
+        "from_station_ground_elevation_source": null,
+        "from_station_vertical_datum": null,
+        "to_station_ground_elevation_m": null,
+        "to_station_ground_elevation_source": null,
+        "to_station_vertical_datum": null,
+        "station_ground_elevation_status": "dem_only",
+        "station_ground_elevation_delta_m": null,
+        "settlement_weight": 2.0,
+        "building_clearance_m": 0.0,
+        "grade_penalty_weight": 0.0,
+        "terrain_slope_weight": 0.75,
+        "roughness_weight": 0.25,
+        "population_weight": 1.0,
+        "population_layer": {
+          "status": "partial",
+          "source_path": "/data1/B24041626/pp/terrain_worldpop_sensitivity_4096_20261028/inputs/twn_pop_2025_CN_100m_R2025A_v1.tif",
+          "source_crs": "EPSG:4326",
+          "source_pixel_size_degrees": [
+            0.00083333333,
+            0.00083333333
+          ],
+          "source_nodata": -99999.0,
+          "source_value_unit": "people_per_cell",
+          "aligned_value_unit": "people_per_km2",
+          "source_metadata": {
+            "provider": "WorldPop",
+            "asset_provider": null,
+            "dataset_title": "TWN population 2025 [WorldPop R2025A v1]",
+            "document_name": "twn_pop_2025_CN_100m_R2025A_v1",
+            "copyright_tag": "CC-BY-4.0",
+            "license_id": "CC-BY-4.0",
+            "license_url": "https://creativecommons.org/licenses/by/4.0/",
+            "release": null,
+            "version": null,
+            "year": null,
+            "attribution": "WorldPop; dataset title: TWN population 2025 [WorldPop R2025A v1]",
+            "doi": null,
+            "metadata_file": null,
+            "metadata_basis": "embedded GeoTIFF tags and source filename"
+          },
+          "resampling": "area_weighted_average_on_density",
+          "required_dem_cell_count": 13037263,
+          "valid_required_cell_count": 4486757,
+          "missing_required_cell_count": 8550506,
+          "coverage_ratio": 0.3441486913319153,
+          "nodata_policy": "preserve_as_nan_for_explicit_unknown_policy",
+          "normalization_scale_people_per_km2": 10000.0,
+          "weight": 1.0,
+          "source_value_semantics": "modelled people per source cell; not point locations",
+          "cost_semantics": "log1p(population_density_people_per_km2) / log1p(normalization_scale), clipped to [0, 1]",
+          "nodata_cost_policy": "fixed maximum normalized proxy penalty (1.0); not a population estimate"
+        },
+        "max_ground_grade_ratio": null,
+        "max_surface_slope_deg": null,
+        "max_surface_slope_scope": "candidate_tower_sites_only",
+        "max_terrain_elevation_m": null,
+        "route_constraints_limitations": "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area layer, conductor clearance, tower siting or span feasibility checked"
+      },
+      "Tower graph (experimental)": {
+        "length_km": 44.096,
+        "cum_relief_m": 8182.4,
+        "net_relief_m": 34.4,
+        "start_dem_elevation_m": 43.5,
+        "end_dem_elevation_m": 77.9,
+        "endpoint_dem_elevation_delta_m": 34.4,
+        "route_min_elevation_m": 4.7,
+        "route_max_elevation_m": 1131.1,
+        "cumulative_ascent_m": 4108.4,
+        "cumulative_descent_m": 4074.0,
+        "max_sampled_ground_grade_pct": 211.38,
+        "dem_sample_count": 2051,
+        "dem_valid_sample_count": 2051,
+        "dem_sample_coverage_ratio": 1.0,
+        "mean_cost": 4.9467,
+        "path_cost_integral": {
+          "status": "measured",
+          "base_cost_meter": 218776.349,
+          "grade_cost_meter": 0.0,
+          "turn_cost_meter": 0.0,
+          "total_cost_meter": 218776.349,
+          "base_cost_method": "piecewise_constant_grid_cell_exact",
+          "grade_cost_method": "one_pixel_sampled_segment_estimate",
+          "turn_cost_method": "disabled"
+        },
+        "sinuosity": 1.08,
+        "hard_violations": 0,
+        "n_points": 111,
+        "weight_independent_exposure": {
+          "status": "measured",
+          "route_cell_count": 2650,
+          "fraction_denominator": "all_touched_route_cells; approximate, not length weighted",
+          "surface_slope_deg": {
+            "mean": 13.665578910826863,
+            "p90": 31.901947593688963,
+            "p95": 35.77655239105224,
+            "valid_cell_fraction": 1.0
+          },
+          "roughness_27_m": {
+            "mean": 64.03147291246451,
+            "p90": 112.69414978027339,
+            "p95": 140.32977294921875,
+            "valid_cell_fraction": 1.0
+          },
+          "terrain_factor_support": {
+            "minimum": 1.0,
+            "p05": 1.0,
+            "mean": 1.0,
+            "full_support_route_length_fraction": 0.9999999999999996,
+            "valid_route_length_fraction": 1.00000000000003,
+            "route_length_m": 44095.72461796462,
+            "max_sample_spacing_m": 9.88244955600724,
+            "sampling_method": "haversine_length_weighted_midpoints_max_half_pixel_spacing",
+            "minimum_window_edge_clearance_m": 28569.390561767792,
+            "route_length_within_900m_of_window_edge_fraction": 0.0,
+            "window_edge_clearance_note": "approximate pixel-axis distance; 900 m matches the widest terrain neighborhood",
+            "missing_or_outside_support_treated_as": 0.0
+          },
+          "mapped_osm_layer_status": {
+            "buildings": "available",
+            "landuse": "available"
+          },
+          "mapped_osm_coverage_status": {
+            "buildings": "features_observed",
+            "landuse": "features_observed"
+          },
+          "mapped_osm_exposure_scope": "mapped-feature inventory only; coverage completeness is unverified unless each layer reports complete",
+          "hazard_coverage_status": "complete",
+          "mapped_building_density_mean": 0.0059187933802604675,
+          "mapped_residential_landuse_cell_fraction": 0.0,
+          "mapped_forest_wetland_cell_fraction": 0.0037735849056603774,
+          "mapped_settlement_proxy_mean": 0.0059187933802604675,
+          "mapped_osm_metric_status": {
+            "building_density": "mapped_features_only",
+            "landuse": "mapped_features_only",
+            "residential_landuse": "mapped_features_only"
+          },
+          "hazard_layer_coverage_status": {
+            "debris_flow_impact": "complete",
+            "landslide_potential": "complete",
+            "landslide_impact": "complete"
+          },
+          "hazard_positive_route_cell_counts_scope": "observed positive cells in loaded masks only; incomplete coverage may omit cells",
+          "hazard_observed_positive_route_cell_counts": {
+            "debris_flow_impact": 0,
+            "landslide_potential": 0,
+            "landslide_impact": 0
+          },
+          "hazard_cell_fractions": {
+            "debris_flow_impact": 0.0,
+            "landslide_potential": 0.0,
+            "landslide_impact": 0.0
+          }
+        },
+        "custom_constraint_route_exposure": {
+          "status": "measured",
+          "route_cell_count": 2650,
+          "soft_affected_route_cell_count": 0,
+          "soft_affected_route_cell_fraction": 0.0,
+          "summed_soft_weight_cells": 0.0,
+          "fraction_denominator": "all_touched_route_cells; approximate, not length weighted"
+        },
+        "population_data_coverage": {
+          "status": "incomplete_unknown_population_cells",
+          "route_cell_count": 2650,
+          "unknown_route_cell_count": 852,
+          "coverage_ratio": 0.6784905660377358,
+          "cell_fraction_is_approximate": true
+        },
+        "search_window_margin_deg": 0.3,
+        "search_window_edge_clearance_m": 28573.21,
+        "time_s": 1133.83,
+        "search_objective_model": "candidate_tower_graph_screening",
+        "search_path_objective": {
+          "status": "measured",
+          "unit": "cost_meter",
+          "search_geometry_scope": "raw_tower_graph_path_before_endpoint_restoration",
+          "objective_components": {
+            "status": "measured",
+            "unit": "cost_meter",
+            "span_count": 110,
+            "selected_intermediate_tower_site_count": 109,
+            "span_cost_meter": 218776.3492361648,
+            "tower_site_cost_meter": 9924.4475440979,
+            "turn_penalty_cost_meter": 0.0,
+            "total_cost_meter": 228700.7967802627
+          },
+          "tower_graph_parameters": {
+            "span_min_m": 0.0,
+            "span_max_m": 500.0,
+            "candidate_stride": 4,
+            "turn_penalty_weight": 0.0,
+            "tower_site_max_surface_slope_deg": null,
+            "tower_site_slope_status": "not_evaluated",
+            "tower_site_pad_radius_m": null,
+            "tower_site_pad_status": "not_configured",
+            "tower_site_slope_scope": "intermediate_tower_candidate_pixels_only",
+            "selected_intermediate_tower_site_count": 109,
+            "tower_site_hazard_exposure": {
+              "status": "unknown_coverage",
+              "scope": "intermediate_tower_site_pad_footprints_only",
+              "pad_radius_m": null,
+              "pad_footprint_status": "center_cell_only_pad_not_configured",
+              "intermediate_site_count": 109,
+              "layers": {
+                "debris_flow_impact": {
+                  "status": "center_cell_only_pad_not_configured",
+                  "coverage_status": "complete",
+                  "mask_available": true,
+                  "overlap_intermediate_site_count": 0,
+                  "overlap_pad_cell_count_across_sites": 0,
+                  "pads_not_fully_inside_raster_grid": 0
+                },
+                "landslide_impact": {
+                  "status": "center_cell_only_pad_not_configured",
+                  "coverage_status": "complete",
+                  "mask_available": true,
+                  "overlap_intermediate_site_count": 0,
+                  "overlap_pad_cell_count_across_sites": 0,
+                  "pads_not_fully_inside_raster_grid": 0
+                },
+                "landslide_potential": {
+                  "status": "center_cell_only_pad_not_configured",
+                  "coverage_status": "complete",
+                  "mask_available": true,
+                  "overlap_intermediate_site_count": 0,
+                  "overlap_pad_cell_count_across_sites": 0,
+                  "pads_not_fully_inside_raster_grid": 0
+                }
+              },
+              "selection_effect": "none_diagnostic_only"
+            },
+            "station_terminal_slope_status": "not_evaluated_existing_station_endpoints",
+            "clearance_profile_screening": false,
+            "clearance_profile_status": "not_requested",
+            "clearance_profile_spans": [],
+            "dem_vertical_datum": null,
+            "tower_site_cost_equivalent_distance_m": 20.0,
+            "site_cost_model": "local_span_cost_times_equivalent_distance_unvalidated_proxy"
+          },
+          "objective_scope": "screening only; tower-site cost is an uncalibrated proxy; optional parabolic DEM clearance is not conductor or load-case certification"
+        },
+        "post_search_route_geometry_scope": "post-endpoint-restoration candidate geometry; validation outcome is reported separately",
+        "candidate_validation_status": "site_slope_not_evaluated",
+        "grade_limit_status": "not_applicable_overhead_spans",
+        "grade_limit_assessed": false,
+        "grade_limit_violation_count": null,
+        "grade_limit_unassessed_count": null,
+        "grade_limit_max_sampled_grade_ratio": null,
+        "grade_limit_threshold_ratio": null,
+        "hard_constraint_status": "pass",
+        "hard_constraint_validation_scope": "loaded_raster_masks_only",
+        "hard_constraint_completeness_status": "not_independently_verified",
+        "tower_span_status": "pass",
+        "tower_span_violation_count": 0,
+        "tower_span_lengths_m": [
+          373.95,
+          254.11,
+          399.85,
+          397.77,
+          463.05,
+          338.41,
+          354.72,
+          451.22,
+          399.87,
+          288.63,
+          358.71,
+          286.58,
+          354.75,
+          399.88,
+          286.59,
+          338.44,
+          432.45,
+          358.72,
+          112.82,
+          358.73,
+          463.15,
+          397.85,
+          432.45,
+          331.58,
+          467.18,
+          80.51,
+          489.46,
+          80.51,
+          432.46,
+          410.22,
+          410.22,
+          241.52,
+          402.53,
+          483.03,
+          358.75,
+          489.46,
+          489.46,
+          331.59,
+          432.48,
+          467.23,
+          432.48,
+          410.22,
+          322.02,
+          358.77,
+          489.46,
+          489.46,
+          322.02,
+          402.53,
+          358.78,
+          241.52,
+          489.46,
+          489.47,
+          322.02,
+          432.5,
+          432.5,
+          432.51,
+          467.29,
+          410.23,
+          410.23,
+          489.47,
+          432.52,
+          338.64,
+          432.52,
+          286.84,
+          355.12,
+          241.52,
+          467.32,
+          398.16,
+          288.76,
+          451.56,
+          288.76,
+          451.57,
+          489.47,
+          483.03,
+          489.47,
+          432.54,
+          489.47,
+          489.47,
+          467.36,
+          179.42,
+          322.02,
+          489.48,
+          331.61,
+          432.55,
+          331.61,
+          331.61,
+          489.48,
+          483.03,
+          489.48,
+          410.24,
+          410.24,
+          432.56,
+          483.03,
+          483.03,
+          322.02,
+          402.53,
+          322.02,
+          489.48,
+          483.03,
+          489.48,
+          483.03,
+          483.03,
+          489.48,
+          483.03,
+          489.48,
+          483.03,
+          489.49,
+          489.49,
+          483.03,
+          436.81
+        ],
+        "tower_span_invalid_indices": [],
+        "tower_span_min_m": 0.0,
+        "tower_span_max_m": 500.0,
+        "tower_span_length_method": "haversine_horizontal_distance_after_endpoint_restore",
+        "building_geometry_status": "pass",
+        "building_geometry_intersections": 0,
+        "building_geometry_repaired_features": 0,
+        "endpoint_rasterization_exceptions": [
+          {
+            "label": "起点",
+            "row": 1650,
+            "col": 1530,
+            "point_xy": [
+              121.62447,
+              25.00267
+            ]
+          }
+        ],
+        "building_geometry_coverage_status": "features_observed",
+        "building_geometry_coverage_reason": null,
+        "building_geometry_check_scope": "loaded_osm_features_only",
+        "building_geometry_source_repair_count": 5,
+        "building_geometry_skipped_nonfinite_count": 0,
+        "clearance_profile_screening": false,
+        "clearance_profile_status": "not_requested",
+        "clearance_profile_spans": [],
+        "tower_site_max_surface_slope_deg": null,
+        "tower_site_slope_status": "not_evaluated",
+        "tower_site_slope_scope": "intermediate_tower_candidate_pixels_only",
+        "tower_site_pad_radius_m": null,
+        "tower_site_pad_status": "not_configured",
+        "selected_intermediate_tower_site_count": 109,
+        "station_terminal_slope_status": "not_evaluated_existing_station_endpoints",
+        "tower_site_hazard_exposure": {
+          "status": "unknown_coverage",
+          "scope": "intermediate_tower_site_pad_footprints_only",
+          "pad_radius_m": null,
+          "pad_footprint_status": "center_cell_only_pad_not_configured",
+          "intermediate_site_count": 109,
+          "layers": {
+            "debris_flow_impact": {
+              "status": "center_cell_only_pad_not_configured",
+              "coverage_status": "complete",
+              "mask_available": true,
+              "overlap_intermediate_site_count": 0,
+              "overlap_pad_cell_count_across_sites": 0,
+              "pads_not_fully_inside_raster_grid": 0
+            },
+            "landslide_impact": {
+              "status": "center_cell_only_pad_not_configured",
+              "coverage_status": "complete",
+              "mask_available": true,
+              "overlap_intermediate_site_count": 0,
+              "overlap_pad_cell_count_across_sites": 0,
+              "pads_not_fully_inside_raster_grid": 0
+            },
+            "landslide_potential": {
+              "status": "center_cell_only_pad_not_configured",
+              "coverage_status": "complete",
+              "mask_available": true,
+              "overlap_intermediate_site_count": 0,
+              "overlap_pad_cell_count_across_sites": 0,
+              "pads_not_fully_inside_raster_grid": 0
+            }
+          },
+          "selection_effect": "none_diagnostic_only"
+        },
+        "dem_vertical_datum": null,
+        "from_station_to_grid_center_offset_m": 0.0,
+        "to_station_to_grid_center_offset_m": 0.0,
+        "route_id": "SHENMEI_DONGSHAN_EXPLORATORY",
+        "from_station_id": "SHENMEI",
+        "from_station_name": "深美超高壓變電所（OSM站區位置）",
+        "from_station_type": null,
+        "from_station_source": "OpenStreetMap way 135638663 via Mapcarta",
+        "from_station_verified": null,
+        "to_station_id": "DONGSHAN",
+        "to_station_name": "冬山超高壓變電所（OSM站區位置）",
+        "to_station_type": null,
+        "to_station_source": "OpenStreetMap way 135762164 via Mapcarta",
+        "to_station_verified": null,
+        "station_endpoint_qualification": "exploratory_only_unverified_endpoints",
+        "station_endpoint_reference_independence": "not_established",
+        "from_station_point_role": "station_centroid",
+        "from_station_verification_status": "unverified",
+        "from_station_reference_independence": "unknown",
+        "from_station_verification_reference": "https://mapcarta.com/W135638663",
+        "to_station_point_role": "station_centroid",
+        "to_station_verification_status": "unverified",
+        "to_station_reference_independence": "unknown",
+        "to_station_verification_reference": "https://mapcarta.com/W135762164",
+        "voltage_kv": null,
+        "from_station_coordinate_crs": "EPSG:4326",
+        "to_station_coordinate_crs": "EPSG:4326",
+        "from_station_ground_elevation_m": null,
+        "from_station_ground_elevation_source": null,
+        "from_station_vertical_datum": null,
+        "to_station_ground_elevation_m": null,
+        "to_station_ground_elevation_source": null,
+        "to_station_vertical_datum": null,
+        "station_ground_elevation_status": "dem_only",
+        "station_ground_elevation_delta_m": null,
+        "settlement_weight": 2.0,
+        "ridge_penalty_weight": 0.1,
+        "landcover_penalty_weight": 0.0,
+        "building_clearance_m": 0.0,
+        "grade_penalty_weight": 0.0,
+        "terrain_slope_weight": 0.75,
+        "roughness_weight": 0.25,
+        "population_weight": 1.0,
+        "population_layer": {
+          "status": "partial",
+          "source_path": "/data1/B24041626/pp/terrain_worldpop_sensitivity_4096_20261028/inputs/twn_pop_2025_CN_100m_R2025A_v1.tif",
+          "source_crs": "EPSG:4326",
+          "source_pixel_size_degrees": [
+            0.00083333333,
+            0.00083333333
+          ],
+          "source_nodata": -99999.0,
+          "source_value_unit": "people_per_cell",
+          "aligned_value_unit": "people_per_km2",
+          "source_metadata": {
+            "provider": "WorldPop",
+            "asset_provider": null,
+            "dataset_title": "TWN population 2025 [WorldPop R2025A v1]",
+            "document_name": "twn_pop_2025_CN_100m_R2025A_v1",
+            "copyright_tag": "CC-BY-4.0",
+            "license_id": "CC-BY-4.0",
+            "license_url": "https://creativecommons.org/licenses/by/4.0/",
+            "release": null,
+            "version": null,
+            "year": null,
+            "attribution": "WorldPop; dataset title: TWN population 2025 [WorldPop R2025A v1]",
+            "doi": null,
+            "metadata_file": null,
+            "metadata_basis": "embedded GeoTIFF tags and source filename"
+          },
+          "resampling": "area_weighted_average_on_density",
+          "required_dem_cell_count": 13037263,
+          "valid_required_cell_count": 4486757,
+          "missing_required_cell_count": 8550506,
+          "coverage_ratio": 0.3441486913319153,
+          "nodata_policy": "preserve_as_nan_for_explicit_unknown_policy",
+          "normalization_scale_people_per_km2": 10000.0,
+          "weight": 1.0,
+          "source_value_semantics": "modelled people per source cell; not point locations",
+          "cost_semantics": "log1p(population_density_people_per_km2) / log1p(normalization_scale), clipped to [0, 1]",
+          "nodata_cost_policy": "fixed maximum normalized proxy penalty (1.0); not a population estimate"
+        },
+        "max_ground_grade_ratio": null,
+        "max_surface_slope_deg": null,
+        "max_surface_slope_scope": "candidate_tower_sites_only",
+        "max_terrain_elevation_m": null,
+        "route_constraints_limitations": "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area layer, conductor clearance, tower siting or span feasibility checked"
+      },
+      "最终路线": {
+        "method": "A*(baseline)",
+        "selection_rule": "astar_min_cost_priority",
+        "route_similarity_version": null,
+        "route_similarity": null,
+        "is_ai_method": false,
+        "real_evaluation_status": "not_requested",
+        "real_evaluation_methods": [],
+        "planning_status": "exploratory_only_unverified_endpoints",
+        "engineering_feasibility": "not_evaluated",
+        "station_endpoint_qualification": "exploratory_only_unverified_endpoints",
+        "station_endpoint_reference_independence": "not_established",
+        "from_station_point_role": "station_centroid",
+        "from_station_verification_status": "unverified",
+        "from_station_reference_independence": "unknown",
+        "from_station_source": "OpenStreetMap way 135638663 via Mapcarta",
+        "from_station_verification_reference": "https://mapcarta.com/W135638663",
+        "to_station_point_role": "station_centroid",
+        "to_station_verification_status": "unverified",
+        "to_station_reference_independence": "unknown",
+        "to_station_source": "OpenStreetMap way 135762164 via Mapcarta",
+        "to_station_verification_reference": "https://mapcarta.com/W135762164",
+        "hard_constraint_status": "pass",
+        "hard_violations": 0,
+        "osm_data_quality": "osm_proxy_features_observed_coverage_unverified",
+        "screening_data_quality": "incomplete_screening_layers",
+        "missing_osm_screening_layers": [],
+        "missing_screening_layers": [
+          "population_raster_coverage"
+        ],
+        "official_hazard_metadata": {
+          "status": "available",
+          "coverage_status": "complete",
+          "source_dir": "/data1/B24041626/pp/work/data/official_sources/ardswc_115_mvt_z10_20261023",
+          "source": "Agriculture and Rural Development and Soil and Water Conservation Agency BigGIS official vector tile API",
+          "downloaded_at_utc": "2026-10-23T09:33:27.986944+00:00",
+          "source_bbox_wgs84": [
+            119.0,
+            21.2,
+            122.6,
+            25.8
+          ],
+          "requested_bbox_wgs84": [
+            121.324474054283,
+            24.343621410921195,
+            122.009886054283,
+            25.301473410921194
+          ],
+          "zoom": 10,
+          "raster_crs": "EPSG:4326",
+          "risk_mode": "soft_only_screening; no hard exclusion",
+          "warning": "MVT tiles are scale-generalized and clipped at tile boundaries; not original survey polygons.",
+          "tiles": {
+            "requested": 36,
+            "read": 14,
+            "official_empty": 22,
+            "failed": 0,
+            "unknown": 0,
+            "read_error": 0,
+            "checksum_mismatch": 0
+          },
+          "layers": {
+            "debris_flow_impact": {
+              "source_layer": "DEBRIS1753_20260126",
+              "planning_role": "soft_risk_only",
+              "default_soft_weight": 0.0,
+              "hard_exclusion_allowed": false,
+              "status": "available",
+              "coverage_status": "complete",
+              "feature_fragment_count": 531,
+              "non_polygon_feature_count": 0,
+              "covered_cell_count": 28303,
+              "tile_records": [
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 437,
+                  "path": "DEBRIS1753_20260126/10/437/857.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 26
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 437,
+                  "path": "DEBRIS1753_20260126/10/437/858.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 11
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 437,
+                  "path": "DEBRIS1753_20260126/10/437/859.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 438,
+                  "path": "DEBRIS1753_20260126/10/438/857.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 190
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 438,
+                  "path": "DEBRIS1753_20260126/10/438/858.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 133
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 438,
+                  "path": "DEBRIS1753_20260126/10/438/859.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 439,
+                  "path": "DEBRIS1753_20260126/10/439/857.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 68
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 439,
+                  "path": "DEBRIS1753_20260126/10/439/858.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 71
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 439,
+                  "path": "DEBRIS1753_20260126/10/439/859.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 440,
+                  "path": "DEBRIS1753_20260126/10/440/857.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 15
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 440,
+                  "path": "DEBRIS1753_20260126/10/440/858.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 17
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 440,
+                  "path": "DEBRIS1753_20260126/10/440/859.pbf",
+                  "status": "official_empty"
+                }
+              ],
+              "tiles": {
+                "requested": 12,
+                "read": 8,
+                "official_empty": 4,
+                "failed": 0,
+                "unknown": 0,
+                "read_error": 0,
+                "checksum_mismatch": 0,
+                "manifest_nonempty": 35,
+                "manifest_official_empty": 141,
+                "manifest_failed": 0,
+                "checksummed_nonempty": 35
+              },
+              "description": "115 annual debris-flow impact areas",
+              "source_date": "20260126",
+              "manifest_counts_valid": true,
+              "manifest_checksum_count_match": true
+            },
+            "landslide_potential": {
+              "source_layer": "POTENTIAL_LANDSLIDE_20260106",
+              "planning_role": "soft_risk_only",
+              "default_soft_weight": 0.0,
+              "hard_exclusion_allowed": false,
+              "status": "available",
+              "coverage_status": "complete",
+              "feature_fragment_count": 11,
+              "non_polygon_feature_count": 0,
+              "covered_cell_count": 6906,
+              "tile_records": [
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 437,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/437/857.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 437,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/437/858.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 437,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/437/859.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 438,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/438/857.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 438,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/438/858.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 3
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 438,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/438/859.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 439,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/439/857.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 7
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 439,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/439/858.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 439,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/439/859.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 440,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/440/857.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 1
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 440,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/440/858.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 440,
+                  "path": "POTENTIAL_LANDSLIDE_20260106/10/440/859.pbf",
+                  "status": "official_empty"
+                }
+              ],
+              "tiles": {
+                "requested": 12,
+                "read": 3,
+                "official_empty": 9,
+                "failed": 0,
+                "unknown": 0,
+                "read_error": 0,
+                "checksum_mismatch": 0,
+                "manifest_nonempty": 22,
+                "manifest_official_empty": 154,
+                "manifest_failed": 0,
+                "checksummed_nonempty": 22
+              },
+              "description": "115 annual large-landslide potential areas",
+              "source_date": "20260106",
+              "manifest_counts_valid": true,
+              "manifest_checksum_count_match": true
+            },
+            "landslide_impact": {
+              "source_layer": "POTENTIAL_LANDSLIDE_AFFECT_20260106",
+              "planning_role": "soft_risk_only",
+              "default_soft_weight": 0.0,
+              "hard_exclusion_allowed": false,
+              "status": "available",
+              "coverage_status": "complete",
+              "feature_fragment_count": 11,
+              "non_polygon_feature_count": 0,
+              "covered_cell_count": 11788,
+              "tile_records": [
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 437,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/437/857.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 437,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/437/858.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 437,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/437/859.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 438,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/438/857.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 438,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/438/858.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 3
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 438,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/438/859.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 439,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/439/857.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 7
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 439,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/439/858.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 439,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/439/859.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 857,
+                  "y": 440,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/440/857.pbf",
+                  "status": "read",
+                  "checksum_status": "verified",
+                  "feature_fragment_count": 1
+                },
+                {
+                  "z": 10,
+                  "x": 858,
+                  "y": 440,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/440/858.pbf",
+                  "status": "official_empty"
+                },
+                {
+                  "z": 10,
+                  "x": 859,
+                  "y": 440,
+                  "path": "POTENTIAL_LANDSLIDE_AFFECT_20260106/10/440/859.pbf",
+                  "status": "official_empty"
+                }
+              ],
+              "tiles": {
+                "requested": 12,
+                "read": 3,
+                "official_empty": 9,
+                "failed": 0,
+                "unknown": 0,
+                "read_error": 0,
+                "checksum_mismatch": 0,
+                "manifest_nonempty": 22,
+                "manifest_official_empty": 154,
+                "manifest_failed": 0,
+                "checksummed_nonempty": 22
+              },
+              "description": "115 annual large-landslide impact areas",
+              "source_date": "20260106",
+              "manifest_counts_valid": true,
+              "manifest_checksum_count_match": true
+            }
+          },
+          "manifest_path": "/data1/B24041626/pp/work/data/official_sources/ardswc_115_mvt_z10_20261023/manifest.json",
+          "soft_weight_applied_in_run": 1.0
+        },
+        "official_hazard_route_exposure": {
+          "status": "measured",
+          "route_cell_count": 2623,
+          "cell_fraction_is_approximate": true,
+          "layers": {
+            "debris_flow_impact": {
+              "route_cell_count": 0,
+              "route_cell_fraction": 0.0
+            },
+            "landslide_potential": {
+              "route_cell_count": 0,
+              "route_cell_fraction": 0.0
+            },
+            "landslide_impact": {
+              "route_cell_count": 0,
+              "route_cell_fraction": 0.0
+            }
+          }
+        },
+        "constraint_layer_metadata": {
+          "path": "/data1/B24041626/pp/work/data/official_constraints_20261023.geojson",
+          "status": "loaded",
+          "feature_count": 140,
+          "hard_feature_count": 0,
+          "soft_feature_count": 140,
+          "hard_constraint_evidence": [],
+          "hard_constraint_declarations_complete": false,
+          "hard_constraint_evidence_validation_scope": "caller_declarations_only",
+          "sources": [
+            "Ministry of Environment (dataset 6377; updated 20260720T153652)",
+            "Ocean Conservation Administration (dataset 157562; catalog updated 2026-01-15)"
+          ],
+          "categories": [
+            "drinking_water_protection",
+            "marine_wildlife_habitat"
+          ],
+          "hard_cell_count": 0,
+          "soft_cell_count": 1011202,
+          "source_layers": [
+            {
+              "source": "Ministry of Environment (dataset 6377; updated 20260720T153652)",
+              "mode": "soft",
+              "feature_count": 134,
+              "covered_cell_count": 1011202,
+              "affected_cell_count": 1011202
+            },
+            {
+              "source": "Ocean Conservation Administration (dataset 157562; catalog updated 2026-01-15)",
+              "mode": "soft",
+              "feature_count": 6,
+              "covered_cell_count": 0,
+              "affected_cell_count": 0
+            }
+          ],
+          "dataset_metadata": {
+            "generated_at": "2026-10-23T15:58:15.565713+00:00",
+            "coordinate_system": "OGC:CRS84 (WGS84 longitude, latitude)",
+            "constraint_mode": "soft",
+            "soft_weight": 1.0,
+            "feature_count": 140,
+            "important_note": "Screening layers only; verify current legal status before use."
+          },
+          "data_sources": [
+            {
+              "agency": "Ministry of Environment",
+              "dataset_id": "6377",
+              "dataset_url": "https://data.gov.tw/dataset/6377",
+              "download_url": "https://newcdx.moenv.gov.tw/api/files/GISEPA_P_13/220bedf3-6d6c-4685-8d0f-ac64042bb226",
+              "source_updated_at": "20260720T153652",
+              "license": "Open Government Data License, version 1.0",
+              "archive_sha256": "de7fd14b2de77a359c8fa18fcde3eb5b640ebc9faffb45904f51dec7570f6a2b",
+              "layers": [
+                {
+                  "layer": "飲用水水源水質保護區及取水口一定距離4326",
+                  "source_crs": "EPSG:4326",
+                  "input_count": 134,
+                  "polygon_count": 134,
+                  "repaired_count": 3,
+                  "skipped_count": 0
+                }
+              ]
+            },
+            {
+              "agency": "Ocean Conservation Administration, Ocean Affairs Council",
+              "dataset_id": "157562",
+              "dataset_url": "https://data.gov.tw/dataset/157562",
+              "download_url": "https://iocean.oca.gov.tw/oca_datahub/WebService/GetData.ashx?id=fba2361b-6ac5-4f7c-827c-631ce78cc91f",
+              "source_updated_at": "2026-01-15",
+              "license": "Open Government Data License, version 1.0",
+              "file_sha256": "ea2e199abcef0b9919dfca30f5f814b7d5b2530024586b5d19557fdb3ffdb779",
+              "layers": [
+                {
+                  "layer": "marine_wildlife_habitat_a16ee5505b5e",
+                  "declared_crs": "urn:ogc:def:crs:OGC:1.3:CRS84",
+                  "source_crs_used": "EPSG:3826",
+                  "crs_note": "GeoJSON declares CRS84 but coordinate extent is projected TWD97 TM2 121",
+                  "input_count": 6,
+                  "polygon_count": 6,
+                  "repaired_count": 0,
+                  "skipped_count": 0
+                }
+              ]
+            }
+          ]
+        },
+        "land_mask_metadata": {
+          "path": "/data1/B24041626/pp/landmask_route_fix_20261026/inputs/county_boundaries_1140318.geojson",
+          "status": "loaded",
+          "feature_count": 22,
+          "repaired_feature_count": 1,
+          "repaired_feature_indices": [
+            13
+          ],
+          "land_cell_count": 13034413,
+          "rasterization": "pixel_center_inside",
+          "boundary_semantics": "administrative_land_polygon_screen_not_surveyed_shoreline"
+        },
+        "length_km": 46.655,
+        "cum_relief_m": 7296.0,
+        "net_relief_m": 34.4,
+        "start_dem_elevation_m": 43.5,
+        "end_dem_elevation_m": 77.9,
+        "endpoint_dem_elevation_delta_m": 34.4,
+        "route_min_elevation_m": 5.6,
+        "route_max_elevation_m": 1116.7,
+        "cumulative_ascent_m": 3665.2,
+        "cumulative_descent_m": 3630.8,
+        "max_sampled_ground_grade_pct": 149.86,
+        "dem_sample_count": 2197,
+        "dem_valid_sample_count": 2197,
+        "dem_sample_coverage_ratio": 1.0,
+        "mean_cost": 4.7061,
+        "path_cost_integral": {
+          "status": "measured",
+          "base_cost_meter": 219932.313,
+          "grade_cost_meter": 0.0,
+          "turn_cost_meter": 0.0,
+          "total_cost_meter": 219932.313,
+          "base_cost_method": "piecewise_constant_grid_cell_exact",
+          "grade_cost_method": "one_pixel_sampled_segment_estimate",
+          "turn_cost_method": "disabled"
+        },
+        "sinuosity": 1.143,
+        "n_points": 2067,
+        "weight_independent_exposure": {
+          "status": "measured",
+          "route_cell_count": 2623,
+          "fraction_denominator": "all_touched_route_cells; approximate, not length weighted",
+          "surface_slope_deg": {
+            "mean": 11.989996989402497,
+            "p90": 29.138298416137697,
+            "p95": 33.853623199462895,
+            "valid_cell_fraction": 1.0
+          },
+          "roughness_27_m": {
+            "mean": 62.144956712362834,
+            "p90": 109.61182098388676,
+            "p95": 140.2954513549805,
+            "valid_cell_fraction": 1.0
+          },
+          "terrain_factor_support": {
+            "minimum": 1.0,
+            "p05": 1.0,
+            "mean": 1.0,
+            "full_support_route_length_fraction": 0.9999999999999816,
+            "valid_route_length_fraction": 1.0000000000000102,
+            "route_length_m": 46655.37715467248,
+            "max_sample_spacing_m": 9.87999408423502,
+            "sampling_method": "haversine_length_weighted_midpoints_max_half_pixel_spacing",
+            "minimum_window_edge_clearance_m": 28316.05927675569,
+            "route_length_within_900m_of_window_edge_fraction": 0.0,
+            "window_edge_clearance_note": "approximate pixel-axis distance; 900 m matches the widest terrain neighborhood",
+            "missing_or_outside_support_treated_as": 0.0
+          },
+          "mapped_osm_layer_status": {
+            "buildings": "available",
+            "landuse": "available"
+          },
+          "mapped_osm_coverage_status": {
+            "buildings": "features_observed",
+            "landuse": "features_observed"
+          },
+          "mapped_osm_exposure_scope": "mapped-feature inventory only; coverage completeness is unverified unless each layer reports complete",
+          "hazard_coverage_status": "complete",
+          "mapped_building_density_mean": 0.005704772658646107,
+          "mapped_residential_landuse_cell_fraction": 0.0,
+          "mapped_forest_wetland_cell_fraction": 0.0,
+          "mapped_settlement_proxy_mean": 0.005704772658646107,
+          "mapped_osm_metric_status": {
+            "building_density": "mapped_features_only",
+            "landuse": "mapped_features_only",
+            "residential_landuse": "mapped_features_only"
+          },
+          "hazard_layer_coverage_status": {
+            "debris_flow_impact": "complete",
+            "landslide_potential": "complete",
+            "landslide_impact": "complete"
+          },
+          "hazard_positive_route_cell_counts_scope": "observed positive cells in loaded masks only; incomplete coverage may omit cells",
+          "hazard_observed_positive_route_cell_counts": {
+            "debris_flow_impact": 0,
+            "landslide_potential": 0,
+            "landslide_impact": 0
+          },
+          "hazard_cell_fractions": {
+            "debris_flow_impact": 0.0,
+            "landslide_potential": 0.0,
+            "landslide_impact": 0.0
+          }
+        },
+        "custom_constraint_route_exposure": {
+          "status": "measured",
+          "route_cell_count": 2623,
+          "soft_affected_route_cell_count": 0,
+          "soft_affected_route_cell_fraction": 0.0,
+          "summed_soft_weight_cells": 0.0,
+          "fraction_denominator": "all_touched_route_cells; approximate, not length weighted"
+        },
+        "population_data_coverage": {
+          "status": "incomplete_unknown_population_cells",
+          "route_cell_count": 2623,
+          "unknown_route_cell_count": 806,
+          "coverage_ratio": 0.6927182615325962,
+          "cell_fraction_is_approximate": true
+        },
+        "search_window_margin_deg": 0.3,
+        "search_window_edge_clearance_m": 28316.06,
+        "search_turn_penalty_weight": 0.0,
+        "smoothing_turn_penalty_weight": 0.0,
+        "astar_search_path_objective": {
+          "status": "measured",
+          "unit": "cost_meter",
+          "base_cost": 219953.468553,
+          "grade_cost": 0.0,
+          "turn_cost": 0.0,
+          "total_cost": 219953.468553
+        },
+        "astar_raw_vs_post_cost_diagnostics": {
+          "raw_at_search_weight": {
+            "status": "measured",
+            "base_cost_meter": 219953.469,
+            "grade_cost_meter": 0.0,
+            "turn_cost_meter": 0.0,
+            "total_cost_meter": 219953.469,
+            "base_cost_method": "piecewise_constant_grid_cell_exact",
+            "grade_cost_method": "one_pixel_sampled_segment_estimate",
+            "turn_cost_method": "disabled"
+          },
+          "post_at_search_weight": {
+            "status": "measured",
+            "base_cost_meter": 219932.313,
+            "grade_cost_meter": 0.0,
+            "turn_cost_meter": 0.0,
+            "total_cost_meter": 219932.313,
+            "base_cost_method": "piecewise_constant_grid_cell_exact",
+            "grade_cost_method": "one_pixel_sampled_segment_estimate",
+            "turn_cost_method": "disabled"
+          },
+          "raw_at_smoothing_weight": {
+            "status": "measured",
+            "base_cost_meter": 219953.469,
+            "grade_cost_meter": 0.0,
+            "turn_cost_meter": 0.0,
+            "total_cost_meter": 219953.469,
+            "base_cost_method": "piecewise_constant_grid_cell_exact",
+            "grade_cost_method": "one_pixel_sampled_segment_estimate",
+            "turn_cost_method": "disabled"
+          },
+          "post_at_smoothing_weight": {
+            "status": "measured",
+            "base_cost_meter": 219932.313,
+            "grade_cost_meter": 0.0,
+            "turn_cost_meter": 0.0,
+            "total_cost_meter": 219932.313,
+            "base_cost_method": "piecewise_constant_grid_cell_exact",
+            "grade_cost_method": "one_pixel_sampled_segment_estimate",
+            "turn_cost_method": "disabled"
+          },
+          "post_minus_raw_at_search_weight_meter": -21.15600000001723,
+          "post_minus_raw_at_smoothing_weight_meter": -21.15600000001723
+        },
+        "astar_heuristic_weight": 1.0,
+        "ridge_penalty_weight": 0.1,
+        "landcover_penalty_weight": 0.0,
+        "official_hazard_weight": 1.0,
+        "time_s": 127.43,
+        "grade_limit_status": "not_configured",
+        "grade_limit_violation_count": 0,
+        "grade_limit_unassessed_count": 0,
+        "grade_limit_max_sampled_grade_ratio": null,
+        "grade_limit_threshold_ratio": null,
+        "hard_constraint_validation_scope": "loaded_raster_masks_only",
+        "hard_constraint_completeness_status": "not_independently_verified",
+        "building_geometry_status": "pass",
+        "building_geometry_intersections": 0,
+        "building_geometry_repaired_features": 0,
+        "endpoint_rasterization_exceptions": [
+          {
+            "label": "起点",
+            "row": 1650,
+            "col": 1530,
+            "point_xy": [
+              121.62447,
+              25.00267
+            ]
+          }
+        ],
+        "building_geometry_coverage_status": "features_observed",
+        "building_geometry_coverage_reason": null,
+        "building_geometry_check_scope": "loaded_osm_features_only",
+        "building_geometry_source_repair_count": 5,
+        "building_geometry_skipped_nonfinite_count": 0,
+        "from_station_to_grid_center_offset_m": 7.23,
+        "to_station_to_grid_center_offset_m": 11.97,
+        "settlement_weight": 2.0,
+        "turn_penalty_weight": 0.0,
+        "building_clearance_m": 0.0,
+        "grade_penalty_weight": 0.0,
+        "terrain_slope_weight": 0.75,
+        "roughness_weight": 0.25,
+        "population_weight": 1.0,
+        "population_layer": {
+          "status": "partial",
+          "source_path": "/data1/B24041626/pp/terrain_worldpop_sensitivity_4096_20261028/inputs/twn_pop_2025_CN_100m_R2025A_v1.tif",
+          "source_crs": "EPSG:4326",
+          "source_pixel_size_degrees": [
+            0.00083333333,
+            0.00083333333
+          ],
+          "source_nodata": -99999.0,
+          "source_value_unit": "people_per_cell",
+          "aligned_value_unit": "people_per_km2",
+          "source_metadata": {
+            "provider": "WorldPop",
+            "asset_provider": null,
+            "dataset_title": "TWN population 2025 [WorldPop R2025A v1]",
+            "document_name": "twn_pop_2025_CN_100m_R2025A_v1",
+            "copyright_tag": "CC-BY-4.0",
+            "license_id": "CC-BY-4.0",
+            "license_url": "https://creativecommons.org/licenses/by/4.0/",
+            "release": null,
+            "version": null,
+            "year": null,
+            "attribution": "WorldPop; dataset title: TWN population 2025 [WorldPop R2025A v1]",
+            "doi": null,
+            "metadata_file": null,
+            "metadata_basis": "embedded GeoTIFF tags and source filename"
+          },
+          "resampling": "area_weighted_average_on_density",
+          "required_dem_cell_count": 13037263,
+          "valid_required_cell_count": 4486757,
+          "missing_required_cell_count": 8550506,
+          "coverage_ratio": 0.3441486913319153,
+          "nodata_policy": "preserve_as_nan_for_explicit_unknown_policy",
+          "normalization_scale_people_per_km2": 10000.0,
+          "weight": 1.0,
+          "source_value_semantics": "modelled people per source cell; not point locations",
+          "cost_semantics": "log1p(population_density_people_per_km2) / log1p(normalization_scale), clipped to [0, 1]",
+          "nodata_cost_policy": "fixed maximum normalized proxy penalty (1.0); not a population estimate"
+        },
+        "max_ground_grade_ratio": null,
+        "max_surface_slope_deg": null,
+        "max_surface_slope_scope": "candidate_tower_sites_only",
+        "max_terrain_elevation_m": null,
+        "osm_layer_metadata": {
+          "roads": {
+            "path": "/data1/B24041626/pp/tower_site_objective_diagnostic_20261029/osm_cache/taiwan_roads.pkl",
+            "status": "not_loaded",
+            "reason": "not_required_by_selected_planner_mode",
+            "coverage_status": "not_checked",
+            "planning_role": "feature_model_input_only_not_default_rule_cost"
+          },
+          "water": {
+            "path": "/data1/B24041626/pp/tower_site_objective_diagnostic_20261029/osm_cache/taiwan_water.pkl",
+            "status": "not_loaded",
+            "reason": "not_required_by_selected_planner_mode",
+            "coverage_status": "not_checked",
+            "planning_role": "feature_model_input_only_not_default_rule_cost"
+          },
+          "railways": {
+            "path": "/data1/B24041626/pp/tower_site_objective_diagnostic_20261029/osm_cache/taiwan_railways.pkl",
+            "status": "not_loaded",
+            "reason": "not_required_by_selected_planner_mode",
+            "coverage_status": "not_checked",
+            "planning_role": "feature_model_input_only_not_default_rule_cost"
+          },
+          "faults": {
+            "path": "/data1/B24041626/pp/tower_site_objective_diagnostic_20261029/osm_cache/taiwan_faults.pkl",
+            "status": "not_loaded",
+            "reason": "not_required_by_selected_planner_mode",
+            "coverage_status": "not_checked",
+            "planning_role": "feature_model_input_only_not_default_rule_cost"
+          },
+          "landuse": {
+            "path": "/data1/B24041626/pp/tower_site_objective_diagnostic_20261029/osm_cache/taiwan_landuse.pkl",
+            "status": "available",
+            "source_element_count": 130088,
+            "geometry_count_in_bbox": 23488,
+            "observed_feature_bounds": [
+              120.0361115,
+              21.8998583,
+              122.005406,
+              25.2972352
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "cache_generator": "rebuild_osm_cache (shared)",
+            "source_snapshot_timestamp": null,
+            "source_snapshot_status": "unknown_not_recorded",
+            "tag_wrapper_count": 130088,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 3,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed",
+            "planning_role": "settlement_and_optional_landcover_soft_proxy"
+          },
+          "buildings": {
+            "path": "/data1/B24041626/pp/tower_site_objective_diagnostic_20261029/osm_cache/taiwan_buildings.pkl",
+            "status": "available",
+            "source_element_count": 568464,
+            "geometry_count_in_bbox": 153507,
+            "observed_feature_bounds": [
+              120.0445362,
+              21.8999796,
+              121.9988153,
+              25.2984749
+            ],
+            "coverage_basis": "observed_feature_extent",
+            "cache_generator": "rebuild_osm_cache (shared)",
+            "source_snapshot_timestamp": null,
+            "source_snapshot_status": "unknown_not_recorded",
+            "tag_wrapper_count": 568464,
+            "tag_parse_error_count": 0,
+            "geometry_repaired_count": 5,
+            "nonfinite_geometry_outside_bbox_count": 0,
+            "coverage_status": "features_observed",
+            "planning_role": "hard_footprint_and_settlement_proxy"
+          },
+          "vegetation": {
+            "path": "/data1/B24041626/pp/tower_site_objective_diagnostic_20261029/osm_cache/taiwan_vegetation.pkl",
+            "status": "not_loaded",
+            "reason": "not_required_by_selected_planner_mode",
+            "coverage_status": "not_checked",
+            "planning_role": "feature_model_input_only_not_default_rule_cost"
+          },
+          "protected_areas": {
+            "path": "/data1/B24041626/pp/tower_site_objective_diagnostic_20261029/osm_cache/taiwan_protected.pkl",
+            "status": "not_loaded",
+            "reason": "not_required_by_selected_planner_mode",
+            "coverage_status": "not_checked",
+            "planning_role": "informational_only"
+          }
+        },
+        "voltage_rules_applied": false,
+        "route_constraints_limitations": "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area layer, conductor clearance, tower siting or span feasibility checked",
+        "route_id": "SHENMEI_DONGSHAN_EXPLORATORY",
+        "from_station_id": "SHENMEI",
+        "from_station_name": "深美超高壓變電所（OSM站區位置）",
+        "from_station_type": null,
+        "from_station_verified": null,
+        "to_station_id": "DONGSHAN",
+        "to_station_name": "冬山超高壓變電所（OSM站區位置）",
+        "to_station_type": null,
+        "to_station_verified": null,
+        "voltage_kv": null,
+        "from_station_coordinate_crs": "EPSG:4326",
+        "to_station_coordinate_crs": "EPSG:4326",
+        "from_station_ground_elevation_m": null,
+        "from_station_ground_elevation_source": null,
+        "from_station_vertical_datum": null,
+        "to_station_ground_elevation_m": null,
+        "to_station_ground_elevation_source": null,
+        "to_station_vertical_datum": null,
+        "station_ground_elevation_status": "dem_only",
+        "station_ground_elevation_delta_m": null
+      }
+    }
+  }
+]

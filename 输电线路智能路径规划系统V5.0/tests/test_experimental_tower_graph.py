@@ -6,6 +6,7 @@ import pytest
 from transmission_path_planner.experimental_tower_graph import (
     span_clearance_status,
     tower_graph_route,
+    tower_graph_path_objective,
     tower_site_proxy_cost_raster,
 )
 
@@ -86,6 +87,28 @@ def _small_route_objective(route, site_cost, turn_weight, spacing=(1.0, 1.0)):
     return total
 
 
+def _independent_segment_integral(first, second, raster, spacing):
+    r0, c0 = first[0] + 0.5, first[1] + 0.5
+    r1, c1 = second[0] + 0.5, second[1] + 0.5
+    dr, dc = r1 - r0, c1 - c0
+    cuts = [0.0, 1.0]
+    for start, end in ((r0, r1), (c0, c1)):
+        delta = end - start
+        if delta:
+            for boundary in range(math.floor(min(start, end)) + 1,
+                                  math.ceil(max(start, end))):
+                fraction = (boundary - start) / delta
+                if 0.0 < fraction < 1.0:
+                    cuts.append(fraction)
+    cuts.sort()
+    length = math.hypot(dr * spacing[0], dc * spacing[1])
+    return sum(
+        length * (end - start)
+        * float(raster[math.floor(r0 + (start + end) * 0.5 * dr),
+                       math.floor(c0 + (start + end) * 0.5 * dc)])
+        for start, end in zip(cuts, cuts[1:]))
+
+
 def test_tower_graph_enforces_span_limits_and_is_direction_invariant():
     cost = np.ones((11, 41), dtype=np.float64)
     allowed = np.ones(cost.shape, dtype=bool)
@@ -157,6 +180,100 @@ def test_tower_site_cost_and_exclusion_apply_to_nodes_not_span_cells():
     assert all(row != 4 for row, _ in route[1:-1])
     assert any(a[1] < 20 < b[1] or b[1] < 20 < a[1]
                for a, b in zip(route, route[1:]))
+
+
+def test_tower_graph_path_objective_matches_dijkstra_components():
+    cost = np.ones((9, 9), dtype=np.float64)
+    traversable = np.ones(cost.shape, dtype=bool)
+    tower_allowed = np.zeros(cost.shape, dtype=bool)
+    start, goal = (4, 0), (4, 8)
+    towers = [(2, 2), (2, 4), (4, 6)]
+    for row, col in towers:
+        tower_allowed[row, col] = True
+    tower_cost = np.zeros(cost.shape, dtype=np.float64)
+    tower_cost[start] = 100.0
+    tower_cost[goal] = 100.0
+    for position, value in zip(towers, (2.0, 5.0, 3.0)):
+        tower_cost[position] = value
+    min_span, max_span, turn_weight = 1.5, 3.0, 0.7
+
+    route = tower_graph_route(
+        cost, traversable, tower_allowed, start, goal, min_span, max_span,
+        candidate_stride=1, tower_cost_raster=tower_cost,
+        turn_penalty_weight=turn_weight)
+    objective = tower_graph_path_objective(
+        route, cost, tower_cost_raster=tower_cost,
+        turn_penalty_weight=turn_weight)
+    nodes = [start, *towers, goal]
+    oracle = _small_graph_dijkstra_cost(
+        nodes, start, goal, min_span, max_span,
+        dict(zip(towers, (2.0, 5.0, 3.0))), turn_weight)
+
+    assert route == [start, *towers, goal]
+    assert objective["span_count"] == 4
+    assert objective["selected_intermediate_tower_site_count"] == 3
+    assert objective["span_cost_meter"] == pytest.approx(2 * np.sqrt(8) + 4.0)
+    assert objective["tower_site_cost_meter"] == pytest.approx(10.0)
+    assert objective["turn_penalty_cost_meter"] > 0.0
+    assert objective["total_cost_meter"] == pytest.approx(oracle)
+
+
+def test_tower_graph_path_objective_handles_fractional_terminals_and_proxy_cost():
+    rows, cols = np.indices((9, 10))
+    cost = 0.5 + rows * 0.2 + cols * 0.07
+    traversable = np.ones(cost.shape, dtype=bool)
+    allowed = np.zeros(cost.shape, dtype=bool)
+    start, goal = (4, 0), (4, 8)
+    start_position, goal_position = (4.2, 0.2), (4.2, 8.2)
+    towers = [(2, 2), (2, 4), (4, 6)]
+    for tower in towers:
+        allowed[tower] = True
+    spacing, turn_weight = (1.7, 1.5), 0.4
+    site_cost = tower_site_proxy_cost_raster(cost, 6.0)
+
+    route = tower_graph_route(
+        cost, traversable, allowed, start, goal, 2.9, 4.8,
+        pixel_spacing=spacing, candidate_stride=1,
+        tower_cost_raster=site_cost, turn_penalty_weight=turn_weight,
+        start_position_rc=start_position, goal_position_rc=goal_position)
+    assert route == [start_position, *towers, goal_position]
+
+    objective = tower_graph_path_objective(
+        route, cost, pixel_spacing=spacing, tower_cost_raster=site_cost,
+        turn_penalty_weight=turn_weight)
+    span_costs = [
+        _independent_segment_integral(first, second, cost, spacing)
+        for first, second in zip(route, route[1:])]
+    expected_site_cost = sum(float(site_cost[tower]) for tower in towers)
+    expected_turn_cost = 0.0
+    for index in range(1, len(route) - 1):
+        previous, current, following = route[index - 1:index + 2]
+        first_vector = ((current[0] - previous[0]) * spacing[0],
+                        (current[1] - previous[1]) * spacing[1])
+        second_vector = ((following[0] - current[0]) * spacing[0],
+                         (following[1] - current[1]) * spacing[1])
+        cosine = (sum(a * b for a, b in zip(first_vector, second_vector))
+                  / (math.hypot(*first_vector) * math.hypot(*second_vector)))
+        expected_turn_cost += (
+            turn_weight * 0.5 * (span_costs[index - 1] + span_costs[index])
+            * (1.0 - cosine))
+
+    assert objective["span_cost_meter"] == pytest.approx(sum(span_costs))
+    assert objective["tower_site_cost_meter"] == pytest.approx(expected_site_cost)
+    assert objective["turn_penalty_cost_meter"] == pytest.approx(expected_turn_cost)
+    assert objective["total_cost_meter"] == pytest.approx(
+        sum(span_costs) + expected_site_cost + expected_turn_cost)
+
+
+def test_tower_graph_path_objective_reports_zero_cost_for_single_terminal():
+    objective = tower_graph_path_objective(
+        [(2, 3)], np.ones((5, 5)), tower_cost_raster=np.full((5, 5), 10.0))
+
+    assert objective["span_count"] == 0
+    assert objective["selected_intermediate_tower_site_count"] == 0
+    assert objective["total_cost_meter"] == 0.0
+    with pytest.raises(ValueError, match="repeat consecutive positions"):
+        tower_graph_path_objective([(2, 3), (2, 3)], np.ones((5, 5)))
 
 
 def test_tower_site_proxy_cost_uses_equivalent_distance_and_preserves_blocked_cells():

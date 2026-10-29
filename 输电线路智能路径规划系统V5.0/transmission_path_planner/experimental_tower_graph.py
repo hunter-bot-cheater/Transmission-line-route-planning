@@ -91,6 +91,22 @@ def _dem_data_and_validity(dem_raster, dem_valid_mask=None,
     return dem, valid
 
 
+def _span_turn_penalty(previous, current, following, previous_span_cost,
+                       span_cost, pixel_spacing, turn_penalty_weight):
+    first_vector = ((current[0] - previous[0]) * pixel_spacing[0],
+                    (current[1] - previous[1]) * pixel_spacing[1])
+    second_vector = ((following[0] - current[0]) * pixel_spacing[0],
+                     (following[1] - current[1]) * pixel_spacing[1])
+    first_length = math.hypot(*first_vector)
+    second_length = math.hypot(*second_vector)
+    cosine = ((first_vector[0] * second_vector[0]
+               + first_vector[1] * second_vector[1])
+              / (first_length * second_length))
+    return (turn_penalty_weight
+            * 0.5 * (previous_span_cost + span_cost)
+            * (1.0 - min(max(cosine, -1.0), 1.0)))
+
+
 def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                       start_rc, goal_rc, min_span_m, max_span_m,
                       pixel_spacing=(1.0, 1.0), candidate_stride=2,
@@ -393,19 +409,9 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
             if previous_id >= 0:
                 previous, current, following = (
                     nodes[previous_id], nodes[current_id], nodes[next_id])
-                first_vector = ((current[0] - previous[0]) * row_m,
-                                (current[1] - previous[1]) * col_m)
-                second_vector = ((following[0] - current[0]) * row_m,
-                                 (following[1] - current[1]) * col_m)
-                first_length = math.hypot(*first_vector)
-                second_length = math.hypot(*second_vector)
-                cosine = ((first_vector[0] * second_vector[0]
-                           + first_vector[1] * second_vector[1])
-                          / (first_length * second_length))
-                turn_cost = (turn_weight
-                             * 0.5 * (previous_span_cost + span_cost)
-                             * (1.0 - min(max(cosine, -1.0), 1.0)))
-                added_cost += turn_cost
+                added_cost += _span_turn_penalty(
+                    previous, current, following, previous_span_cost,
+                    span_cost, spacing, turn_weight)
 
             next_state = (current_id, next_id)
             candidate_cost = current_cost + added_cost
@@ -417,6 +423,81 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
             heapq.heappush(open_set, (estimated_total, candidate_cost,
                                       next(sequence), next_state))
     return None
+
+
+def tower_graph_path_objective(path, cost_raster, pixel_spacing=(1.0, 1.0),
+                               tower_cost_raster=None,
+                               turn_penalty_weight=0.0):
+    """Recompute objective components for a raw tower-graph path.
+
+    Coordinates use the row/column cell-center convention returned by
+    ``tower_graph_route``. Endpoint restoration and route export are excluded.
+    """
+    if path is None:
+        return None
+    cost_input = np.asarray(cost_raster, dtype=np.float64)
+    if cost_input.ndim != 2:
+        raise ValueError("cost_raster must be a 2D array")
+    cost, _, spacing = _validated_inputs(
+        cost_input, np.isfinite(cost_input), pixel_spacing)
+    try:
+        turn_weight = float(turn_penalty_weight)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("turn_penalty_weight must be finite and non-negative") from exc
+    if not math.isfinite(turn_weight) or turn_weight < 0.0:
+        raise ValueError("turn_penalty_weight must be finite and non-negative")
+
+    positions = [_checked_position(position, "path position") for position in path]
+    if not positions:
+        raise ValueError("path must contain at least one position")
+    if any(first == second for first, second in zip(positions, positions[1:])):
+        raise ValueError("path must not repeat consecutive positions")
+    site_cost = None
+    if tower_cost_raster is not None:
+        site_cost = np.asarray(tower_cost_raster, dtype=np.float64)
+        if site_cost.shape != cost.shape or site_cost.ndim != 2:
+            raise ValueError("tower_cost_raster must match the 2D cost raster")
+
+    span_costs = []
+    for first, second in zip(positions, positions[1:]):
+        span_cost = _segment_cost_positions(
+            (first[0] + 0.5, first[1] + 0.5),
+            (second[0] + 0.5, second[1] + 0.5), cost, spacing)
+        if not math.isfinite(span_cost) or span_cost < 0.0:
+            raise ValueError("path contains a span with invalid cost")
+        span_costs.append(span_cost)
+
+    site_cost_total = 0.0
+    for row, col in positions[1:-1]:
+        row_index, col_index = int(row), int(col)
+        if row_index != row or col_index != col:
+            raise ValueError("intermediate tower positions must be integer cells")
+        if not (0 <= row_index < cost.shape[0]
+                and 0 <= col_index < cost.shape[1]):
+            raise ValueError("intermediate tower position is outside the raster")
+        if site_cost is not None:
+            value = float(site_cost[row_index, col_index])
+            if not math.isfinite(value) or value < 0.0:
+                raise ValueError("selected tower sites must have finite non-negative costs")
+            site_cost_total += value
+
+    turn_cost_total = sum(
+        _span_turn_penalty(
+            positions[index - 1], positions[index], positions[index + 1],
+            span_costs[index - 1], span_costs[index], spacing, turn_weight)
+        for index in range(1, len(positions) - 1)
+    )
+    span_cost_total = sum(span_costs)
+    return {
+        "status": "measured",
+        "unit": "cost_meter",
+        "span_count": len(span_costs),
+        "selected_intermediate_tower_site_count": max(0, len(positions) - 2),
+        "span_cost_meter": span_cost_total,
+        "tower_site_cost_meter": site_cost_total,
+        "turn_penalty_cost_meter": turn_cost_total,
+        "total_cost_meter": span_cost_total + site_cost_total + turn_cost_total,
+    }
 
 
 def span_clearance_status(start_rc, end_rc, dem_raster, pixel_spacing,
