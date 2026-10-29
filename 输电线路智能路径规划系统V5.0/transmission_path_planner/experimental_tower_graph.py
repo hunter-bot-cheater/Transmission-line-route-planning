@@ -110,14 +110,14 @@ def _span_turn_penalty(previous, current, following, previous_span_cost,
 def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                       start_rc, goal_rc, min_span_m, max_span_m,
                       pixel_spacing=(1.0, 1.0), candidate_stride=2,
-                      candidate_phase=(0, 0),
                       tower_cost_raster=None, turn_penalty_weight=0.0,
                       dem_raster=None, attachment_height_m=None,
                       max_midspan_sag_m=None, minimum_clearance_m=None,
                       dem_valid_mask=None, dem_nodata_value=None,
                       start_ground_elevation_m=None,
                       goal_ground_elevation_m=None,
-                      start_position_rc=None, goal_position_rc=None):
+                      start_position_rc=None, goal_position_rc=None,
+                      candidate_phase=(0, 0)):
     """Find a route on a sparse graph of candidate tower cells.
 
     ``cost_raster`` is a non-negative per-metre span resistance. Optional
