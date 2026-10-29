@@ -21,6 +21,58 @@ from server import (_get_session, build_cost_grid, configure_session_mission, cr
                     sense_flight_segment, sense_session, Handler)
 
 
+class GeographicRoutePointValidationTests(unittest.TestCase):
+    def test_valid_point_is_checked_against_configured_dem(self):
+        jobs = server.GEOGRAPHIC_ROUTE_JOBS
+        dem_path = Path("/data1/B24041626/pp/taiwan-dem.tif")
+        with patch.object(jobs, "_config", return_value={"dem": dem_path}), \
+                patch.object(jobs, "_validate_dem_point") as validate_dem_point:
+            result = jobs.validate_point({"lat": 23.5, "lon": 120.9})
+
+        self.assertEqual(result, {"valid": True, "lat": 23.5, "lon": 120.9})
+        validate_dem_point.assert_called_once_with(
+            dem_path, {"lat": "23.5", "lon": "120.9"}, "地图所选位置",
+        )
+
+    def test_out_of_range_point_is_rejected_before_dem_sampling(self):
+        jobs = server.GEOGRAPHIC_ROUTE_JOBS
+        with patch.object(jobs, "_config", return_value={"dem": Path("dem.tif")}), \
+                patch.object(jobs, "_validate_dem_point") as validate_dem_point:
+            with self.assertRaisesRegex(ValueError, "纬度超出允许范围"):
+                jobs.validate_point({"lat": 91, "lon": 120.9})
+
+        validate_dem_point.assert_not_called()
+
+    def test_point_validation_requires_planner_configuration(self):
+        jobs = server.GEOGRAPHIC_ROUTE_JOBS
+        with patch.object(jobs, "_config", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "真实 DEM 规划未配置"):
+                jobs.validate_point({"lat": 23.5, "lon": 120.9})
+
+    def test_http_point_validation_rejects_missing_planner_token(self):
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        jobs = server.GEOGRAPHIC_ROUTE_JOBS
+        try:
+            request = Request(
+                f"http://127.0.0.1:{httpd.server_port}/api/routes/validate-point",
+                data=json.dumps({"lat": 23.5, "lon": 120.9}).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            with patch.object(jobs, "authorize", return_value=False), \
+                    patch.object(jobs, "validate_point") as validate_point:
+                with self.assertRaises(HTTPError) as rejected:
+                    urlopen(request, timeout=5)
+
+            self.assertEqual(rejected.exception.code, 403)
+            validate_point.assert_not_called()
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=1)
+
+
 class PlanPathTests(unittest.TestCase):
     def test_diagonal_cannot_cut_across_unobserved_corner(self):
         result = plan_path(

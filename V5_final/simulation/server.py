@@ -1622,6 +1622,11 @@ class Handler(BaseHTTPRequestHandler):
                 result = plan_session(payload["session_id"], payload["start"], payload["goal"],
                                       page_id=page_id, control_token=control_token)
                 self._json(200, result)
+            elif route == "/api/routes/validate-point":
+                if not GEOGRAPHIC_ROUTE_JOBS.authorize(self.headers.get("X-Planner-Token")):
+                    self._json(403, {"error": "真实规划访问口令无效"})
+                    return
+                self._json(200, GEOGRAPHIC_ROUTE_JOBS.validate_point(payload))
             elif route == "/api/routes":
                 if not GEOGRAPHIC_ROUTE_JOBS.authorize(self.headers.get("X-Planner-Token")):
                     self._json(403, {"error": "真实规划访问口令无效"})

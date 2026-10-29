@@ -289,6 +289,17 @@ class GeographicRouteJobs:
             if np.ma.is_masked(sample) or not np.isfinite(float(sample)):
                 raise ValueError(f"{label}坐标落在台湾 DEM 无有效数据区域，不能用于规划")
 
+    def validate_point(self, payload: dict[str, Any]) -> dict[str, Any]:
+        config = self._config()
+        if config is None:
+            raise RuntimeError("服务器真实 DEM 规划未配置")
+        lat = _number(payload.get("lat"), "纬度", -90, 90)
+        lon = _number(payload.get("lon"), "经度", -180, 180)
+        self._validate_dem_point(
+            config["dem"], {"lat": str(lat), "lon": str(lon)}, "地图所选位置",
+        )
+        return {"valid": True, "lat": lat, "lon": lon}
+
     def submit(self, payload: dict[str, Any]) -> dict[str, Any]:
         config = self._config()
         if config is None:
