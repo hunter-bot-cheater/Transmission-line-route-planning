@@ -13,6 +13,7 @@ from __future__ import annotations
 import heapq
 import math
 from bisect import bisect_left
+from functools import lru_cache
 from itertools import count
 
 import numpy as np
@@ -282,12 +283,13 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
     row_m, col_m = spacing
     row_radius = max_span / row_m
     col_radius = max_span / col_m
-    adjacency = {}
+    # With zero turn cost, A* expands each graph node once; caching all of its
+    # edges only grows memory. Turn-aware states revisit nodes, so keep a small
+    # bounded cache for those repeated lookups.
+    adjacency_cache_size = 64 if turn_weight > 0.0 else 0
 
+    @lru_cache(maxsize=adjacency_cache_size)
     def get_neighbors(first_id):
-        if first_id in adjacency:
-            return adjacency[first_id]
-
         neighbors = []
         row, col = nodes[first_id]
         first_row = np.searchsorted(candidate_rows, row - row_radius, side="left")
@@ -335,7 +337,6 @@ def tower_graph_route(cost_raster, traversable_mask, tower_allowed_mask,
                     continue
                 neighbors.append((second_id, span_cost))
 
-        adjacency[first_id] = neighbors
         return neighbors
 
     minimum_cost = float(cost[traversable].min())

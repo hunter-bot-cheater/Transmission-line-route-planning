@@ -3,12 +3,39 @@ import math
 import numpy as np
 import pytest
 
+from transmission_path_planner import experimental_tower_graph as tower_graph
 from transmission_path_planner.experimental_tower_graph import (
     span_clearance_status,
     tower_graph_route,
     tower_graph_path_objective,
     tower_site_proxy_cost_raster,
 )
+
+
+@pytest.mark.parametrize(("turn_weight", "expected_cache_size"), [
+    (0.0, 0),
+    (0.5, 64),
+])
+def test_adjacency_cache_is_disabled_or_bounded_by_search_state(
+        monkeypatch, turn_weight, expected_cache_size):
+    cache_sizes = []
+    original_lru_cache = tower_graph.lru_cache
+
+    def capture_cache_size(*, maxsize):
+        cache_sizes.append(maxsize)
+        return original_lru_cache(maxsize=maxsize)
+
+    monkeypatch.setattr(tower_graph, "lru_cache", capture_cache_size)
+    cost = np.ones((1, 3), dtype=np.float64)
+    traversable = np.ones(cost.shape, dtype=bool)
+    tower_allowed = np.ones(cost.shape, dtype=bool)
+
+    route = tower_graph.tower_graph_route(
+        cost, traversable, tower_allowed, (0, 0), (0, 2), 0.0, 2.0,
+        turn_penalty_weight=turn_weight)
+
+    assert route == [(0, 0), (0, 2)]
+    assert cache_sizes == [expected_cache_size]
 
 
 def _small_graph_dijkstra_cost(nodes, start, goal, min_span, max_span,
