@@ -10,7 +10,10 @@ import rasterio
 import geopandas as gpd
 from shapely.geometry import Polygon
 
-from transmission_path_planner.data import _hillshade, compute_terrain_factors, load_dem_window
+from transmission_path_planner.config import HAS_SCIPY, ndi
+from transmission_path_planner.data import (
+    _hillshade, _masked_local_stats, compute_terrain_factors, load_dem_window,
+)
 from transmission_path_planner.geometry import pixel_meters, pixel_spacing_meters
 from transmission_path_planner.visualization import plot_comparison
 
@@ -168,6 +171,48 @@ class GeospatialSpacingTests(unittest.TestCase):
                 )
         self.assertGreater(float(factors_a["terrain_support_ratio"][20, 20]), 0.0)
         self.assertLess(float(factors_a["terrain_support_ratio"][20, 20]), 1.0)
+
+    @unittest.skipUnless(HAS_SCIPY, "masked local stats require scipy")
+    def test_chunked_masked_local_stats_match_full_grid_reference(self):
+        rows, cols = np.indices((11, 9))
+        raw = (2500.0 + 0.25 * rows + 0.125 * cols
+               + 0.03125 * ((rows * cols) % 7)).astype(np.float32)
+        nodata = raw.copy()
+        nodata[0, 0] = np.nan
+        nodata[3, 4] = np.nan
+        nodata[8, 1] = np.nan
+        cases = ((np.ones(raw.shape, dtype=bool), raw), (np.isfinite(nodata), nodata))
+
+        for valid, source in cases:
+            for size in (3, 7, 15):
+                with self.subTest(size=size, has_nodata=not valid.all()):
+                    expected_weights = valid.astype(np.float64)
+                    expected_values = np.where(valid, source, 0.0).astype(np.float64)
+                    expected_support = ndi.uniform_filter(
+                        expected_weights, size=size, mode="reflect")
+                    expected_mean = ndi.uniform_filter(
+                        expected_values, size=size, mode="reflect")
+                    expected_mean = np.divide(
+                        expected_mean, expected_support, out=expected_mean,
+                        where=expected_support > 0)
+                    expected_mean_sq = ndi.uniform_filter(
+                        expected_values * expected_values, size=size, mode="reflect")
+                    expected_mean_sq = np.divide(
+                        expected_mean_sq, expected_support, out=expected_mean_sq,
+                        where=expected_support > 0)
+                    np.subtract(expected_mean_sq, expected_mean * expected_mean,
+                                out=expected_mean_sq)
+                    np.maximum(expected_mean_sq, 0.0, out=expected_mean_sq)
+                    np.sqrt(expected_mean_sq, out=expected_mean_sq)
+                    expected_mean[~valid] = 0.0
+                    expected_mean_sq[~valid] = 0.0
+                    expected_support[~valid] = 0.0
+
+                    actual = _masked_local_stats(source, valid, size, chunk_rows=3)
+
+                    for got, expected in zip(actual, (
+                            expected_mean, expected_mean_sq, expected_support)):
+                        np.testing.assert_array_equal(got, expected.astype(np.float32))
 
 
 if __name__ == "__main__":

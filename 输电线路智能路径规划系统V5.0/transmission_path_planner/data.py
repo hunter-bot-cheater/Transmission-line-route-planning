@@ -374,6 +374,43 @@ def _masked_gradient_axis(z, valid, spacing, axis):
     return gradient, support
 
 
+def _masked_local_stats(raw, valid, size, chunk_rows=256):
+    """Compute masked local mean/std/support in row chunks without changing filter edges."""
+    height, width = raw.shape
+    radius = size // 2
+    mean_out = np.empty((height, width), dtype=np.float32)
+    roughness_out = np.empty((height, width), dtype=np.float32)
+    support_out = np.empty((height, width), dtype=np.float32)
+
+    for row_start in range(0, height, chunk_rows):
+        row_stop = min(row_start + chunk_rows, height)
+        halo_start = max(0, row_start - radius)
+        halo_stop = min(height, row_stop + radius)
+        slab_valid = valid[halo_start:halo_stop]
+        slab_raw = raw[halo_start:halo_stop]
+        weights = slab_valid.astype(np.float64)
+        values = np.where(slab_valid, slab_raw, 0.0).astype(np.float64, copy=False)
+        support = ndi.uniform_filter(weights, size=size, mode="reflect")
+        mean = ndi.uniform_filter(values, size=size, mode="reflect")
+        mean = np.divide(mean, support, out=mean, where=support > 0)
+        np.square(values, out=values)
+        mean_sq = ndi.uniform_filter(values, size=size, mode="reflect")
+        mean_sq = np.divide(mean_sq, support, out=mean_sq, where=support > 0)
+        np.subtract(mean_sq, mean * mean, out=mean_sq)
+        np.maximum(mean_sq, 0.0, out=mean_sq)
+        np.sqrt(mean_sq, out=mean_sq)
+        mean[~slab_valid] = 0.0
+        mean_sq[~slab_valid] = 0.0
+        support[~slab_valid] = 0.0
+
+        inner = slice(row_start - halo_start, row_stop - halo_start)
+        mean_out[row_start:row_stop] = mean[inner]
+        roughness_out[row_start:row_stop] = mean_sq[inner]
+        support_out[row_start:row_stop] = support[inner]
+
+    return mean_out, roughness_out, support_out
+
+
 def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
     if transform is not None:
         row_m, col_m = pixel_spacing_meters(
@@ -394,20 +431,7 @@ def compute_terrain_factors(dem, pixel_m, transform=None, crs=None):
     aspect_sin = np.sin(aspect)
 
     def local_stats(size):
-        weights = valid.astype(np.float64)
-        values = np.where(valid, raw, 0.0).astype(np.float64, copy=False)
-        support = ndi.uniform_filter(weights, size=size, mode="reflect")
-        mean = ndi.uniform_filter(values, size=size, mode="reflect")
-        mean = np.divide(mean, support, out=np.zeros_like(mean), where=support > 0)
-        mean_sq = ndi.uniform_filter(values * values, size=size, mode="reflect")
-        mean_sq = np.divide(mean_sq, support, out=np.zeros_like(mean_sq), where=support > 0)
-        np.subtract(mean_sq, mean * mean, out=mean_sq)
-        np.maximum(mean_sq, 0.0, out=mean_sq)
-        np.sqrt(mean_sq, out=mean_sq)
-        mean[~valid] = 0.0
-        mean_sq[~valid] = 0.0
-        support[~valid] = 0.0
-        return mean.astype(np.float32), mean_sq.astype(np.float32), support.astype(np.float32)
+        return _masked_local_stats(raw, valid, size)
 
     tri = local_stats(3)[1] if HAS_SCIPY else np.zeros_like(raw)
 
