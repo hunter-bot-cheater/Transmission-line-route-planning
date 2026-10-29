@@ -430,13 +430,14 @@ ROUTE_SAMPLE_STEP_M = 20.0
 FRECHET_SAMPLE_INTERVAL_M = 100.0
 
 
-def _line_samples(projected, step_m):
+def _line_samples(projected, step_m, return_progress=False):
     """Return arc-length midpoint samples, sample weights, and component lengths."""
     from shapely.geometry import LineString
 
     samples = []
     weights = []
     lengths = []
+    progress = []
     for coordinates in projected:
         line = LineString(coordinates)
         if line.length <= 0:
@@ -446,9 +447,14 @@ def _line_samples(projected, step_m):
         samples.append(np.asarray([line.interpolate(float(d)).coords[0] for d in distances]))
         weights.append(np.full(count, line.length / count, dtype=np.float64))
         lengths.append(float(line.length))
+        if return_progress:
+            progress.append((np.arange(count, dtype=np.float64) + 0.5) / count)
     if not samples:
         raise ValueError("偏差计算线路长度必须大于零")
-    return np.concatenate(samples, axis=0), np.concatenate(weights), lengths
+    result = np.concatenate(samples, axis=0), np.concatenate(weights), lengths
+    if return_progress:
+        return (*result, np.concatenate(progress))
+    return result
 
 
 def _weighted_percentile(values, weights, percentile):
@@ -479,6 +485,49 @@ def _distance_summary(distances, sample_weights):
     }
 
 
+def _chain_error_profile(distances, sample_weights, progress, bin_count):
+    distances = np.asarray(distances, dtype=np.float64)
+    weights = np.asarray(sample_weights, dtype=np.float64)
+    bin_indexes = np.minimum((np.asarray(progress) * bin_count).astype(int), bin_count - 1)
+    bins = []
+    for index in range(bin_count):
+        selected = bin_indexes == index
+        bin_distances = distances[selected]
+        bin_weights = weights[selected]
+        if not len(bin_distances):
+            bins.append({
+                "index": index,
+                "start_fraction": index / bin_count,
+                "end_fraction": (index + 1) / bin_count,
+                "sample_count": 0,
+                "sampled_length_m": 0.0,
+                "mean_m": None,
+                "p50_m": None,
+                "p95_m": None,
+                "coverage_within_m": {
+                    str(tolerance): None for tolerance in VISUAL_TOLERANCES_M
+                },
+            })
+            continue
+        bins.append({
+            "index": index,
+            "start_fraction": index / bin_count,
+            "end_fraction": (index + 1) / bin_count,
+            "sample_count": int(len(bin_distances)),
+            "sampled_length_m": float(bin_weights.sum()),
+            "mean_m": float(np.average(bin_distances, weights=bin_weights)),
+            "p50_m": _weighted_percentile(bin_distances, bin_weights, 50),
+            "p95_m": _weighted_percentile(bin_distances, bin_weights, 95),
+            "coverage_within_m": {
+                str(tolerance): float(np.average(
+                    bin_distances <= tolerance, weights=bin_weights,
+                ))
+                for tolerance in VISUAL_TOLERANCES_M
+            },
+        })
+    return bins
+
+
 def _discrete_frechet(first, second):
     """Compute discrete Frechet distance with GEOS over sampled vertices."""
     from shapely import frechet_distance
@@ -496,12 +545,20 @@ def _resample_line(coordinates, max_interval_m):
     ], dtype=np.float64)
 
 
-def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
+def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None,
+                      chain_profile_bins=None):
     """Compare route geometries in both directions using arc-length samples in meters.
 
     Distance quantiles and coverage are sampled approximations at
     ``ROUTE_SAMPLE_STEP_M``. The maximum is diagnostic and is not a pass/fail score.
+    ``chain_profile_bins`` optionally adds an endpoint-aligned, equal-distance
+    profile for post-hoc localization; it is never used by route search.
     """
+    if chain_profile_bins is not None and (
+            isinstance(chain_profile_bins, bool)
+            or not isinstance(chain_profile_bins, int)
+            or not 1 <= chain_profile_bins <= 100):
+        raise ValueError("chain_profile_bins must be an integer from 1 to 100")
     if not planned_geo or len(planned_geo) < 2 or not real_geo:
         return None
     try:
@@ -570,10 +627,30 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
         real_projected = [
             project_coordinates(list(line.coords)) for line in reference_lines
         ]
-        planned_samples, planned_sample_weights, planned_component_lengths = _line_samples(
-            [planned_projected], ROUTE_SAMPLE_STEP_M)
-        real_samples, real_sample_weights, real_component_lengths = _line_samples(
-            real_projected, ROUTE_SAMPLE_STEP_M)
+        profile_eligible = chain_profile_bins is not None and len(real_projected) == 1
+        profile_reference_projected = real_projected
+        if profile_eligible:
+            reference_line = real_projected[0]
+            forward_endpoint_sum = (
+                np.linalg.norm(planned_projected[0] - reference_line[0])
+                + np.linalg.norm(planned_projected[-1] - reference_line[-1])
+            )
+            reverse_endpoint_sum = (
+                np.linalg.norm(planned_projected[0] - reference_line[-1])
+                + np.linalg.norm(planned_projected[-1] - reference_line[0])
+            )
+            if reverse_endpoint_sum < forward_endpoint_sum:
+                profile_reference_projected = [reference_line[::-1]]
+        if profile_eligible:
+            planned_samples, planned_sample_weights, planned_component_lengths, planned_progress = _line_samples(
+                [planned_projected], ROUTE_SAMPLE_STEP_M, return_progress=True)
+            real_samples, real_sample_weights, real_component_lengths, real_progress = _line_samples(
+                profile_reference_projected, ROUTE_SAMPLE_STEP_M, return_progress=True)
+        else:
+            planned_samples, planned_sample_weights, planned_component_lengths = _line_samples(
+                [planned_projected], ROUTE_SAMPLE_STEP_M)
+            real_samples, real_sample_weights, real_component_lengths = _line_samples(
+                real_projected, ROUTE_SAMPLE_STEP_M)
 
         def segment_tree(projected_lines):
             segments = []
@@ -666,6 +743,24 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None):
             "discrete_frechet_approx": None,
             "buffer_iou": {},
         }
+        if chain_profile_bins is not None:
+            route_similarity["chain_error_profile"] = None
+            if profile_eligible:
+                route_similarity["chain_error_profile"] = {
+                    "version": 1,
+                    "binning": "equal_arc_length_fraction_aligned_by_endpoints",
+                    "bin_count": chain_profile_bins,
+                    "directions": {
+                        "planned_to_reference": _chain_error_profile(
+                            planned_distances, planned_sample_weights,
+                            planned_progress, chain_profile_bins,
+                        ),
+                        "reference_to_planned": _chain_error_profile(
+                            reference_distances, real_sample_weights,
+                            real_progress, chain_profile_bins,
+                        ),
+                    },
+                }
 
         reference_is_open_line = (
             len(real_projected) == 1

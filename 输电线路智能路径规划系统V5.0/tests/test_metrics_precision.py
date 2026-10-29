@@ -82,6 +82,64 @@ class MetricPrecisionTests(unittest.TestCase):
                            score["reference_to_planned"]["p95_m"])
         self.assertEqual(score["symmetric"]["p95_m"], directional_p95)
 
+    def test_optional_chain_profile_localizes_corridor_departure_and_aligns_reversed_reference(self):
+        planned = [(120.0, 24.0), (120.009, 24.0)]
+        reference = [
+            (120.0, 24.0), (120.0045, 24.0),
+            (120.0045, 24.002), (120.009, 24.002),
+        ]
+        bounds = (119.99, 23.99, 120.02, 24.02)
+
+        baseline = similarity(compute_deviation(planned, reference, bounds))
+        profiled = similarity(compute_deviation(
+            planned, reference, bounds, chain_profile_bins=10,
+        ))
+        reversed_profiled = similarity(compute_deviation(
+            planned, list(reversed(reference)), bounds, chain_profile_bins=10,
+        ))
+
+        self.assertNotIn("chain_error_profile", baseline)
+        profile = profiled["chain_error_profile"]
+        self.assertEqual(profile["version"], 1)
+        self.assertEqual(profile["bin_count"], 10)
+        self.assertEqual(len(profile["directions"]["planned_to_reference"]), 10)
+        planned_bins = profile["directions"]["planned_to_reference"]
+        self.assertLess(planned_bins[0]["p95_m"], 1.0)
+        self.assertGreater(planned_bins[-1]["p95_m"], 100.0)
+        self.assertAlmostEqual(
+            sum(item["sampled_length_m"] for item in planned_bins),
+            profiled["length"]["planned_km"] * 1000,
+            delta=1.0,
+        )
+        self.assertAlmostEqual(
+            profiled["symmetric"]["p95_m"], baseline["symmetric"]["p95_m"],
+            delta=1e-9,
+        )
+        forward_bins = profile["directions"]["reference_to_planned"]
+        reverse_bins = reversed_profiled["chain_error_profile"]["directions"][
+            "reference_to_planned"
+        ]
+        for forward, reverse in zip(forward_bins, reverse_bins):
+            self.assertAlmostEqual(forward["p95_m"], reverse["p95_m"], delta=1e-6)
+
+    def test_chain_profile_is_not_inferred_for_disconnected_reference_lines(self):
+        planned = [(121.0, 24.0), (121.01, 24.0)]
+        reference = [
+            [(121.0, 24.0), (121.004, 24.0)],
+            [(121.006, 24.0), (121.01, 24.0)],
+        ]
+
+        score = similarity(compute_deviation(planned, reference, chain_profile_bins=10))
+
+        self.assertIsNone(score["chain_error_profile"])
+
+    def test_chain_profile_bin_count_must_be_positive_and_bounded(self):
+        route = [(121.0, 24.0), (121.01, 24.0)]
+        for invalid in (True, 0, -1, 101, 10.0):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                    ValueError, "chain_profile_bins"):
+                compute_deviation(route, route, chain_profile_bins=invalid)
+
     def test_reference_segments_between_vertices_are_counted(self):
         planned = [(120.0, 24.0), (120.01, 24.0)]
         reference = [(120.0, 24.0), (120.005, 24.001), (120.01, 24.0)]
