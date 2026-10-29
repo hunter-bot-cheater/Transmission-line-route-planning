@@ -1,0 +1,128 @@
+{
+  "experiment_id": "taiwan_nodata_memory_ablation_4arm_3case_20261029",
+  "frozen_at_utc": "2026-10-29",
+  "source_bundle_head": "0653154b9ac54eeb2b7c3590fb2285927408213f",
+  "execution_host": "benke@10.166.33.23",
+  "server_root": "/data1/B24041626/pp/terrain_nodata_memory_ablation_4arm_3case_20261029",
+  "out_dir": "results",
+  "reference_geometry_read_during_planning": false,
+  "design": "Four-arm NoData ablation: baseline terrain factors, terrain-factor NoData handling only, full terrain plus cost NoData handling, and the same full fix with row-chunked local statistics. Three fixed Taiwan endpoint-proxy cases. Source revisions differ only in the terrain data.py and cost.py implementation; the remaining planner package is pinned to source_bundle_head. Routes are planned before any reference geometry is opened.",
+  "endpoint_qualification": "exploratory endpoint proxies; not authoritative verified station connection points",
+  "cases": [
+    {
+      "case_id": "TW59",
+      "start": [24.995756, 121.696388],
+      "end": [24.819519, 121.196138],
+      "selection_rank": "minimum terrain relief"
+    },
+    {
+      "case_id": "TW345",
+      "start": [23.892187, 120.768123],
+      "end": [23.552757, 120.490569],
+      "selection_rank": "upper-median terrain relief"
+    },
+    {
+      "case_id": "TW102",
+      "start": [23.721245, 121.430280],
+      "end": [23.334595, 121.305276],
+      "selection_rank": "maximum terrain relief"
+    }
+  ],
+  "arms": [
+    {
+      "arm": "baseline",
+      "source_revision": "data.py=ed6ab60; cost.py=ed6ab60",
+      "data_commit": "ed6ab60",
+      "cost_commit": "ed6ab60"
+    },
+    {
+      "arm": "terrain_nodata_only",
+      "source_revision": "data.py=9d578b2; cost.py=ed6ab60",
+      "data_commit": "9d578b2",
+      "cost_commit": "ed6ab60"
+    },
+    {
+      "arm": "full_nodata_fix",
+      "source_revision": "data.py=9d578b2; cost.py=9d578b2",
+      "data_commit": "9d578b2",
+      "cost_commit": "9d578b2"
+    },
+    {
+      "arm": "chunked_full_nodata_fix",
+      "source_revision": "data.py=0653154; cost.py=9d578b2",
+      "data_commit": "0653154",
+      "cost_commit": "9d578b2"
+    }
+  ],
+  "fixed_parameters": {
+    "dem_resolution_m_approx": 35,
+    "max_side": 2048,
+    "window_margin_deg": 0.3,
+    "official_hazard_weight": 1.0,
+    "settlement_weight": 2.0,
+    "ridge_penalty_weight": 0.1,
+    "landcover_penalty_weight": 0.0,
+    "grade_penalty_weight": 0.0,
+    "terrain_slope_weight": 0.75,
+    "roughness_weight": 0.25,
+    "astar_heuristic_weight": 1.0,
+    "building_clearance_m": 0.0,
+    "population_raster": null,
+    "ai_diagnostics": false,
+    "cpu_search": true,
+    "cuda_visible_devices": "",
+    "omp_num_threads": 1,
+    "openblas_num_threads": 1,
+    "mkl_num_threads": 1,
+    "max_ground_grade": null,
+    "max_surface_slope_deg": null,
+    "max_terrain_elevation_m": null,
+    "voltage_rules_applied": false
+  },
+  "inputs": {
+    "dem": {
+      "path": "/data1/B24041626/pp/work/data/taiwan_dem_35m_georef_fixed.tif",
+      "sha256": "dc963ff6047f911275e9d2b3be678539f09ee8457939511c094721be6a2b4025"
+    },
+    "constraints": {
+      "path": "/data1/B24041626/pp/work/data/official_constraints_20261023.geojson",
+      "sha256": "5967d659856b925cd42909a6b5e1cf4ac09ae808d6d1c8e7ecd851003fa530b5"
+    },
+    "land_mask": {
+      "path": "/data1/B24041626/pp/landmask_route_fix_20261026/inputs/county_boundaries_1140318.geojson",
+      "sha256": "7e3d24cb13b7f1125c1c967d9d436ee556567516b0eb9894cfa3e763fe8874dd"
+    },
+    "hazard_manifest": {
+      "path": "/data1/B24041626/pp/work/data/official_sources/ardswc_115_mvt_z10_20261023/manifest.json",
+      "sha256": "d6d9328ad03a1ac73a8fc8aaf3cff8a1d4afdc59df4134da8d6a77f654bf320b"
+    },
+    "hazard_tiles_sha256": {
+      "path": "/data1/B24041626/pp/work/data/official_sources/ardswc_115_mvt_z10_20261023/tiles.sha256",
+      "sha256": "3d0fcf3137def46c5ad5b5d2452da27c120fb42cfba68967c4f3d57751466a37"
+    },
+    "osm_landuse": {
+      "path": "/data1/B24041626/pp/work/osm/taiwan_landuse.pkl",
+      "sha256": "823b984a95b1ced79b2c73a5b438f6c3851316879f0f109b63a2015c54d7a093"
+    },
+    "osm_buildings": {
+      "path": "/data1/B24041626/pp/work/osm/taiwan_buildings.pkl",
+      "sha256": "d601bd68ce1fdcf6833b53553db8f4378ee2f02ccdda20db51e19030b063c3d3"
+    }
+  },
+  "reference_sources_posthoc_only": {
+    "TW59": "/data1/B24041626/pp/results/current_tie_break_12cases_20261026/output/TW59-70c0b5c4d3/real_route.geojson",
+    "TW345": "/data1/B24041626/pp/results/current_tie_break_12cases_20261026/output/TW345-34e5d646cb/real_route.geojson",
+    "TW102": "/data1/B24041626/pp/results/current_tie_break_12cases_20261026/output/TW102-2090e70a51/real_route.geojson"
+  },
+  "resource_guard": {
+    "max_process_tree_rss_bytes": 8589934592,
+    "min_available_memory_bytes": 34359738368,
+    "poll_interval_seconds": 1
+  },
+  "limitations": [
+    "The endpoints are exploratory proxies from legacy benchmark coordinates, not verified station-side connection points.",
+    "Maximum ground grade, tower/conductor/span/sag/clearance rules, and voltage-specific engineering rules are not configured.",
+    "Population raster is omitted in this controlled ablation because its hash was not part of the existing frozen input set.",
+    "The 100 m visual-match criterion must account for raster pixel spacing, endpoint qualification, and the difference between a least-cost corridor and an as-built utility alignment."
+  ]
+}
