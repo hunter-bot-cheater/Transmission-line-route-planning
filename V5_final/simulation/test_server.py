@@ -1,6 +1,8 @@
 import copy
+import hashlib
 import json
 import math
+import os
 import statistics
 import subprocess
 import sys
@@ -80,7 +82,9 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
                 "end": {"station_id": "B", "name": "台湾", "lat": 23.5, "lon": 120.9},
             }
             with patch.object(jobs, "_config", return_value=config), \
-                    patch.object(jobs, "_validate_dem_point"):
+                    patch.object(jobs, "_validate_dem_point"), \
+                    patch.object(geographic_route_api, "_TAIWAN_LAND_MASK_SHA256",
+                                 hashlib.sha256(land_mask.read_bytes()).hexdigest()):
                 with self.assertRaisesRegex(ValueError, "起点坐标位于台湾县市陆域边界外"):
                     jobs.submit(payload)
 
@@ -105,15 +109,40 @@ class GeographicRoutePointValidationTests(unittest.TestCase):
             "dem": Path("dem.tif"), "land_mask": Path("land-mask.geojson"),
             "max_side": 4096,
         }
+        from shapely.geometry import box
+
         with patch.object(jobs, "_config", return_value=config), \
                 patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
                     "west": 120.0, "south": 22.0, "east": 122.0, "north": 25.0,
                 }), \
-                patch.object(geographic_route_api, "_taiwan_land_geometry"):
+                patch.object(geographic_route_api, "_taiwan_land_geometry",
+                             return_value=box(120.0, 22.0, 122.0, 25.0)):
             status = jobs.public_status()
 
         self.assertTrue(status["ready"])
         self.assertTrue(status["data_layers"]["land_mask"])
+
+        with patch.object(jobs, "_config", return_value=config), \
+                patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
+                    "west": 120.0, "south": 22.0, "east": 122.0, "north": 25.0,
+                }), \
+                patch.object(geographic_route_api, "_taiwan_land_geometry",
+                             return_value=box(130.0, 30.0, 131.0, 31.0)):
+            disjoint_status = jobs.public_status()
+
+        self.assertFalse(disjoint_status["ready"])
+        self.assertFalse(disjoint_status["data_layers"]["land_mask"])
+
+        with patch.object(jobs, "_config", return_value=config), \
+                patch.object(geographic_route_api, "_dem_bounds_wgs84", return_value={
+                    "west": 120.8, "south": 22.0, "east": 121.2, "north": 25.0,
+                }), \
+                patch.object(geographic_route_api, "_taiwan_land_geometry",
+                             return_value=box(120.0, 22.0, 120.8, 25.0)):
+            touching_status = jobs.public_status()
+
+        self.assertFalse(touching_status["ready"])
+        self.assertFalse(touching_status["data_layers"]["land_mask"])
 
     def test_point_validation_requires_planner_configuration(self):
         jobs = server.GEOGRAPHIC_ROUTE_JOBS
@@ -208,26 +237,83 @@ class GeographicRouteOutputValidationTests(unittest.TestCase):
     def test_taiwan_land_mask_accepts_inside_point_and_rejects_outside_point(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             land_mask = self._write_land_mask(Path(temp_dir) / "land-mask.geojson")
-            geographic_route_api._validate_taiwan_land_point(
-                land_mask, 120.9, 23.5, "起点",
-            )
-            with self.assertRaisesRegex(ValueError, "位于台湾县市陆域边界外"):
+            with patch.object(geographic_route_api, "_TAIWAN_LAND_MASK_SHA256",
+                              hashlib.sha256(land_mask.read_bytes()).hexdigest()):
                 geographic_route_api._validate_taiwan_land_point(
-                    land_mask, 122.5, 23.5, "起点",
+                    land_mask, 120.9, 23.5, "起点",
                 )
+                with self.assertRaisesRegex(ValueError, "位于台湾县市陆域边界外"):
+                    geographic_route_api._validate_taiwan_land_point(
+                        land_mask, 122.5, 23.5, "起点",
+                    )
+
+    def test_taiwan_land_mask_rejects_unpinned_hash_and_invalid_feature_or_crs(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            land_mask = self._write_land_mask(Path(temp_dir) / "land-mask.geojson")
+            with self.assertRaisesRegex(RuntimeError, "SHA-256"):
+                geographic_route_api._validate_taiwan_land_point(
+                    land_mask, 120.9, 23.5, "起点",
+                )
+
+            document = json.loads(land_mask.read_text(encoding="utf-8"))
+            document["features"][0]["type"] = "Polygon"
+            land_mask.write_text(json.dumps(document), encoding="utf-8")
+            with patch.object(geographic_route_api, "_TAIWAN_LAND_MASK_SHA256",
+                              hashlib.sha256(land_mask.read_bytes()).hexdigest()):
+                with self.assertRaisesRegex(RuntimeError, "要素"):
+                    geographic_route_api._validate_taiwan_land_point(
+                        land_mask, 120.9, 23.5, "起点",
+                    )
+
+            land_mask = self._write_land_mask(Path(temp_dir) / "land-mask.geojson")
+            document = json.loads(land_mask.read_text(encoding="utf-8"))
+            document["crs"] = {}
+            land_mask.write_text(json.dumps(document), encoding="utf-8")
+            with patch.object(geographic_route_api, "_TAIWAN_LAND_MASK_SHA256",
+                              hashlib.sha256(land_mask.read_bytes()).hexdigest()):
+                with self.assertRaisesRegex(RuntimeError, "CRS"):
+                    geographic_route_api._validate_taiwan_land_point(
+                        land_mask, 120.9, 23.5, "起点",
+                    )
+
+    def test_taiwan_land_mask_hash_is_rechecked_after_same_size_file_replacement(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            land_mask = self._write_land_mask(Path(temp_dir) / "land-mask.geojson")
+            original = land_mask.read_bytes()
+            original_stat = land_mask.stat()
+            changed = original.replace(b"120", b"130", 1)
+            self.assertEqual(len(changed), len(original))
+
+            with patch.object(geographic_route_api, "_TAIWAN_LAND_MASK_SHA256",
+                              hashlib.sha256(original).hexdigest()):
+                geographic_route_api._load_taiwan_land_geometry_cached.cache_clear()
+                geographic_route_api._validate_taiwan_land_point(
+                    land_mask, 120.9, 23.5, "起点",
+                )
+                land_mask.write_bytes(changed)
+                os.utime(land_mask, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
+                self.assertEqual(land_mask.stat().st_size, original_stat.st_size)
+                self.assertEqual(land_mask.stat().st_mtime_ns, original_stat.st_mtime_ns)
+                with self.assertRaisesRegex(RuntimeError, "SHA-256"):
+                    geographic_route_api._validate_taiwan_land_point(
+                        land_mask, 120.9, 23.5, "起点",
+                    )
+                geographic_route_api._load_taiwan_land_geometry_cached.cache_clear()
 
     def test_final_route_must_be_covered_by_taiwan_land_polygon(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             land_mask = self._write_land_mask(
                 Path(temp_dir) / "land-mask.geojson", hole=(120.8, 23.4, 121.0, 23.6),
             )
-            geographic_route_api._validate_route_taiwan_land_coverage(
-                land_mask, [[120.2, 23.0], [120.6, 23.0]],
-            )
-            with self.assertRaisesRegex(RuntimeError, "路线超出台湾县市陆域边界"):
+            with patch.object(geographic_route_api, "_TAIWAN_LAND_MASK_SHA256",
+                              hashlib.sha256(land_mask.read_bytes()).hexdigest()):
                 geographic_route_api._validate_route_taiwan_land_coverage(
-                    land_mask, [[120.5, 23.5], [121.5, 23.5]],
+                    land_mask, [[120.2, 23.0], [120.6, 23.0]],
                 )
+                with self.assertRaisesRegex(RuntimeError, "路线超出台湾县市陆域边界"):
+                    geographic_route_api._validate_route_taiwan_land_coverage(
+                        land_mask, [[120.5, 23.5], [121.5, 23.5]],
+                    )
 
     def test_route_inside_valid_dem_cells_is_accepted(self):
         self._validate([[120.1875, 24.8125], [121.0625, 24.8125]])
