@@ -202,8 +202,8 @@ body {
   line-height: 1.5;
 }
 .route-map {
-  height: clamp(500px, 64vh, 760px);
-  min-height: 430px;
+  height: clamp(390px, 54vh, 680px);
+  min-height: 360px;
   overflow: hidden;
   border: 1px solid #d7e1dd;
   border-radius: 14px;
@@ -265,10 +265,10 @@ body {
   scrollbar-width: thin;
   padding: 20px;
 }
-.route-form-title { margin-bottom: 16px; }
+.route-form-title { margin-bottom: 11px; }
 .route-token-field {
-  margin: 0 0 12px;
-  padding: 12px 13px;
+  margin: 0 0 9px;
+  padding: 10px 11px;
   border: 1px solid #dce8e2;
   border-radius: 12px;
   background: #f7faf8;
@@ -312,8 +312,8 @@ body {
 .route-note {
   display: grid;
   gap: 3px;
-  margin: 0 0 12px;
-  padding: 11px 12px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
   border: 1px solid #f0dfb5;
   border-left: 3px solid #d5a545;
   border-radius: 9px;
@@ -325,8 +325,8 @@ body {
 .route-note b { color: #745d2d; font-size: 11px; }
 .route-access-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
 .route-station {
-  margin: 12px 0 0;
-  padding: 13px;
+  margin: 8px 0 0;
+  padding: 10px;
   border: 1px solid #dce7e2;
   border-radius: 12px;
   background: #f7faf8;
@@ -338,7 +338,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin: 0 0 7px;
+  margin: 0 0 5px;
   color: #20393b;
   font-size: 14px;
 }
@@ -363,6 +363,7 @@ body {
 }
 .route-grid > div { min-width: 0; }
 .route-grid label { margin-top: 8px; }
+.route-grid input { min-height: 38px; padding: 7px 9px; }
 .route-verify-fields:not([hidden]) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -543,16 +544,31 @@ body {
   outline-offset: 3px;
 }
 
-@media (max-width: 1120px) and (min-width: 941px) {
-  .route-shell { width: calc(100% - 40px); }
-  .route-layout { grid-template-columns: minmax(0, 1.45fr) minmax(350px, .9fr); gap: 14px; }
-  .route-map-panel,.route-form,.route-results .route-result-panel { padding: 16px; }
-  .route-submit-area { margin: 15px -16px -16px; padding: 11px 16px 14px; }
-  .route-map { height: clamp(470px, 58vh, 650px); }
+@media (max-width: 1120px) and (min-width: 841px) {
+  .route-shell { width: calc(100% - 36px); }
+  .route-layout { grid-template-columns: minmax(0, 1.3fr) minmax(335px, .9fr); gap: 12px; }
+  .route-map-panel,.route-form,.route-results .route-result-panel { padding: 14px; }
+  .route-form { max-height: calc(100vh - 28px); }
+  .route-form-title { margin-bottom: 9px; }
+  .route-token-field { margin-bottom: 7px; padding: 8px 9px; }
+  .route-token-field small { margin-top: 4px; }
+  .route-note { margin-bottom: 6px; padding: 7px 9px; }
+  .route-access-grid label { margin-bottom: 4px; }
+  .route-form select { min-height: 38px; }
+  .route-station { margin-top: 7px; padding: 8px 9px; }
+  .route-station h3 { margin-bottom: 2px; font-size: 13px; }
+  .route-grid label { margin-top: 5px; font-size: 11px; }
+  .route-grid input { min-height: 35px; padding: 6px 8px; font-size: 12px; }
+  .route-submit-area { margin: 12px -14px -14px; padding: 9px 14px 12px; }
+  .route-form .button.primary.full { min-height: 44px; }
+  .route-status { min-height: 34px; margin-top: 6px; padding: 7px 9px; font-size: 10px; }
+  .route-data-details { margin-top: 7px; }
+  .route-data-details summary { padding-top: 8px; }
+  .route-map { height: clamp(390px, 54vh, 590px); }
   .route-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (max-width: 940px) {
+@media (max-width: 840px) {
   .route-shell { width: min(920px, calc(100% - 36px)); padding: 22px 0 48px; }
   .route-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .route-map-panel { grid-column: 1; grid-row: 1; }
