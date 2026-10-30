@@ -1,7 +1,10 @@
 # transmission_path_planner/geometry.py
-"""几何与坐标工具（经纬度<->栅格、Haversine 距离、路径长度）。"""
+"""几何与坐标工具（经纬度<->栅格、Haversine 与 WGS84 距离）。"""
 
 from .config import *
+from pyproj import Geod
+
+_WGS84_GEOD = Geod(ellps="WGS84")
 
 def geo_to_rowcol(lat, lon, transform):
     col, row = ~transform * (lon, lat)
@@ -63,6 +66,17 @@ def path_length_km(coords):
                for i in range(len(coords) - 1))
 
 
+def geodesic_distance_km(lon1, lat1, lon2, lat2):
+    return float(_WGS84_GEOD.inv(lon1, lat1, lon2, lat2)[2]) / 1000.0
+
+
+def geodesic_path_length_km(coords):
+    return sum(
+        _WGS84_GEOD.inv(start[0], start[1], end[0], end[1])[2]
+        for start, end in zip(coords, coords[1:])
+    ) / 1000.0
+
+
 def point_to_polyline_km(lon, lat, polylines):
     """点到折线集合(多条折线)的最小 haversine 距离 km。polylines: [[(lon,lat),...],...]"""
     best = 1e9
@@ -84,9 +98,9 @@ def point_to_polyline_km(lon, lat, polylines):
 
 
 def real_length_km(real_geo):
-    """真实线(单折线或折线列表/线网)总长度 km。"""
+    """参考线(单折线或折线列表/线网)的 WGS84 椭球总长度 km。"""
     if not real_geo:
         return 0.0
     if isinstance(real_geo[0][0], (list, tuple)):
-        return sum(path_length_km(p) for p in real_geo)
-    return path_length_km(real_geo)
+        return sum(geodesic_path_length_km(p) for p in real_geo)
+    return geodesic_path_length_km(real_geo)

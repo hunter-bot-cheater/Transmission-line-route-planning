@@ -3,7 +3,6 @@
 
 import hashlib
 import re
-from pyproj import Geod
 
 from .config import *
 from .geometry import *
@@ -2353,11 +2352,8 @@ def main():
                         else "reference_loaded_no_comparable_route")
 
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
-            geod = Geod(ellps="WGS84")
             final_route_length_km = (
-                round(sum(geod.inv(*start[:2], *end[:2])[2]
-                          for start, end in zip(final_geo, final_geo[1:])) / 1000.0, 3)
-                if final_geo else None)
+                round(geodesic_path_length_km(final_geo), 3) if final_geo else None)
             planning_status = route_planning_status(
                 final_geo, station_task, missing_screening_layers,
                 osm_coverage_unverified=(

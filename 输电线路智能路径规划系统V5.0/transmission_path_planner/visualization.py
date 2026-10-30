@@ -103,7 +103,7 @@ def plot_comparison(dem, transform, methods_paths, start_ll, end_ll, out_path, t
             ax.plot([p[0] for p in geo], [p[1] for p in geo],
                     color=colors.get(name, "#555"),
                     linestyle=line_styles.get(name, "-"),
-                    linewidth=2.2, label=f"{name} ({path_length_km(geo):.1f}km)", zorder=4)
+                    linewidth=2.2, label=f"{name} ({geodesic_path_length_km(geo):.1f}km)", zorder=4)
         if real_ll and len(real_ll) >= 1:
             from matplotlib.collections import LineCollection
             polys = real_ll if isinstance(real_ll[0][0], (list, tuple)) else [real_ll]

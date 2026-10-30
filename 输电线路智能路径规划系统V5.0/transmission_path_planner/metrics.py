@@ -430,7 +430,7 @@ def route_layer_exposure(geo, transform, shape, terrain, osm, hazard_masks,
 def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_ll,
                     grade_penalty_weight=1.0, turn_penalty_weight=0.0,
                     pixel_spacing=None):
-    length = path_length_km(geo)
+    length = geodesic_path_length_km(geo)
     hs = sample_dem(densify_path_for_raster(geo, transform), dem, transform)
     cum, net = cumulative_relief(hs)
     # 平均代价
@@ -448,7 +448,7 @@ def compute_metrics(geo, dem, transform, cost_surface, hard_mask, start_ll, end_
         geo, dem, transform, cost_surface, grade_penalty_weight, turn_penalty_weight,
         pixel_spacing)
     # 弯曲度
-    straight = haversine_km(start_ll[1], start_ll[0], end_ll[1], end_ll[0])
+    straight = geodesic_distance_km(start_ll[1], start_ll[0], end_ll[1], end_ll[0])
     sinuosity = length / straight if straight > 0 else 1.0
     # 硬约束违规包含路径段穿越的像元，不能只检查导出折线的采样点。
     viol = path_hard_violations(geo, transform, hard_mask)
@@ -716,6 +716,9 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None,
         reference_lines = line_parts(reference_geometry)
         if not reference_lines:
             return None
+        planned_geodesic_km = geodesic_path_length_km(planned_geo)
+        reference_geodesic_km = sum(
+            geodesic_path_length_km(list(line.coords)) for line in reference_lines)
         real_projected = [
             project_coordinates(list(line.coords)) for line in reference_lines
         ]
@@ -824,11 +827,12 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None,
                 "coverage_f1_within_m": tolerance_f1,
             },
             "length": {
-                "planned_km": planned_length_m / 1000.0,
-                "reference_km": reference_length_m / 1000.0,
-                "signed_difference_km": (planned_length_m - reference_length_m) / 1000.0,
-                "absolute_difference_km": abs(planned_length_m - reference_length_m) / 1000.0,
-                "absolute_difference_pct": abs(planned_length_m - reference_length_m) / reference_length_m * 100.0,
+                "planned_km": planned_geodesic_km,
+                "reference_km": reference_geodesic_km,
+                "signed_difference_km": planned_geodesic_km - reference_geodesic_km,
+                "absolute_difference_km": abs(planned_geodesic_km - reference_geodesic_km),
+                "absolute_difference_pct": abs(planned_geodesic_km - reference_geodesic_km) / reference_geodesic_km * 100.0,
+                "measurement_method": "WGS84 ellipsoidal geodesic (pyproj.Geod)",
             },
             "planning_window_coverage": planning_window_coverage,
             "endpoint_offsets": None,
@@ -880,22 +884,26 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None,
                 "planned_end_to_reference_endpoint_m": endpoint_offsets[1],
             }
 
-            planned_shape = _resample_line(planned_projected, FRECHET_SAMPLE_INTERVAL_M)
-            reference_shape = _resample_line(real_projected[0], FRECHET_SAMPLE_INTERVAL_M)
-            frechet = min(
-                _discrete_frechet(planned_shape, reference_shape),
-                _discrete_frechet(planned_shape, reference_shape[::-1]),
-            )
-            route_similarity["discrete_frechet_approx"] = {
-                "distance_m": frechet,
-                "target_max_sample_interval_m": FRECHET_SAMPLE_INTERVAL_M,
-                "planned_sample_points": len(planned_shape),
-                "reference_sample_points": len(reference_shape),
-                "planned_max_sample_interval_m": float(
-                    planned_length_m / (len(planned_shape) - 1)),
-                "reference_max_sample_interval_m": float(
-                    reference_length_m / (len(reference_shape) - 1)),
-            }
+            try:
+                planned_shape = _resample_line(planned_projected, FRECHET_SAMPLE_INTERVAL_M)
+                reference_shape = _resample_line(real_projected[0], FRECHET_SAMPLE_INTERVAL_M)
+                frechet = min(
+                    _discrete_frechet(planned_shape, reference_shape),
+                    _discrete_frechet(planned_shape, reference_shape[::-1]),
+                )
+            except Exception as ex:
+                print(f"    [warn] Fréchet 指标暂不可用，其余路线误差仍保留: {ex}")
+            else:
+                route_similarity["discrete_frechet_approx"] = {
+                    "distance_m": frechet,
+                    "target_max_sample_interval_m": FRECHET_SAMPLE_INTERVAL_M,
+                    "planned_sample_points": len(planned_shape),
+                    "reference_sample_points": len(reference_shape),
+                    "planned_max_sample_interval_m": float(
+                        planned_length_m / (len(planned_shape) - 1)),
+                    "reference_max_sample_interval_m": float(
+                        reference_length_m / (len(reference_shape) - 1)),
+                }
 
         try:
             from shapely.ops import unary_union
@@ -913,7 +921,7 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None,
             route_similarity["buffer_iou"] = {}
 
         return {
-            "route_similarity_version": 6,
+            "route_similarity_version": 7,
             "route_similarity": route_similarity,
         }
     except Exception as ex:
@@ -922,7 +930,7 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None,
 
 
 def eval_error(plan_len_km, dev):
-    """Return v4 arc-length-weighted geometry and length metrics."""
+    """Return v7 arc-length-weighted geometry and WGS84 length metrics."""
     if not dev:
         return None
     similarity = dev.get("route_similarity")
@@ -942,14 +950,14 @@ def eval_error(plan_len_km, dev):
     similarity = dict(similarity)
     similarity["length"] = length
     return {
-        "route_similarity_version": 6,
+        "route_similarity_version": 7,
         "route_similarity": similarity,
     }
 
 
 def eval_planned_route_error(planned_geo, dev):
     """Score using full route length; output metrics are rounded for display only."""
-    return eval_error(path_length_km(planned_geo), dev)
+    return eval_error(geodesic_path_length_km(planned_geo), dev)
 
 
 def load_real_cases_csv(path):

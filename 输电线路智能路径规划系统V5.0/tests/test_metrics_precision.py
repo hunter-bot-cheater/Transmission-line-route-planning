@@ -1,9 +1,10 @@
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 from pyproj import Transformer
 
-from transmission_path_planner.geometry import path_length_km
+from transmission_path_planner.geometry import geodesic_path_length_km
 from transmission_path_planner.metrics import (
     _distance_summary,
     _line_samples,
@@ -31,7 +32,7 @@ class MetricPrecisionTests(unittest.TestCase):
         self.assertAlmostEqual(score["symmetric"]["sampled_hausdorff_m"], score["planned_to_reference"]["sampled_max_m"])
         self.assertEqual(score["sampling_interval_m"], 20.0)
         self.assertLess(score["symmetric"]["coverage_f1_within_m"]["100"], 0.1)
-        self.assertEqual(metrics["route_similarity_version"], 6)
+        self.assertEqual(metrics["route_similarity_version"], 7)
 
     def test_routes_share_projection_when_scored_against_same_planning_window(self):
         reference = [(120.0, 24.0), (120.02, 24.0)]
@@ -382,11 +383,38 @@ class MetricPrecisionTests(unittest.TestCase):
         dev = compute_deviation(route, route)
         error = eval_error(dev["route_similarity"]["length"]["reference_km"] * 1.2, dev)
 
-        self.assertEqual(error["route_similarity_version"], 6)
+        self.assertEqual(error["route_similarity_version"], 7)
         self.assertAlmostEqual(error["route_similarity"]["length"]["absolute_difference_pct"], 20.0)
         self.assertEqual(error["route_similarity"]["symmetric"]["sampled_hausdorff_m"], 0.0)
         self.assertNotIn("pass8", error)
         self.assertNotIn("worst_err_pct", error)
+
+    def test_route_similarity_lengths_use_wgs84_geodesic(self):
+        route = [(121.0, 24.0), (121.1, 24.1)]
+        expected = geodesic_path_length_km(route)
+
+        metrics = compute_deviation(route, route)
+        length = similarity(metrics)["length"]
+
+        self.assertEqual(metrics["route_similarity_version"], 7)
+        self.assertAlmostEqual(length["planned_km"], expected, places=9)
+        self.assertAlmostEqual(length["reference_km"], expected, places=9)
+        self.assertEqual(
+            length["measurement_method"],
+            "WGS84 ellipsoidal geodesic (pyproj.Geod)",
+        )
+
+    def test_frechet_failure_keeps_other_route_metrics(self):
+        route = [(121.0, 24.0), (121.01, 24.0)]
+
+        with patch(
+                "transmission_path_planner.metrics._discrete_frechet",
+                side_effect=MemoryError("test allocation failure")):
+            metrics = compute_deviation(route, route)
+
+        score = similarity(metrics)
+        self.assertEqual(score["symmetric"]["sampled_hausdorff_m"], 0.0)
+        self.assertIsNone(score["discrete_frechet_approx"])
 
     def test_unrounded_planned_route_length_is_reported(self):
         forward = Transformer.from_crs(
@@ -396,7 +424,7 @@ class MetricPrecisionTests(unittest.TestCase):
                  for index, x in enumerate(range(0, 1001, 20))]
         reference = [forward.transform(0, 0), forward.transform(1000, 0)]
         dev = compute_deviation(route, reference)
-        raw_length = path_length_km(route)
+        raw_length = geodesic_path_length_km(route)
 
         rounded = eval_error(round(raw_length, 3), dev)
         exact = eval_planned_route_error(route, dev)
