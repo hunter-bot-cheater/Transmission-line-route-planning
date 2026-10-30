@@ -80,6 +80,7 @@ def _planning_input_records(args, dem_path, default_osm_cache_dir, model_weights
     for name, role in (
         ("stations_csv", "station_table"),
         ("route_tasks_csv", "route_tasks"),
+        ("engineering_profile_json", "engineering_profile"),
         ("real_cases_csv", "case_tasks"),
         ("constraint_geojson", "user_constraints"),
         ("land_mask_geojson", "land_mask"),
@@ -88,6 +89,22 @@ def _planning_input_records(args, dem_path, default_osm_cache_dir, model_weights
         path = _arg(args, name)
         if path:
             records.append(_file_record(role, path))
+            if name == "engineering_profile_json" and Path(path).is_file():
+                try:
+                    profile = json.loads(Path(path).read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, json.JSONDecodeError):
+                    profile = {}
+                for source in profile.get("sources", []):
+                    if not isinstance(source, dict):
+                        continue
+                    local_file = source.get("local_file")
+                    if (not isinstance(local_file, str) or not local_file
+                            or Path(local_file).is_absolute()
+                            or ".." in Path(local_file).parts):
+                        continue
+                    records.append(_file_record(
+                        "engineering_profile_source",
+                        Path(path).resolve().parent / local_file))
     records.append(_file_record("dem", dem_path))
 
     cache_dir = Path(_arg(args, "osm_cache_dir") or default_osm_cache_dir)

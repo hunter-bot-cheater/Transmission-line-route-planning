@@ -1,3 +1,4 @@
+import hashlib
 import json
 from contextlib import redirect_stderr, redirect_stdout
 from io import BytesIO, StringIO, TextIOWrapper
@@ -60,6 +61,40 @@ from transmission_path_planner import metrics
 
 
 class ReferenceIndependentPlanningTests(unittest.TestCase):
+    def _engineering_profile(self, folder):
+        evidence = Path(folder) / "profile-source.txt"
+        evidence.write_text("synthetic test source", encoding="utf-8")
+        digest = hashlib.sha256(evidence.read_bytes()).hexdigest()
+        source = {
+            "id": "fixture", "issuer": "fixture", "title": "fixture",
+            "revision": "1", "section": "1", "page": "1",
+            "url": "https://example.invalid", "local_file": evidence.name,
+            "sha256": digest,
+        }
+        profile = {
+            "schema_version": 1, "profile_id": "test",
+            "line": {
+                "voltage_kv": 161, "voltage_source_id": "fixture",
+                "tower_family": "fixture", "tower_family_source_id": "fixture",
+                "conductor_id": "fixture", "conductor_source_id": "fixture",
+                "load_cases": [{"id": "normal", "source_id": "fixture"}],
+            },
+            "vertical_datum": {"name": "TWVD2001", "source_id": "fixture"},
+            "span_limits": {"min_m": 80, "max_m": 500, "source_id": "fixture"},
+            "tower_site": {"max_slope_deg": 30, "pad_radius_m": 12,
+                           "source_id": "fixture"},
+            "sag_cases": [{"load_case": "normal", "attachment_height_m": 30,
+                           "max_sag_m": 20, "source_id": "fixture"}],
+            "clearance_rules": {
+                name: {"minimum_m": 8, "source_id": "fixture"}
+                for name in ("terrain", "road", "rail", "water", "building")
+            },
+            "sources": [source],
+        }
+        path = Path(folder) / "engineering-profile.json"
+        path.write_text(json.dumps(profile), encoding="utf-8")
+        return path
+
     def test_experimental_validation_status_uses_final_candidate(self):
         self.assertEqual(_candidate_validation_status([(0, 0)], None),
                          "rejected_after_search")
@@ -643,7 +678,9 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
                 main()
 
         self.assertEqual(exc.exception.code, 2)
-        self.assertIn("--max-surface-slope-deg", error_output.getvalue())
+        self.assertIn(
+            "选择塔位图最终筛查方案必须提供 --engineering-profile-json",
+            error_output.getvalue())
 
     def test_selectable_tower_graph_requires_explicit_site_pad_radius(self):
         args = [
@@ -661,7 +698,9 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
                 main()
 
         self.assertEqual(exc.exception.code, 2)
-        self.assertIn("--tower-site-pad-radius-m", error_output.getvalue())
+        self.assertIn(
+            "选择塔位图最终筛查方案必须提供 --engineering-profile-json",
+            error_output.getvalue())
 
     def test_selectable_tower_graph_rejects_invalid_site_slope_limit(self):
         base_args = [
@@ -681,7 +720,43 @@ class ReferenceIndependentPlanningTests(unittest.TestCase):
                         main()
 
                 self.assertEqual(exc.exception.code, 2)
-                self.assertIn("--max-surface-slope-deg", error_output.getvalue())
+                self.assertIn(
+                    "选择塔位图最终筛查方案必须提供 --engineering-profile-json",
+                    error_output.getvalue())
+
+    def test_engineering_profile_rejects_conflicting_cli_span(self):
+        with TemporaryDirectory() as folder:
+            profile_path = self._engineering_profile(folder)
+            args = [
+                "planner", "--experimental-tower-graph", "--engineering-profile-json",
+                str(profile_path), "--start", "24,121", "--end", "24.1,121.1",
+                "--tower-min-span-m", "100",
+            ]
+            error_output = StringIO()
+            with patch("sys.argv", args), redirect_stderr(error_output):
+                with self.assertRaises(SystemExit) as exc:
+                    main()
+
+        self.assertEqual(exc.exception.code, 2)
+        self.assertIn("--engineering-profile-json 与 --tower-min-span-m 数值冲突",
+                      error_output.getvalue())
+
+    def test_engineering_profile_rejects_conflicting_dem_vertical_datum(self):
+        with TemporaryDirectory() as folder:
+            profile_path = self._engineering_profile(folder)
+            args = [
+                "planner", "--experimental-tower-graph", "--engineering-profile-json",
+                str(profile_path), "--start", "24,121", "--end", "24.1,121.1",
+                "--dem-vertical-datum", "OTHER",
+            ]
+            error_output = StringIO()
+            with patch("sys.argv", args), redirect_stderr(error_output):
+                with self.assertRaises(SystemExit) as exc:
+                    main()
+
+        self.assertEqual(exc.exception.code, 2)
+        self.assertIn("--dem-vertical-datum 与工程参数文件声明的垂直基准不一致",
+                      error_output.getvalue())
 
     def test_tower_graph_span_parameters_require_experimental_mode(self):
         args = ["planner", "--tower-min-span-m", "175", "--start", "24,121",

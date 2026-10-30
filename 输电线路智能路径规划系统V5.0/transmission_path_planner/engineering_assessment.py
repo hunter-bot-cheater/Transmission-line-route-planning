@@ -1,7 +1,8 @@
 """Honest engineering-screening summaries for exploratory route candidates."""
 
 
-def engineering_assessment_record(route_metrics, station_task=None):
+def engineering_assessment_record(route_metrics, station_task=None,
+                                  profile_audit=None, osm_layer_metadata=None):
     """Separate configured raster screens from engineering checks not performed."""
     metrics = route_metrics or {}
     spans = metrics.get("clearance_profile_spans") or []
@@ -31,10 +32,49 @@ def engineering_assessment_record(route_metrics, station_task=None):
     else:
         endpoint_status = "not_a_station_task"
 
+    if profile_audit is None:
+        profile_audit = {
+            "status": "not_provided",
+            "engineering_feasibility": "not_evaluated",
+        }
+    osm_layer_metadata = osm_layer_metadata or {}
+    crossing_layers = {}
+    for crossing_class, layer_name in (
+            ("road", "roads"), ("rail", "railways"),
+            ("water", "water"), ("building", "buildings")):
+        layer = osm_layer_metadata.get(layer_name, {})
+        crossing_layers[crossing_class] = {
+            "source_status": layer.get("status", "not_loaded"),
+            "coverage_status": layer.get("coverage_status", "not_checked"),
+            "crossing_assessment": "not_evaluated_no_verified_object_elevations",
+        }
+
+    profile_status = profile_audit.get("status", "not_provided")
+    if profile_status == "not_provided":
+        source_profile_status = "not_provided"
+    else:
+        source_profile_status = "hashes_checked_authority_and_applicability_unverified"
+
+    profile_complete = (
+        profile_status == "profile_record_complete_local_source_hashes_match")
+    not_evaluated = [
+        "conductor_specific_catenary_and_load_case_integration",
+        "road_rail_water_building_clearance_by_crossing_class",
+        "tower_structure_foundation_and_geotechnical_capacity",
+        "right_of_way_land_rights_and_permits",
+        "power_flow_and_contingency_study",
+    ]
+    if not profile_complete:
+        not_evaluated.insert(0, "voltage_tower_conductor_and_load_case_profile")
+    else:
+        not_evaluated.append("profile_source_authority_and_line_applicability_review")
+
     return {
         "status": "not_evaluated",
-        "source_verified_engineering_profile": "missing",
+        "engineering_profile_source_integrity": source_profile_status,
+        "engineering_profile_audit": profile_audit,
         "station_connection_points": endpoint_status,
+        "crossing_data_layers": crossing_layers,
         "configured_screens": {
             "hard_constraints": metrics.get("hard_constraint_status", "not_evaluated"),
             "tower_span_length": metrics.get("tower_span_status", "not_evaluated"),
@@ -43,14 +83,8 @@ def engineering_assessment_record(route_metrics, station_task=None):
             "building_geometry": metrics.get("building_geometry_status", "not_evaluated"),
             "dem_parabolic_sag_clearance": profile_screen,
         },
-        "not_evaluated_requirements": [
-            "voltage_tower_conductor_and_load_case_profile",
-            "conductor_specific_catenary_and_sag_envelope",
-            "road_rail_water_building_clearance_by_crossing_class",
-            "tower_structure_foundation_and_geotechnical_capacity",
-            "right_of_way_land_rights_and_permits",
-            "power_flow_and_contingency_study",
-        ] + (["utility_verified_line_side_station_connections"]
+        "not_evaluated_requirements": not_evaluated + (
+            ["utility_verified_line_side_station_connections"]
              if station_task and endpoint_status != "declared_verified" else []),
         "interpretation": (
             "Configured raster screens describe exploratory candidate screening only; "

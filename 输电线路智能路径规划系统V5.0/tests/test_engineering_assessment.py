@@ -17,12 +17,25 @@ def test_assessment_keeps_unverified_engineering_requirements_explicit():
                      "exploratory_only_unverified_endpoints"})
 
     assert report["status"] == "not_evaluated"
-    assert report["source_verified_engineering_profile"] == "missing"
+    assert report["engineering_profile_source_integrity"] == "not_provided"
     assert report["configured_screens"]["dem_parabolic_sag_clearance"] == "screen_pass"
     assert "road_rail_water_building_clearance_by_crossing_class" in report[
         "not_evaluated_requirements"]
     assert "utility_verified_line_side_station_connections" in report[
         "not_evaluated_requirements"]
+
+
+def test_observed_crossing_layers_never_imply_complete_assessment():
+    report = engineering_assessment_record(
+        {}, osm_layer_metadata={
+            "roads": {"status": "available", "coverage_status": "features_observed"},
+            "railways": {"status": "available", "coverage_status": "features_observed"},
+        })
+
+    assert report["crossing_data_layers"]["road"]["coverage_status"] == "features_observed"
+    assert report["crossing_data_layers"]["road"]["crossing_assessment"].startswith(
+        "not_evaluated")
+    assert report["crossing_data_layers"]["water"]["source_status"] == "not_loaded"
 
 
 def test_assessment_distinguishes_failed_incomplete_and_unrun_clearance_screens():

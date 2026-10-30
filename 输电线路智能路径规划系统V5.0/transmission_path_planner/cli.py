@@ -18,6 +18,7 @@ from .stations import *
 from .official_hazards import load_official_hazard_masks
 from .provenance import capture_run_provenance, write_run_provenance
 from .engineering_assessment import engineering_assessment_record
+from .engineering_profile import load_engineering_profile
 from .experimental_theta_star import (
     integrate_polyline_cost,
     theta_star_cost_path,
@@ -972,6 +973,8 @@ def main():
                     help="对同一地形/约束代价面采样生成 A* 多目标候选；只输出实验候选，不参与最终选路")
     ap.add_argument("--experimental-tower-graph", action="store_true",
                     help="额外生成带候选塔位和档距约束的实验路线；默认仅作筛选对照")
+    ap.add_argument("--engineering-profile-json", type=str, default=None,
+                    help="带来源文件哈希的线路工程参数JSON；只验证来源完整性并应用塔图可用参数，不代表工程审批")
     ap.add_argument("--select-experimental-tower-graph", action="store_true",
                     help="显式把通过塔位坡度、档距、硬约束、建筑及逐跨 DEM 净空筛查的塔位图候选作为最终筛查方案")
     ap.add_argument("--tower-min-span-m", type=float, default=None,
@@ -1035,6 +1038,47 @@ def main():
     ap.add_argument("--ppo-epochs", type=int, default=4, help="PPO 每轮策略优化 epoch(默认4)")
     ap.add_argument("--ppo-bc", type=int, default=60, help="PPO 行为克隆预热步数(默认60)")
     args = ap.parse_args()
+    engineering_profile = None
+    engineering_profile_audit = None
+    if args.engineering_profile_json:
+        if not args.experimental_tower_graph:
+            ap.error("--engineering-profile-json 必须与 --experimental-tower-graph 同用")
+        try:
+            engineering_profile, engineering_profile_audit = load_engineering_profile(
+                args.engineering_profile_json)
+        except (OSError, ValueError) as exc:
+            ap.error(str(exc))
+        sag_cases = engineering_profile["sag_cases"]
+        profile_parameters = {
+            "tower_min_span_m": engineering_profile["span_limits"]["min_m"],
+            "tower_max_span_m": engineering_profile["span_limits"]["max_m"],
+            "max_surface_slope_deg": engineering_profile["tower_site"]["max_slope_deg"],
+            "tower_site_pad_radius_m": engineering_profile["tower_site"]["pad_radius_m"],
+            "tower_attachment_height_m": min(
+                case["attachment_height_m"] for case in sag_cases),
+            "tower_max_midspan_sag_m": max(
+                case["max_sag_m"] for case in sag_cases),
+            "tower_min_clearance_m": engineering_profile[
+                "clearance_rules"]["terrain"]["minimum_m"],
+        }
+        applied_parameters = []
+        for name, profile_value in profile_parameters.items():
+            cli_value = getattr(args, name)
+            if cli_value is not None and not math.isclose(
+                    cli_value, profile_value, rel_tol=1e-9, abs_tol=1e-9):
+                ap.error(f"--engineering-profile-json 与 --{name.replace('_', '-')} 数值冲突")
+            setattr(args, name, profile_value)
+            applied_parameters.append(name)
+        profile_datum = engineering_profile["vertical_datum"]["name"]
+        if args.dem_vertical_datum and args.dem_vertical_datum != profile_datum:
+            ap.error("--dem-vertical-datum 与工程参数文件声明的垂直基准不一致")
+        engineering_profile_audit["route_parameters_applied"] = True
+        engineering_profile_audit["applied_parameter_fields"] = applied_parameters
+        engineering_profile_audit["crossing_specific_rules_applied"] = ["terrain"]
+        engineering_profile_audit["crossing_specific_rules_not_applied"] = [
+            "road", "rail", "water", "building"]
+    elif args.select_experimental_tower_graph:
+        ap.error("选择塔位图最终筛查方案必须提供 --engineering-profile-json")
     (args.search_turn_penalty_weight,
      args.smoothing_turn_penalty_weight) = resolve_turn_penalty_weights(
          args.turn_penalty_weight, args.search_turn_penalty_weight,
@@ -1206,6 +1250,13 @@ def main():
                         != "declared_verified_line_connection_points"
                         for task in station_tasks)):
             ap.error("选择塔位图方案要求所有端点声明为已核验线路接入点")
+        if engineering_profile:
+            for task in station_tasks:
+                voltage = task.get("voltage_kv")
+                if voltage and not math.isclose(
+                        float(voltage), engineering_profile["line"]["voltage_kv"],
+                        rel_tol=1e-9, abs_tol=1e-9):
+                    ap.error(f"线路任务 {task['route_id']} 的电压与工程参数文件不一致")
         cases = []
         for task in station_tasks:
             cases.append((task["route_id"], task["start"], task["end"]))
@@ -2370,7 +2421,8 @@ def main():
                 "planning_status": planning_status,
                 "engineering_feasibility": "not_evaluated",
                 "engineering_assessment": engineering_assessment_record(
-                    selected_metrics, station_task),
+                    selected_metrics, station_task,
+                    engineering_profile_audit, osm_layer_metadata),
                 **station_endpoint_properties(station_task),
                 "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
                 "hard_violations": selected_metrics.get("hard_violations"),
