@@ -638,19 +638,30 @@ def _resample_line(coordinates, max_interval_m):
 
 
 def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None,
-                      chain_profile_bins=None):
+                      chain_profile_bins=None,
+                      sample_interval_m=ROUTE_SAMPLE_STEP_M):
     """Compare route geometries in both directions using arc-length samples in meters.
 
     Distance quantiles and coverage are sampled approximations at
-    ``ROUTE_SAMPLE_STEP_M``. The maximum is diagnostic and is not a pass/fail score.
+    ``sample_interval_m`` (20 m by default). The sampled maximum is diagnostic.
     ``chain_profile_bins`` optionally adds an endpoint-aligned, equal-distance
     profile for post-hoc localization; it is never used by route search.
+    ``sample_interval_m`` is the maximum arc-length sample spacing, bounded to
+    1–1000 m to reject impractically fine or coarse resolutions.
     """
     if chain_profile_bins is not None and (
             isinstance(chain_profile_bins, bool)
             or not isinstance(chain_profile_bins, int)
             or not 1 <= chain_profile_bins <= 100):
         raise ValueError("chain_profile_bins must be an integer from 1 to 100")
+    if isinstance(sample_interval_m, bool):
+        raise ValueError("sample_interval_m must be a finite positive number")
+    try:
+        sample_interval_m = float(sample_interval_m)
+    except (OverflowError, TypeError, ValueError):
+        raise ValueError("sample_interval_m must be a finite positive number") from None
+    if not math.isfinite(sample_interval_m) or not 1 <= sample_interval_m <= 1000:
+        raise ValueError("sample_interval_m must be between 1 and 1000 meters")
     if not planned_geo or len(planned_geo) < 2 or not real_geo:
         return None
     try:
@@ -738,14 +749,14 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None,
                 profile_reference_projected = [reference_line[::-1]]
         if profile_eligible:
             planned_samples, planned_sample_weights, planned_component_lengths, planned_progress = _line_samples(
-                [planned_projected], ROUTE_SAMPLE_STEP_M, return_progress=True)
+                [planned_projected], sample_interval_m, return_progress=True)
             real_samples, real_sample_weights, real_component_lengths, real_progress = _line_samples(
-                profile_reference_projected, ROUTE_SAMPLE_STEP_M, return_progress=True)
+                profile_reference_projected, sample_interval_m, return_progress=True)
         else:
             planned_samples, planned_sample_weights, planned_component_lengths = _line_samples(
-                [planned_projected], ROUTE_SAMPLE_STEP_M)
+                [planned_projected], sample_interval_m)
             real_samples, real_sample_weights, real_component_lengths = _line_samples(
-                real_projected, ROUTE_SAMPLE_STEP_M)
+                real_projected, sample_interval_m)
 
         def segment_tree(projected_lines):
             segments = []
@@ -816,7 +827,7 @@ def compute_deviation(planned_geo, real_geo, planning_bounds_wgs84=None,
             }
         route_similarity = {
             "comparison_crs": local_crs.to_string(),
-            "sampling_interval_m": ROUTE_SAMPLE_STEP_M,
+            "sampling_interval_m": sample_interval_m,
             "planned_to_reference": planned_to_reference,
             "reference_to_planned": reference_to_planned,
             "symmetric": {

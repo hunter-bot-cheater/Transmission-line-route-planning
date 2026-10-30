@@ -19,6 +19,21 @@ SPEC.loader.exec_module(plotter)
 
 
 class RouteErrorMapTests(unittest.TestCase):
+    def test_directional_summary_keeps_both_100m_coverages_visible(self):
+        summary = plotter.directional_summary({
+            "planned_to_reference": {
+                "coverage_within_m": {"100": 0.99}, "p95_m": 40.0, "p99_m": 90.0,
+            },
+            "reference_to_planned": {
+                "coverage_within_m": {"100": 0.88}, "p95_m": 120.0, "p99_m": 250.0,
+            },
+        })
+
+        self.assertEqual(summary["planned_coverage_100m_pct"], 99.0)
+        self.assertEqual(summary["reference_coverage_100m_pct"], 88.0)
+        self.assertEqual(summary["planned_p95_m"], 40.0)
+        self.assertEqual(summary["reference_p99_m"], 250.0)
+
     def test_chain_error_profile_plot_shows_both_directions(self):
         profile = {
             "version": 1,

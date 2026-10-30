@@ -34,6 +34,36 @@ class MetricPrecisionTests(unittest.TestCase):
         self.assertLess(score["symmetric"]["coverage_f1_within_m"]["100"], 0.1)
         self.assertEqual(metrics["route_similarity_version"], 7)
 
+    def test_custom_sample_interval_is_reported_and_validated(self):
+        planned = [(120.0, 24.0), (120.02, 24.0)]
+        reference = [(120.0, 24.001), (120.02, 24.001)]
+
+        default = similarity(compute_deviation(planned, reference))
+        fine = similarity(compute_deviation(
+            planned, reference, sample_interval_m=5))
+
+        self.assertEqual(default["sampling_interval_m"], 20.0)
+        self.assertEqual(fine["sampling_interval_m"], 5.0)
+        for direction in ("planned_to_reference", "reference_to_planned"):
+            self.assertAlmostEqual(
+                fine[direction]["p95_m"], default[direction]["p95_m"], delta=0.1)
+            self.assertEqual(
+                fine[direction]["coverage_within_m"],
+                default[direction]["coverage_within_m"],
+            )
+
+        with patch("transmission_path_planner.metrics._line_samples",
+                   wraps=_line_samples) as sample_calls:
+            compute_deviation(planned, reference, sample_interval_m=5.0)
+        self.assertEqual([call.args[1] for call in sample_calls.call_args_list],
+                         [5.0, 5.0])
+
+        for invalid in (True, 0, 0.5, -1, 1001, 10 ** 1000,
+                        float("nan"), float("inf"), "invalid"):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                    ValueError, "sample_interval_m"):
+                compute_deviation(planned, reference, sample_interval_m=invalid)
+
     def test_routes_share_projection_when_scored_against_same_planning_window(self):
         reference = [(120.0, 24.0), (120.02, 24.0)]
         planning_bounds = (119.9, 23.9, 120.1, 24.1)

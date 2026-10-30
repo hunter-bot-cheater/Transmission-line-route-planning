@@ -66,6 +66,19 @@ def line_xy(line):
     return [np.asarray(part.coords)[:, :2] / 1000 for part in line_parts(line)]
 
 
+def directional_summary(similarity):
+    planned = similarity["planned_to_reference"]
+    reference = similarity["reference_to_planned"]
+    return {
+        "planned_coverage_100m_pct": 100.0 * planned["coverage_within_m"]["100"],
+        "reference_coverage_100m_pct": 100.0 * reference["coverage_within_m"]["100"],
+        "planned_p95_m": planned["p95_m"],
+        "reference_p95_m": reference["p95_m"],
+        "planned_p99_m": planned["p99_m"],
+        "reference_p99_m": reference["p99_m"],
+    }
+
+
 def draw_line(ax, line, **kwargs):
     for coordinates in line_xy(line):
         ax.plot(coordinates[:, 0], coordinates[:, 1], **kwargs)
@@ -119,16 +132,22 @@ def set_limits(ax, planned, reference):
 
 def plot_case(case, planned, reference, metrics, out_path, cmap, norm, interval_m):
     sim = metrics["route_similarity"]
+    directional = directional_summary(sim)
     frechet = sim.get("discrete_frechet_approx")
     frechet_km = (frechet["distance_m"] / 1000.0) if frechet else None
     fig, axes = plt.subplots(1, 2, figsize=(13, 6.2), constrained_layout=True)
-    for ax, colored, other, title in (
-        (axes[0], planned, reference, "规划线 → 参考线"),
-        (axes[1], reference, planned, "参考线 → 规划线"),
+    for ax, colored, other, title, coverage_key, p95_key, p99_key in (
+        (axes[0], planned, reference, "规划线 → 参考线",
+         "planned_coverage_100m_pct", "planned_p95_m", "planned_p99_m"),
+        (axes[1], reference, planned, "参考线 → 规划线",
+         "reference_coverage_100m_pct", "reference_p95_m", "reference_p99_m"),
     ):
         draw_colored_route(ax, colored, other, cmap, norm, interval_m)
         draw_line(ax, other, color="#343a40", linestyle="--", linewidth=1.35, zorder=2)
-        ax.set_title(title)
+        ax.set_title(
+            f"{title}\n100m覆盖 {directional[coverage_key]:.1f}% · "
+            f"P95 {directional[p95_key] / 1000:.2f} km · "
+            f"P99 {directional[p99_key] / 1000:.2f} km")
         set_limits(ax, planned, reference)
     parts = line_parts(planned)
     start, end = parts[0].coords[0], parts[-1].coords[-1]
@@ -138,10 +157,12 @@ def plot_case(case, planned, reference, metrics, out_path, cmap, norm, interval_
     axes[1].scatter([end[0] / 1000], [end[1] / 1000], s=25, color="#c0392b", zorder=5)
     f1 = sim["symmetric"]["coverage_f1_within_m"]["100"] * 100
     p95 = sim["symmetric"]["p95_m"] / 1000
-    frechet_label = (f"顺序 Fréchet@100m {frechet_km:.2f} km"
+    frechet_label = (f"离散 Fréchet（采样≤100m）{frechet_km:.2f} km"
                      if frechet_km is not None else "顺序 Fréchet 未定义")
-    fig.suptitle(f"{case} | 较差方向 P95 {p95:.2f} km | F1@100米 {f1:.1f}%（覆盖诊断）"
-                 f" | {frechet_label}")
+    fig.suptitle(
+        f"{case} | 较差方向 P95 {p95:.2f} km | 100m覆盖调和平均 F1 {f1:.1f}% "
+        f"（规划/参考 {directional['planned_coverage_100m_pct']:.1f}/"
+        f"{directional['reference_coverage_100m_pct']:.1f}%） | {frechet_label}")
     fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axes, label="彩线到另一条线路的距离（km）")
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
@@ -156,15 +177,19 @@ def plot_overview(routes, out_path, cmap, norm, interval_m):
     for ax, case in zip(axes.flat, cases):
         planned, reference, metrics = routes[case]
         sim = metrics["route_similarity"]
+        directional = directional_summary(sim)
         draw_colored_route(ax, planned, reference, cmap, norm, interval_m)
         draw_line(ax, reference, color="#343a40", linestyle="--", linewidth=1.05, zorder=2)
-        f1 = sim["symmetric"]["coverage_f1_within_m"]["100"] * 100
-        p95 = sim["symmetric"]["p95_m"] / 1000
         frechet = sim.get("discrete_frechet_approx")
-        frechet_label = (f"Fréchet@100m {frechet['distance_m'] / 1000:.2f} km"
+        frechet_label = (f"离散Fréchet≤100m采样 {frechet['distance_m'] / 1000:.2f} km"
                          if frechet else "Fréchet 未定义")
-        ax.set_title(f"{case}\nP95 {p95:.1f} km | F1@100m {f1:.1f}%"
-                     f"\n{frechet_label}", fontsize=9)
+        ax.set_title(
+            f"{case}\n100m覆盖 规划/参考 "
+            f"{directional['planned_coverage_100m_pct']:.1f}/"
+            f"{directional['reference_coverage_100m_pct']:.1f}%\n"
+            f"P95 规划/参考 {directional['planned_p95_m'] / 1000:.2f}/"
+            f"{directional['reference_p95_m'] / 1000:.2f} km · {frechet_label}",
+            fontsize=9)
         set_limits(ax, planned, reference)
     for ax in axes.flat[len(cases):]:
         ax.axis("off")
