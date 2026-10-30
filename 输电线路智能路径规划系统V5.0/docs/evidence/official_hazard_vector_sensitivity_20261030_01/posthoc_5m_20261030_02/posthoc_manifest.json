@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "scored_at_utc": "2026-10-30T12:51:08.619982+00:00",
+  "reference_geometry_read_after_candidate_hash_verification": true,
+  "candidate_freeze_sha256": {
+    "mvt_b12_v2": "7d72df733da241a72e77ee50ede76de8fa81ba447192a672793cf1e231b64c22",
+    "shp_b12_v2": "01214ed69aaacc813e17925e8d637d8f69ab2a78051cc943d205eefd1b30741f"
+  },
+  "run_summary_sha256": {
+    "mvt_b12_v2": "8d28ff60b9fd16a2e8e7ad303e1f4bc3ede31026f210e3a108b7b2ad8615d291",
+    "shp_b12_v2": "7a75f8c44e0233f0d37168cc908c372433cb6c23cc89b3e0ceecad43a85f8058"
+  },
+  "planning_argument_comparison": {
+    "non_source_arguments_match": true,
+    "normalized_unified_diff": [],
+    "hazard_source_args": {
+      "mvt": [
+        "--official-hazards-dir"
+      ],
+      "shp": [
+        "--official-hazard-vector-dir"
+      ]
+    }
+  },
+  "reference_freeze_manifest_sha256": "4ad1efbc44123dfc0dcdbf818c65bb99a889d0103945032f8c4c1a4e8e7401ae",
+  "reference_source_file_sha256": {
+    "/data1/B24041626/pp/work/benchmark_12/TW102_real_path.shp": "d38807bb2d1010fd42f661feaa907c68d5cb0b8ac1ef0c15a57b4be8a0ef1500",
+    "/data1/B24041626/pp/work/benchmark_12/TW102_real_path.shx": "2cd9380d0d638795e672b8c7287f21144afd0e6e0016c6112179f35fd39b6cab",
+    "/data1/B24041626/pp/work/benchmark_12/TW102_real_path.dbf": "850c10891d6549d475bd4089dab615ea17561eeb79ae5fc09b5f22f44f3e124f",
+    "/data1/B24041626/pp/work/benchmark_12/TW102_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/TW173_real_path.shp": "2da2f7c60add2614dcc3dc19dbbc0735facfe35afed331edea6b135a2cdba160",
+    "/data1/B24041626/pp/work/benchmark_12/TW173_real_path.shx": "0cccc3ec9662fadb9b64609038574c481f0fd6b1c214864abf7566ff0927c999",
+    "/data1/B24041626/pp/work/benchmark_12/TW173_real_path.dbf": "1d1aee1b13267fb24f2833a8db23e05ec57bc5aac6171ec3c3d3c3bc58d4a948",
+    "/data1/B24041626/pp/work/benchmark_12/TW173_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/TW252_real_path.shp": "0c4c0da0f98027c80cfc4f049dafd1a38b73999e415ece7afeea7a3777d8a072",
+    "/data1/B24041626/pp/work/benchmark_12/TW252_real_path.shx": "3b4dade7fa6453c0b06e32fb2d49cd505f6d772dccde84ad0f866e97bf8a4d02",
+    "/data1/B24041626/pp/work/benchmark_12/TW252_real_path.dbf": "32d8d01d665d4fc336495c57eb2109b3eab0e3e548c0ee10406bf95537916c85",
+    "/data1/B24041626/pp/work/benchmark_12/TW252_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/TW311_real_path.shp": "95f0a271408707eb67027b96e71f7f19c27e141202beac9500bbc32cd0cdaf41",
+    "/data1/B24041626/pp/work/benchmark_12/TW311_real_path.shx": "23855015a2580ee99544ad323f26e44ff33011d704979cef262fd289d3965c02",
+    "/data1/B24041626/pp/work/benchmark_12/TW311_real_path.dbf": "b78f597977300280deb991d60609734d240068dc8e5fd7425096f31270d2f432",
+    "/data1/B24041626/pp/work/benchmark_12/TW311_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/TW345_real_path.shp": "2e6a53db911cd8292f103ccad6253c917acb88e68df14148d448d3d2e87b978c",
+    "/data1/B24041626/pp/work/benchmark_12/TW345_real_path.shx": "f0e521286cf3e0884f6303f1394862e98effa45d1bb8533dd39c88adaa082f6d",
+    "/data1/B24041626/pp/work/benchmark_12/TW345_real_path.dbf": "0892931e7510768b3067d583e4126d08f24ca02d5e5d11ea2501fd09b4def504",
+    "/data1/B24041626/pp/work/benchmark_12/TW345_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/TW58_real_path.shp": "f40ae2d5d649ce3e1f1fce6a8adbc190798328e85be2e1aab0def54b123937c2",
+    "/data1/B24041626/pp/work/benchmark_12/TW58_real_path.shx": "0e6302f823447cedff1695b369f8934f6b16ed5d00502c5a315a678ffd4c9959",
+    "/data1/B24041626/pp/work/benchmark_12/TW58_real_path.dbf": "9f2ceb87c0fe35f1229e87e07e49c4df0521cd1796f5300470eecd998c95fefb",
+    "/data1/B24041626/pp/work/benchmark_12/TW58_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/TW59_real_path.shp": "3c96e65e0f5c032b8b4cbec528a6d564a8711de22317adeb07a61d4be579eb11",
+    "/data1/B24041626/pp/work/benchmark_12/TW59_real_path.shx": "72d69cb3b65959c8c6c2975f4d914577bf17c7b89c08065f59c95de26bc7bac2",
+    "/data1/B24041626/pp/work/benchmark_12/TW59_real_path.dbf": "b550b9949da884b7c778d9b620c1bc4ba363261dcafe3f9bf2a63d060d399805",
+    "/data1/B24041626/pp/work/benchmark_12/TW59_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/TW766_real_path.shp": "d12441dd37900bcfaa1d5f513a660b883611b4a0bb7a7b16c5d4f2a454aecccc",
+    "/data1/B24041626/pp/work/benchmark_12/TW766_real_path.shx": "99cdeaa2597a2260f8efc46e6c718fb06b50d2c3a08f9f3a4c7d669be51c768b",
+    "/data1/B24041626/pp/work/benchmark_12/TW766_real_path.dbf": "b1440a04610daf5da8794c44f7968efbc01329378d94bea5057faee32ce18671",
+    "/data1/B24041626/pp/work/benchmark_12/TW766_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/TW769_real_path.shp": "c6ac7682ecfeb393c8ef64dd22fa7799017ed76645d69a73d5e009a009632089",
+    "/data1/B24041626/pp/work/benchmark_12/TW769_real_path.shx": "5ff952f808fb1d798e63b29aca0d3166d06e7ec49af9c2e6b2793a83f271a034",
+    "/data1/B24041626/pp/work/benchmark_12/TW769_real_path.dbf": "ceb8468373cbcc87dbbd50dc40a39e778763bd5941ff26bd9df1c24a501aabb7",
+    "/data1/B24041626/pp/work/benchmark_12/TW769_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/天輪_龍潭線_real_path.shp": "02e9f55eb2c969bb1f3a0e6423f7c5c0b9df036754ff77f94f1878e689e7002d",
+    "/data1/B24041626/pp/work/benchmark_12/天輪_龍潭線_real_path.shx": "acebbd2ac525d953be2f03846e462354bf495da3f1a37312839861e57f2bad9b",
+    "/data1/B24041626/pp/work/benchmark_12/天輪_龍潭線_real_path.dbf": "42b31b4ae010a8333d19f896a24775cc198fe47e870a9caf5cb538a9fe785f88",
+    "/data1/B24041626/pp/work/benchmark_12/天輪_龍潭線_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/明潭-鳳林線_real_path.shp": "72b85bf5d99ab8336d2138629092400fab9f6d6161ae451202aacf42d8918c44",
+    "/data1/B24041626/pp/work/benchmark_12/明潭-鳳林線_real_path.shx": "fb9cdb932390e96c5b6addec93c51a9994bcbfd00837af89129a72bd6a6d0a2a",
+    "/data1/B24041626/pp/work/benchmark_12/明潭-鳳林線_real_path.dbf": "dc16d40bcb57263d3809a1b34f4685af266304b3c26e4f9bbbb746b5a38865a6",
+    "/data1/B24041626/pp/work/benchmark_12/明潭-鳳林線_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+    "/data1/B24041626/pp/work/benchmark_12/深美_冬山線_real_path.shp": "b2590c6f0eba823393384d32958b04d292afbcbbc2987853309e8715a69ca7bc",
+    "/data1/B24041626/pp/work/benchmark_12/深美_冬山線_real_path.shx": "36bcc3eb1a9478f37bb245024ec0b0b4064da1b393c08f42ca42f55ea84d2b00",
+    "/data1/B24041626/pp/work/benchmark_12/深美_冬山線_real_path.dbf": "46982df69fd5673c371c6f792cb76c83ceb9587d02e4f7701e79d8bd2316decb",
+    "/data1/B24041626/pp/work/benchmark_12/深美_冬山線_real_path.prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4"
+  },
+  "planner_metrics_source_sha256": "2e2e194348a831f6f6f79c7db4f6cc3664503adcf3ef3cc05a5317227d97f812",
+  "route_similarity_metric_version": 7,
+  "metric_sampling_interval_m": 5.0,
+  "metric_sampling_control": "server bundle ROUTE_SAMPLE_STEP_M constant overridden before scoring",
+  "map_color_interval_m": 100.0,
+  "package_versions": {
+    "numpy": "2.4.6",
+    "shapely": "2.2.0",
+    "pyproj": "3.7.2",
+    "geopandas": "1.2.0",
+    "matplotlib": "3.11.2"
+  },
+  "output_sha256": {
+    "12_route_overlay_mvt_vs_shp.png": "e0e924acfb9fe33ada1f1de8183ebcc724c0a8883cf1f83ef42f18001554a6fa",
+    "B12-01_error_map.png": "b2f6e6a3c28cd422dea541748d34e4f49e3f8c39441860539532279a964a22bd",
+    "B12-02_error_map.png": "638913b4f471c1d122b200e3f75b8bf8a222396ece59e468bccff81d1b3bffd5",
+    "B12-03_error_map.png": "e4dfbe9c0356c92075d07f2fc0cf40cd0a184867dc02e084900747d9ae50fcf6",
+    "B12-04_error_map.png": "8835d639489fdc92182aa3cca3309da66a4855bedf88bcd33a98247434e750a8",
+    "B12-05_error_map.png": "84636f11dd2439dd004f5e99c3be3a35f54ba4272459f6a8b423bd44e53d00f2",
+    "B12-06_error_map.png": "e7f05cced62a737b9f8ac3c6862d225ea1e32073e7bf9a5483788b74e7d7ab81",
+    "B12-07_error_map.png": "c78c84835fe9dc6d16a45a20c8fce5f0005652a4f2428aef4253cc25f15f6697",
+    "B12-08_error_map.png": "4da662d69fb628e50198aa2e3b70d73dd7340af9d485eef9ba690a90c06b30de",
+    "B12-09_error_map.png": "5df048f410bae741f2a888a7586a7e6cb93ee8b17f88c77476242c7d72decad3",
+    "B12-10_error_map.png": "2d400e846bea9e44bb4d8c49cba9606794f2b8eb8366ac5b3b084dcdc2c15ce4",
+    "B12-11_error_map.png": "4f099a744ce022a534f3862c1f528372f064183cff2db45dc2971e9a54c209b4",
+    "B12-12_error_map.png": "fe7b1f2fac486f2c9fc611426b1627de7c17e209b35458894b07081302df8ee7",
+    "route_similarity_posthoc.json": "51ecff2d1b67e7da7e40a171666ffe8e67d1f8f4aa6fc4a76bed36025007fbc3",
+    "route_similarity_posthoc.csv": "4eafb9eb9b5d473c1d89afadd86420569e6046ad17a1e0af1d3592e064e9b559",
+    "mvt_shp_pairwise_dispersion.csv": "667e5f3f8def7d782b2104354ca169b43b26c708e431e795ed461d649566f41c",
+    "README.md": "a4fab053dc48330310370a27e09c6a3c5d18a09b86a814991708dcc38c090537"
+  },
+  "metrics_sha256": "51ecff2d1b67e7da7e40a171666ffe8e67d1f8f4aa6fc4a76bed36025007fbc3",
+  "pairwise_csv_sha256": "667e5f3f8def7d782b2104354ca169b43b26c708e431e795ed461d649566f41c",
+  "engineering_feasibility": "not evaluated; planning run reports not_evaluated for all cases",
+  "limitations": [
+    "Benchmark route endpoints are historical and unverified, and were shared with the reference benchmark.",
+    "The 100 m coverage values are sampled approximations at 5 m arc-length spacing.",
+    "Loaded hazard masks and planner gates do not establish complete constraint coverage or engineering approval.",
+    "The SHP/MVT comparison isolates source representation only if the recorded planning argv differs only in that source argument."
+  ]
+}

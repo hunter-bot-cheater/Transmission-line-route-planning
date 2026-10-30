@@ -425,7 +425,7 @@ def render_maps(output_dir: Path, scored: dict,
     norm = Normalize(vmin=0, vmax=vmax)
     output_files = []
 
-    fig, axes = plt.subplots(4, 3, figsize=(15, 16), constrained_layout=True)
+    fig, axes = plt.subplots(4, 3, figsize=(15, 16), constrained_layout=False)
     for ax, case in zip(axes.flat, cases):
         record = scored[ARMS[0]][case]
         crs = record["similarity"]["comparison_crs"]
@@ -441,7 +441,8 @@ def render_maps(output_dir: Path, scored: dict,
             f"{case} | MVT F1={rows[ARMS[0]]['coverage_f1_100m_pct']:.1f}% "
             f"P95={rows[ARMS[0]]['symmetric_p95_m']/1000:.1f}km\n"
             f"SHP F1={rows[ARMS[1]]['coverage_f1_100m_pct']:.1f}% "
-            f"P95={rows[ARMS[1]]['symmetric_p95_m']/1000:.1f}km")
+            f"P95={rows[ARMS[1]]['symmetric_p95_m']/1000:.1f}km",
+            fontsize=9, pad=5)
     for ax in axes.flat[len(cases):]:
         ax.axis("off")
     handles = [
@@ -449,9 +450,11 @@ def render_maps(output_dir: Path, scored: dict,
         Line2D([0], [0], color="#2677b8", label="MVT hazard route"),
         Line2D([0], [0], color="#e0782f", label="SHP hazard route"),
     ]
-    fig.legend(handles=handles, loc="upper center", ncol=3)
+    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 0.955),
+               ncol=3, frameon=False)
     fig.suptitle("12-case route geometry overlay | MVT vs SHP hazard representation",
-                 fontsize=15)
+                 fontsize=15, y=0.99)
+    fig.tight_layout(rect=(0.02, 0.02, 0.98, 0.91), h_pad=1.6, w_pad=1.2)
     overview = output_dir / "12_route_overlay_mvt_vs_shp.png"
     fig.savefig(overview, dpi=125)
     plt.close(fig)
@@ -461,7 +464,7 @@ def render_maps(output_dir: Path, scored: dict,
         record = scored[ARMS[0]][case]
         crs = record["similarity"]["comparison_crs"]
         reference = project_geometry(record["reference_geometry"], crs)
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
+        fig, axes = plt.subplots(2, 2, figsize=(13, 10), constrained_layout=False)
         panels = ((axes[0, 0], ARMS[0], False), (axes[0, 1], ARMS[0], True),
                   (axes[1, 0], ARMS[1], False), (axes[1, 1], ARMS[1], True))
         for ax, arm, reverse in panels:
@@ -476,13 +479,18 @@ def render_maps(output_dir: Path, scored: dict,
             p95 = row["reference_p95_m"] if reverse else row["planned_p95_m"]
             ax.set_title(
                 f"{arm.split('_')[0].upper()} | {direction}: "
-                f"within 100m {coverage:.1f}% · P95 {p95/1000:.2f}km")
-        fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap="turbo"), ax=axes,
+                f"within 100m {coverage:.1f}% · P95 {p95/1000:.2f}km",
+                fontsize=10, pad=7)
+        fig.subplots_adjust(left=0.08, right=0.84, bottom=0.08, top=0.89,
+                            wspace=0.28, hspace=0.34)
+        colorbar_ax = fig.add_axes((0.88, 0.20, 0.025, 0.62))
+        fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap="turbo"), cax=colorbar_ax,
                      extend="max",
                      label=(f"Distance to target line (km); samples every {color_interval_m:g} m; "
                             f"values above {norm.vmax:.1f} km saturated"))
         fig.suptitle(
-            f"{case} | distance-colored in both directions; 100m coverage is descriptive")
+            f"{case} | distance-colored in both directions; 100m coverage is descriptive",
+            fontsize=13, y=0.97)
         output = output_dir / f"{case}_error_map.png"
         fig.savefig(output, dpi=145)
         plt.close(fig)
