@@ -483,6 +483,27 @@ class StationPlanningTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, message):
                     load_station_tasks(stations, tasks)
 
+    def test_reference_derived_endpoints_cannot_be_declared_verified(self):
+        headers = ["station_id", "lat", "lon", "coordinate_crs", "source", "point_role",
+                   "verification_status", "verification_reference", "reference_independence"]
+        with tempfile.TemporaryDirectory() as folder:
+            stations = self._csv(folder, "stations.csv", headers,
+                                 [["S1", 24.1, 120.1, "EPSG:4326", "benchmark route",
+                                   "line_connection_point", "verified", "record-A",
+                                   "reference_derived_or_shared"],
+                                  ["S2", 24.2, 120.2, "EPSG:4326", "survey",
+                                   "line_connection_point", "verified", "record-B",
+                                   "independent_of_reference"]])
+            tasks = self._csv(folder, "routes.csv", ["route_id", "from_station_id", "to_station_id"],
+                              [["R1", "S1", "S2"]])
+
+            with self.assertRaisesRegex(ValueError, "independent_of_reference"):
+                load_station_tasks(stations, tasks)
+
+            task = load_station_tasks(stations, tasks, allow_unverified=True)[0]
+
+        self.assertEqual(task["endpoint_qualification"], "exploratory_only_unverified_endpoints")
+
     def test_exploratory_endpoints_are_explicitly_qualified_and_never_screening_candidates(self):
         with tempfile.TemporaryDirectory() as folder:
             stations = self._csv(folder, "stations.csv",

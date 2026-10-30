@@ -205,6 +205,7 @@ def load_station_tasks(stations_csv, route_tasks_csv, allow_unverified=False):
             endpoints_declared_verified = all(
                 station["point_role"] == "line_connection_point"
                 and station["verification_status"] == "verified"
+                and station["reference_independence"] == "independent_of_reference"
                 and station["source"]
                 and station["verification_reference"]
                 for station in (start, end)
@@ -216,7 +217,8 @@ def load_station_tasks(stations_csv, route_tasks_csv, allow_unverified=False):
             if not endpoints_declared_verified and not allow_unverified:
                 raise ValueError(
                     f"线路任务 {route_id} 的两端必须声明为已核验线路接入点，"
-                    "并填写 source 与 verification_reference；探索用途可显式使用 "
+                    "填写 source 与 verification_reference，并声明 reference_independence="
+                    "independent_of_reference；探索用途可显式使用 "
                     "--allow-unverified-endpoints"
                 )
             tasks.append({
