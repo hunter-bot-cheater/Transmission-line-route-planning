@@ -104,10 +104,11 @@ body {
 
 .route-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.9fr) minmax(350px, .78fr);
+  grid-template-columns: minmax(340px, 390px) minmax(0, 1fr);
   align-items: start;
   gap: 14px;
 }
+.route-layout > * { min-width: 0; }
 .route-layout > .panel,
 .route-results .route-result-panel {
   min-width: 0;
@@ -116,7 +117,7 @@ body {
   background: linear-gradient(145deg, rgba(20, 33, 39, .98), rgba(15, 27, 32, .98));
   box-shadow: 0 12px 32px rgba(0, 0, 0, .13);
 }
-.route-map-panel { grid-column: 1; grid-row: 1; padding: 16px; }
+.route-map-panel { grid-column: 2; grid-row: 1; min-width: 0; padding: 16px; }
 .route-panel-title,
 .route-form-title,
 .route-section-heading {
@@ -242,8 +243,10 @@ body {
 .route-form {
   position: sticky;
   top: 12px;
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 1;
+  width: auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 24px);
@@ -431,7 +434,7 @@ body {
 
 @media (max-width: 1120px) and (min-width: 841px) {
   .route-shell { width: calc(100% - 36px); }
-  .route-layout { grid-template-columns: minmax(0, 1.45fr) minmax(320px, .9fr); gap: 11px; }
+  .route-layout { grid-template-columns: minmax(310px, 360px) minmax(0, 1fr); gap: 11px; }
   .route-map-panel,.route-form,.route-results .route-result-panel { padding: 13px; }
   .route-form { max-height: calc(100vh - 24px); }
   .route-station { padding: 8px; }
@@ -445,8 +448,8 @@ body {
 @media (max-width: 840px) {
   .route-shell { width: min(960px, calc(100% - 32px)); padding-top: 18px; }
   .route-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .route-map-panel { grid-column: 1; grid-row: 1; }
-  .route-form { position: static; grid-column: 1; grid-row: 2; max-height: none; overflow: visible; }
+  .route-form { position: static; grid-column: 1; grid-row: 1; max-height: none; overflow: visible; }
+  .route-map-panel { grid-column: 1; grid-row: 2; }
   .route-submit-area { position: static; margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid #2b3d40; background: none; }
   .route-results { grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); }
 }
