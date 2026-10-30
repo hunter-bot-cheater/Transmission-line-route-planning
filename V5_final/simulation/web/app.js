@@ -232,6 +232,11 @@
     state.connected=connected;
     state.apiProtocolMismatch=protocolMismatch;
     $('connection').textContent=connected?'仿真服务已连接':protocolMismatch?'仿真服务版本不兼容':'无法连接仿真服务';
+    if(!state.world&&!state.worldLoading&&!state.worldLoadFailed){
+      $('mapEmpty').classList.add('idle');
+      $('mapStateTitle').textContent=connected?'仿真服务已连接':protocolMismatch?'仿真服务版本不兼容':'等待仿真服务连接';
+      $('mapStateDetail').textContent=connected?'点击“随机地图”创建仿真地形。':protocolMismatch?'请重启当前仿真服务，再刷新此页面。':'服务恢复后可创建随机地图。';
+    }
     document.querySelector('.top-status').classList.toggle('offline',!connected);
     document.querySelector('.top-status').classList.remove('pending');
     const serviceBadge=document.querySelector('.live-badge');
@@ -1304,7 +1309,7 @@
     if(!retryPayload){const replaceSessionId=previousWorld?.session_id||startupReplacementSessionId;if(replaceSessionId)payload.replace_session_id=replaceSessionId;}
     state.pendingWorldCreate=payload;
     persistPendingWorld(payload);
-    setWorldLoading(true); stopFlight(); $('flightState').textContent='生成地图中'; $('flightNote').textContent=retryPayload?'正在恢复上次未确认的地图创建请求；收到结果后将更新地图。':state.world?'新地图生成中；当前任务将在新地图结果确认后切换。':'正在生成地图，完成后即可开始扫描。'; $('mapEmpty').classList.remove('hidden','failed'); $('mapStateTitle').textContent='正在生成仿真地形';
+    setWorldLoading(true); stopFlight(); $('flightState').textContent='生成地图中'; $('flightNote').textContent=retryPayload?'正在恢复上次未确认的地图创建请求；收到结果后将更新地图。':state.world?'新地图生成中；当前任务将在新地图结果确认后切换。':'正在生成地图，完成后即可开始扫描。'; $('mapEmpty').classList.remove('hidden','failed','idle'); $('mapStateTitle').textContent='正在生成仿真地形';
     $('statusMessage').textContent=retryPayload?'正在恢复上次未确认的地图创建…':'生成随机地形与风险图层…';
     try {
       const world=await postWorld(payload,intentRevision);

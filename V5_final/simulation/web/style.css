@@ -151,3 +151,4 @@ footer { min-height: 54px; height: auto; font-size: 10px; }
   .fusion-caption { align-items: flex-start; flex-direction: column; gap: 5px; }
   footer { align-items: flex-start; flex-direction: column; gap: 6px; padding: 12px 0; }
 }
+.map-empty.idle .loader { display: none; }

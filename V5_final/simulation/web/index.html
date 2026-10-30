@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1318">
   <title>V5 无人机地形扫描与路径规划</title>
-  <link rel="stylesheet" href="/style.css?v=20261031-2">
+  <link rel="stylesheet" href="/style.css?v=20261031-3">
 </head>
 <body>
   <main class="shell">
@@ -29,6 +29,6 @@
     <section class="lower-grid"><div class="panel stats-panel" role="region" aria-labelledby="statsPanelHeading"><div class="panel-head compact"><div><span class="section-index">04</span><h2 class="panel-title" id="statsPanelHeading">飞行与路径指标</h2></div><span id="planningBadge" class="tag">尚未规划</span></div><div class="metrics"><div><small>已探测网格</small><b id="cellsMetric">0</b><em>cells</em></div><div><small>规划路线长度</small><b id="distanceMetric">—</b><em>km</em></div><div><small>路径累计代价</small><b id="costMetric">—</b><em>相对值</em></div><div><small>规划路径节点</small><b id="searchMetric">—</b><em>nodes</em></div></div></div><div class="panel fusion-panel" role="region" aria-labelledby="fusionPanelHeading"><div class="panel-head compact"><div><span class="section-index">05</span><h2 class="panel-title" id="fusionPanelHeading">扫描与融合机制</h2></div><span class="tag teal">在线融合</span></div><div class="fusion-content"><div class="fusion-step"><i>1</i><span>传感器扫描并揭示迷雾</span></div><span class="step-arrow">→</span><div class="fusion-step"><i>2</i><span>融合已观测图层并更新代价场</span></div><span class="step-arrow">→</span><div class="fusion-step"><i>3</i><span>V5 A* 在线重规划</span></div></div><p class="fusion-caption">走廊引导系数 <b id="guidanceLabel">0.75</b><span>规划与扫描选点均不读取未知格的真实代价。</span></p></div></section>
     <footer><span>V5 FINAL · 地形扫描与动态路径优化</span><span id="statusMessage" role="status" aria-live="polite" tabindex="-1">等待仿真服务</span></footer>
   </main>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=20261031-2" defer></script>
 </body>
 </html>
