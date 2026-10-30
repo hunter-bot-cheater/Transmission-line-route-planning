@@ -765,7 +765,7 @@ class GeographicRouteJobs:
                     "--max-side", str(config["max_side"]), "--no-ppp",
                     "--official-hazard-weight", "1.0", "--settlement-weight", "2.0",
                     "--ridge-penalty-weight", "0.1", "--landcover-penalty-weight", "0.0",
-                    "--grade-penalty-weight", "0.0", "--terrain-slope-weight", "0.75",
+                    "--grade-penalty-weight", "1.0", "--terrain-slope-weight", "0.75",
                     "--roughness-weight", "0.25", "--astar-heuristic-weight", "1.0",
                     "--building-clearance-m", "0", "--window-margin-deg", "0.3"]
             if mode == "exploratory":

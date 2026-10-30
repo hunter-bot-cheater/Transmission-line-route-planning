@@ -766,7 +766,7 @@ def _astar_search_with_turn_penalty(cost_raster, start_rc, end_rc, use_dijkstra,
                 and np.isfinite(elevation[r, c]) and np.isfinite(elevation[nr, nc])):
             horizontal_m = step_len if pixel_spacing is not None else pixel_m * step_len
             grade = abs(float(elevation[nr, nc]) - float(elevation[r, c])) / horizontal_m
-            step_cost += max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0)
+            step_cost += max(float(grade_penalty_weight), 0.0) * (grade / 0.30)
         return step_cost * step_len
 
     # The initial state uses direction 8 and does not incur an endpoint turn.
@@ -988,7 +988,7 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
                     and np.isfinite(elevation[cr, cc]) and np.isfinite(elevation[nr, nc])):
                 horizontal_m = step_len if pixel_spacing is not None else pixel_m * step_len
                 grade = abs(float(elevation[nr, nc]) - float(elevation[cr, cc])) / horizontal_m
-                step_cost += max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0)
+                step_cost += max(float(grade_penalty_weight), 0.0) * (grade / 0.30)
             tg = g[cr, cc] + step_cost * step_len
             tl = g_length[cr, cc] + step_len
             if tg < g[nr, nc] or (tg == g[nr, nc] and tl < g_length[nr, nc]):

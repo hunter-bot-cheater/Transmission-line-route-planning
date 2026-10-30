@@ -3,6 +3,7 @@
 
 import hashlib
 import re
+from pyproj import Geod
 
 from .config import *
 from .geometry import *
@@ -2352,6 +2353,11 @@ def main():
                         else "reference_loaded_no_comparable_route")
 
             selected_metrics = case_metrics.get(best_method, {}) if best_method else {}
+            geod = Geod(ellps="WGS84")
+            final_route_length_km = (
+                round(sum(geod.inv(*start[:2], *end[:2])[2]
+                          for start, end in zip(final_geo, final_geo[1:])) / 1000.0, 3)
+                if final_geo else None)
             planning_status = route_planning_status(
                 final_geo, station_task, missing_screening_layers,
                 osm_coverage_unverified=(
@@ -2377,8 +2383,9 @@ def main():
                 "official_hazard_route_exposure": hazard_route_exposure,
                 "constraint_layer_metadata": custom_constraint_metadata,
                 "land_mask_metadata": land_mask_metadata,
-                "length_km": round(path_length_km(final_geo), 3) if final_geo else None}
+            }
             case_metrics[FINAL_ROUTE_LABEL].update(selected_metrics)
+            case_metrics[FINAL_ROUTE_LABEL]["length_km"] = final_route_length_km
             if final_geo:
                 case_metrics[FINAL_ROUTE_LABEL].update(route_profile_metrics(final_geo, dem, transform))
             if best_method in grade_reports:
@@ -2475,7 +2482,7 @@ def main():
                                            "official_hazard_metadata": official_hazard_metadata,
                                            "official_hazard_route_exposure": hazard_route_exposure,
                                            "constraint_layer_metadata": custom_constraint_metadata,
-                                           "length_km": selected_metrics.get("length_km"),
+                                           "length_km": case_metrics[FINAL_ROUTE_LABEL].get("length_km"),
                                            "start_input_to_grid_center_offset_m": selected_metrics.get("start_input_to_grid_center_offset_m"),
                                            "end_input_to_grid_center_offset_m": selected_metrics.get("end_input_to_grid_center_offset_m"),
                                            "mean_cost": selected_metrics.get("mean_cost"),

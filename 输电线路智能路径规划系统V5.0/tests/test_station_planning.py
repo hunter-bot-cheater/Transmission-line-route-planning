@@ -1535,6 +1535,21 @@ class StationPlanningTests(unittest.TestCase):
         self.assertAlmostEqual(measured["grade_cost"], 1.0 / 3.0, places=6)
         self.assertAlmostEqual(measured["total_cost"], 4.0 / 3.0, places=6)
 
+    def test_grade_penalty_continues_growing_above_thirty_percent(self):
+        from transmission_path_planner.metrics import astar_path_objective
+
+        path = [(0, 0), (0, 1)]
+        cost = np.ones((1, 2))
+        grade_30 = astar_path_objective(
+            path, cost, np.array([[0.0, 30.0]]), grade_penalty_weight=1.0,
+            pixel_m=100.0)
+        grade_60 = astar_path_objective(
+            path, cost, np.array([[0.0, 60.0]]), grade_penalty_weight=1.0,
+            pixel_m=100.0)
+
+        self.assertAlmostEqual(grade_30["grade_cost"], 1.0, places=6)
+        self.assertAlmostEqual(grade_60["grade_cost"], 2.0, places=6)
+
     def test_discrete_objective_rejects_diagonal_corner_cutting(self):
         from transmission_path_planner.metrics import astar_path_objective
 

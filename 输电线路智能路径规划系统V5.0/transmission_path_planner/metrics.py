@@ -131,7 +131,7 @@ def path_cost_integral(geo, dem, transform, cost_surface, grade_penalty_weight=1
         e0, e1 = elevations[index], elevations[index + 1]
         if np.isfinite(e0) and np.isfinite(e1):
             grade = abs(float(e1) - float(e0)) / length_m
-            grade_cost = max(float(grade_penalty_weight), 0.0) * min(grade / 0.30, 1.0) * length_m
+            grade_cost = max(float(grade_penalty_weight), 0.0) * (grade / 0.30) * length_m
         edge_base_estimate.append(base_estimate)
         edge_grade.append(grade_cost)
         edge_vectors.append((drf * row_m, dcf * col_m))
@@ -200,7 +200,7 @@ def astar_path_objective(path_rc, cost_surface, elevation=None, pixel_spacing=No
                                 else float(pixel_m) * step_length)
                 grade = abs(e1 - e0) / horizontal_m
                 grade_cost = (max(float(grade_penalty_weight), 0.0)
-                              * min(grade / 0.30, 1.0) * step_length)
+                              * (grade / 0.30) * step_length)
         scale = spacing if spacing is not None else (1.0, 1.0)
         vector = (dr * scale[0], dc * scale[1])
         edges.append((base + grade_cost, vector))
