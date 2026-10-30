@@ -3,120 +3,53 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>真实 DEM 站间规划 · V5</title>
+  <title>台湾输电线路站间规划 · V5</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <style>
-    .route-shell{width:min(1640px,calc(100% - 56px));margin:0 auto;padding:30px 0 44px}
-    .route-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:22px;padding-bottom:21px;border-bottom:1px solid #28383b}
-    .route-head>div{min-width:0}
-    .route-head h1{margin:4px 0 8px;font-size:clamp(27px,3vw,38px);letter-spacing:-.025em}
-    .route-head p:not(.eyebrow){max-width:760px;color:#93a3a4;line-height:1.65}
-    .route-head .eyebrow{margin:0 0 7px;color:#6fd4bb;font:10px var(--mono);letter-spacing:.15em}
-    .route-back{display:inline-flex;align-items:center;gap:7px;margin-bottom:17px;color:#76d9c2;text-decoration:none;font-size:12px;font-weight:600;transition:color .15s}
-    .route-back:hover{color:#b0ffeb}
-    .route-back:focus-visible,.route-links a:focus-visible{outline:2px solid #73ddc1;outline-offset:4px;border-radius:2px}
-    .route-head .live-badge{flex:none;margin-bottom:5px;padding:10px 14px;border:1px solid #34484a;border-radius:999px;background:#122126}
-    .route-layout{display:grid;grid-template-columns:minmax(320px,360px) minmax(0,1fr);align-items:start;gap:18px}
-    .route-form{padding:23px;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16)}
-    .route-form h2,.route-result-panel h2{margin:0 0 16px;font-size:17px;letter-spacing:.01em}
-    .route-form>h2:before,.route-result-panel>h2:before{display:inline-block;width:3px;height:15px;margin-right:9px;background:#63d5bd;border-radius:2px;vertical-align:-2px;content:""}
-    .route-form label{display:block;margin:13px 0 6px;color:#b0c0bd;font-size:12px;font-weight:600}
-    .route-form input,.route-form select{width:100%;min-height:42px;padding:10px 12px;border:1px solid #34484a;border-radius:7px;background:#101c21;color:#e6eeea;transition:border-color .15s,box-shadow .15s}
-    .route-form input::placeholder{color:#697d7e}
-    .route-form input:hover,.route-form select:hover{border-color:#4b6864}
-    .route-form input:focus-visible,.route-form select:focus-visible{outline:0;border-color:#63d5bd;box-shadow:0 0 0 3px rgba(99,213,189,.14)}
-    .route-station{margin:16px 0;padding:16px;border:1px solid #2b4143;border-radius:9px;background:linear-gradient(145deg,rgba(23,43,45,.72),rgba(16,29,34,.72))}
-    .route-station h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;color:#d9e6df;font-size:13px}
-    .route-station h3:before{width:8px;height:8px;border:2px solid #63d5bd;border-radius:50%;content:""}
-    .route-station:last-of-type h3:before{border-color:#ef8875}
-    .route-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
-    .route-grid>div{min-width:0}
-    .route-note{margin:0 0 16px;padding:12px 13px;border:1px solid rgba(213,174,96,.16);border-left:3px solid #d5ae60;border-radius:7px;background:rgba(106,81,37,.14);color:#d8c18e;font-size:11px;line-height:1.65}
-    .route-help{color:#8fa2a1;font-size:11px;line-height:1.65}
-    .route-form>.route-help{margin:12px 0 15px;padding:11px 12px;border:1px solid #283b3e;border-radius:7px;background:#101b20}
-    .route-form .button.primary{height:46px;border-radius:7px;font-size:12px;letter-spacing:.02em}
-    .route-status{min-height:46px;margin-top:14px;padding:12px;border:1px solid #293f40;border-radius:7px;background:#132326;color:#c5d4ce;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
-    #dataLayers{margin:10px 1px 0;overflow-wrap:anywhere}
-    .route-layout>.route-result-panel{position:sticky;top:16px;align-self:start;padding:20px;min-width:0;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16)}
-    .route-map-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 11px}
-    .route-map-controls button{min-height:39px;padding:8px 13px;border:1px solid #3a5152;border-radius:7px;background:#182a2d;color:#dce8e1;font-size:11px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
-    .route-map-controls button:hover:not(:disabled){border-color:#68bca7;background:#203b3a}
-    .route-map-controls button:active:not(:disabled){transform:translateY(1px)}
-    .route-map-controls button[aria-pressed="true"]{border-color:#55c7ae;background:#19423d;color:#a2f2dc;box-shadow:inset 0 0 0 1px rgba(85,199,174,.12)}
-    .route-map-controls button:focus-visible{outline:2px solid #73ddc1;outline-offset:2px}
-    .route-map-controls button:disabled{opacity:.42;cursor:not-allowed}
-    .route-map-controls span{flex:1 1 220px;color:#8fa2a1;font-size:11px;line-height:1.5}
-    .route-map{height:min(70vh,720px);min-height:500px;border:1px solid #34484a;border-radius:10px;background:#111e24;overflow:hidden}
-    .route-map.picking .leaflet-container{cursor:crosshair}
-    .route-map .leaflet-control-attribution{font-size:9px}
-    #mapCoverage{margin:12px 1px 5px}
-    .route-result-panel>p:last-child{margin-bottom:2px}
-    .route-results{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);align-items:start;gap:18px;margin-top:18px}
-    .route-result-panel{padding:20px;min-width:0;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16)}
-    .route-preview{display:block;width:100%;max-height:520px;object-fit:contain;border:1px solid #2b4143;border-radius:8px;background:#101b20}
-    .route-preview[hidden],#previewPlaceholder[hidden]{display:none}
-    #previewPlaceholder:not([hidden]){display:grid;min-height:196px;place-items:center;margin:0;padding:22px;border:1px dashed #355052;border-radius:8px;background:radial-gradient(ellipse at 50% 0%,rgba(37,82,77,.22),transparent 72%),#101b20;text-align:center}
-    .route-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
-    .route-metrics div{min-width:0;padding:14px;border:1px solid #293e40;border-radius:8px;background:#122126}
-    .route-metrics small{display:block;color:#91a5a2;font-size:10px;line-height:1.5}
-    .route-metrics b{display:block;margin-top:6px;color:#e1ece5;font:12px var(--mono);line-height:1.5;overflow-wrap:anywhere}
-    .route-metrics b.warning{color:#f0c878}
-    .route-links{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:14px;padding:13px 0;border-top:1px solid #293b3e}
-    .route-links a{color:#73d8c0;font-size:11px;text-decoration:none}
-    .route-links a:hover{text-decoration:underline}
-    .route-feasibility{margin:13px 0;padding:12px 13px;border:1px solid rgba(213,174,96,.16);border-left:3px solid #d5ae60;border-radius:7px;background:rgba(106,81,37,.14);color:#e2c77f;font-size:12px;line-height:1.65}
-    .route-engineering-blockers{padding-left:20px;color:#e2c77f;font-size:11px;line-height:1.6}
-    .route-engineering-blockers li+li{margin-top:5px}
-    #screeningSummary{overflow-wrap:anywhere}
-    .profile-svg{display:block;width:100%;height:180px;border:1px solid #293e40;border-radius:8px;background:#101b20}
-    .route-verify-fields[hidden]{display:none}
-    @media(max-width:1000px){.route-shell{width:min(calc(100% - 32px),850px);padding:22px 0 32px}.route-layout{grid-template-columns:minmax(0,1fr)}.route-layout>.route-result-panel{position:static}.route-map{height:min(62vh,560px);min-height:390px}.route-results{grid-template-columns:1fr 1fr}}
-    @media(max-width:680px){.route-shell{width:calc(100% - 22px);padding:17px 0 26px}.route-head{align-items:flex-start;flex-direction:column;gap:12px;margin-bottom:15px;padding-bottom:16px}.route-head h1{font-size:27px}.route-head .live-badge{margin:0}.route-back{margin-bottom:14px}.route-form,.route-layout>.route-result-panel,.route-result-panel{padding:16px}.route-results{grid-template-columns:1fr;gap:12px;margin-top:12px}.route-map{height:56vh;min-height:340px}.route-grid{gap:0 8px}.route-map-controls button{min-height:42px}.route-map-controls span{flex-basis:100%}}
-    @media(max-width:420px){.route-shell{width:calc(100% - 16px)}.route-form,.route-layout>.route-result-panel,.route-result-panel{padding:13px}.route-grid{grid-template-columns:1fr}.route-station{padding:12px}.route-map{height:52vh;min-height:310px}.route-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.route-metrics div{padding:10px}.route-metrics small{font-size:9px}}
-    @media(prefers-reduced-motion:reduce){.route-form input,.route-form select,.route-map-controls button{transition:none}}
-  </style>
   <link rel="stylesheet" href="/route_planner.css">
 </head>
 <body>
   <main class="route-shell">
     <header class="route-head">
-      <div><a class="route-back" href="/">← 返回无人机扫描仿真</a><p class="eyebrow">GEOGRAPHIC STATION-TO-STATION PLANNING</p><h1>真实 DEM 站间规划</h1><p>独立于合成扫描地图；路线计算在服务器运行，并将服务器生成的地形图和 GeoJSON 返回页面。</p></div>
+      <div class="route-intro"><a class="route-back" href="/">← 返回无人机扫描仿真</a><p class="eyebrow">TAIWAN · STATION-TO-STATION PLANNING</p><h1>台湾输电线路站间规划</h1><p>选择两端站点，查看地形约束下的候选线路。规划由服务器执行，输出可直接叠加到地图。</p></div>
       <span id="readiness" class="live-badge pending"><i></i><span>检查服务器数据</span></span>
     </header>
-    <section class="route-layout">
+    <section class="route-layout" aria-label="线路规划工作台">
       <form id="routeForm" class="panel route-form">
-        <h2>线路任务</h2>
+        <div class="route-form-title"><div><span class="route-step">01 / ROUTE SETUP</span><h2>规划任务</h2></div><span class="route-form-tag">站间路径</span></div>
         <p class="route-note">当前服务没有权威站点接入点名录，不能独立核验用户输入；本页面只能按探索性端点规划。来源声明不会提升端点核验状态。</p>
-        <label for="accessToken">服务器规划口令</label><input id="accessToken" type="password" minlength="32" autocomplete="off" required placeholder="由服务器管理员配置；至少 32 个字符">
-        <label for="endpointMode">端点类型</label>
-        <select id="endpointMode" name="endpoint_mode"><option value="exploratory">探索性端点 / 代理坐标</option><option value="verified" disabled>已核验线路接入点（需权威名录，当前不可用）</option></select>
+        <div class="route-access-grid">
+          <div><label for="accessToken">服务器规划口令</label><input id="accessToken" type="password" minlength="32" autocomplete="off" required placeholder="由服务器管理员配置；至少 32 个字符"></div>
+          <div><label for="endpointMode">端点类型</label><select id="endpointMode" name="endpoint_mode"><option value="exploratory">探索性端点 / 代理坐标</option><option value="verified" disabled>已核验线路接入点（需权威名录，当前不可用）</option></select></div>
+        </div>
         <section class="route-station">
-          <h3>起点站</h3>
+          <h3><span>起点站</span><small>START</small></h3>
           <div class="route-grid"><div><label for="startId">站点编号</label><input id="startId" name="start_id" required maxlength="64" placeholder="例如 ST-A"></div><div><label for="startName">显示名称</label><input id="startName" name="start_name" required maxlength="120" placeholder="起点名称"></div><div><label for="startLat">纬度</label><input id="startLat" name="start_lat" type="number" min="-90" max="90" step="any" required></div><div><label for="startLon">经度</label><input id="startLon" name="start_lon" type="number" min="-180" max="180" step="any" required></div></div>
           <div class="route-verify-fields" hidden><label>接入点类型<input name="start_role" value="line_connection_point" readonly></label><label>坐标来源<input name="start_source" maxlength="240" placeholder="来源名称 / 文件"></label><label>核验凭证引用<input name="start_reference" maxlength="240" placeholder="凭证编号 / 可追溯记录"></label></div>
         </section>
         <section class="route-station">
-          <h3>终点站</h3>
+          <h3><span>终点站</span><small>DESTINATION</small></h3>
           <div class="route-grid"><div><label for="endId">站点编号</label><input id="endId" name="end_id" required maxlength="64" placeholder="例如 ST-B"></div><div><label for="endName">显示名称</label><input id="endName" name="end_name" required maxlength="120" placeholder="终点名称"></div><div><label for="endLat">纬度</label><input id="endLat" name="end_lat" type="number" min="-90" max="90" step="any" required></div><div><label for="endLon">经度</label><input id="endLon" name="end_lon" type="number" min="-180" max="180" step="any" required></div></div>
           <div class="route-verify-fields" hidden><label>接入点类型<input name="end_role" value="line_connection_point" readonly></label><label>坐标来源<input name="end_source" maxlength="240" placeholder="来源名称 / 文件"></label><label>核验凭证引用<input name="end_reference" maxlength="240" placeholder="凭证编号 / 可追溯记录"></label></div>
         </section>
         <label for="voltage">电压等级（仅记录）</label><input id="voltage" name="voltage_kv" maxlength="32" placeholder="可选，例如 161 kV">
-        <p class="route-help">当前规划器不会按电压等级校核塔型、导线、档距或净空。地图底图仅供浏览，不参与规划代价。实际使用的约束、数据覆盖与来源以任务结果为准。</p>
         <button id="submitBtn" class="button primary full" type="submit" disabled>在服务器规划</button>
-        <div id="jobStatus" class="route-status" role="status" aria-live="polite">正在检查服务器 DEM 配置。</div><p id="dataLayers" class="route-help">数据图层：等待服务器配置。</p>
+        <div id="jobStatus" class="route-status" role="status" aria-live="polite">正在检查服务器 DEM 配置。</div>
+        <details class="route-data-details"><summary>规划数据与工程限制</summary><p class="route-help">当前规划器不会按电压等级校核塔型、导线、档距或净空。地图底图仅供浏览，不参与规划代价。实际使用的约束、数据覆盖与来源以任务结果为准。</p><p id="dataLayers" class="route-help">数据图层：等待服务器配置。</p></details>
       </form>
       <section class="panel route-result-panel">
-        <h2>地理路线地图</h2>
+        <div class="route-panel-title"><div><span class="route-step">02 / MAP VIEW</span><h2>线路地图</h2></div><span class="route-map-tag">台湾区域</span></div>
         <div class="route-map-controls" role="group" aria-label="地图端点选择"><button id="pickStartBtn" type="button" aria-pressed="false" disabled>地图选起点</button><button id="pickEndBtn" type="button" aria-pressed="false" disabled>地图选终点</button><span id="mapPickStatus" aria-live="polite">读取台湾 DEM 范围后，输入规划口令即可点选有效数据位置。</span></div>
         <div id="routeMap" class="route-map" role="application" aria-label="点击地图设置线路起点和终点"></div>
-        <p id="mapCoverage" class="route-help">规划服务必须配置台湾县市陆域 GeoJSON。地图框线展示 DEM 范围；端点和完整路线还要通过陆域边界校验。县市界不是测绘海岸线。</p>
-        <p class="route-help">规划成功后，规划输出 GeoJSON 会直接叠加到地图上。OpenStreetMap 底图只用于浏览定位，不进入路线搜索。</p>
+        <div class="route-map-notes"><p id="mapCoverage" class="route-help">规划服务必须配置台湾县市陆域 GeoJSON。地图框线展示 DEM 范围；端点和完整路线还要通过陆域边界校验。县市界不是测绘海岸线。</p><p class="route-help">规划成功后，路线会叠加到地图；OpenStreetMap 底图仅用于定位，不参与路线搜索。</p></div>
       </section>
     </section>
-    <section class="route-results">
-      <section class="panel route-result-panel"><h2>服务器地形与规划预览</h2><img id="terrainPreview" class="route-preview" alt="服务器生成的 DEM 地形与路线预览" hidden><p id="previewPlaceholder" class="route-help">完成一条任务后显示服务器生成的 DEM 对比图。</p></section>
-      <section class="panel route-result-panel"><h2>路线结果</h2><div class="route-metrics"><div><small>规划状态</small><b id="planningStatus">—</b></div><div><small>长度</small><b id="routeLength">—</b></div><div><small>规划阶段读取参考线几何</small><b id="referenceUse">—</b></div><div><small>硬约束掩膜检查</small><b id="hardStatus">—</b></div><div><small>DEM 有效采样</small><b id="dataCoverage">—</b></div><div><small>人口图层沿线覆盖</small><b id="populationCoverage">—</b></div></div><p id="feasibility" class="route-feasibility">工程可行性：未评估</p><ul id="engineeringBlockers" class="route-engineering-blockers" aria-label="工程校核未完成的原因" hidden></ul><p id="screeningSummary" class="route-help">约束和筛查数据情况将在路线输出后显示。</p><div class="route-links" id="artifactLinks"></div><h3>沿线 DEM 高程</h3><svg id="profile" class="profile-svg" viewBox="0 0 800 180" role="img" aria-label="沿线 DEM 高程剖面"></svg></section>
+    <section class="route-results-section" aria-labelledby="route-results-title">
+      <header class="route-section-heading"><div><span class="route-step">03 / RESULTS</span><h2 id="route-results-title">规划结果与校核</h2></div><p>结果和筛查信息基于本次服务器任务输出；规划完成不等同于工程审查通过。</p></header>
+      <div class="route-results">
+        <section class="panel route-result-panel"><div class="route-panel-title"><div><span class="route-step">TERRAIN PREVIEW</span><h2>地形与路线预览</h2></div></div><img id="terrainPreview" class="route-preview" alt="服务器生成的 DEM 地形与路线预览" hidden><p id="previewPlaceholder" class="route-help">完成一条任务后，这里会显示服务器生成的 DEM 与路线叠加图。</p></section>
+        <section class="panel route-result-panel"><div class="route-panel-title"><div><span class="route-step">ROUTE SUMMARY</span><h2>路线摘要</h2></div></div><div class="route-metrics"><div><small>规划状态</small><b id="planningStatus">—</b></div><div><small>路线长度</small><b id="routeLength">—</b></div><div><small>规划阶段读取参考线几何</small><b id="referenceUse">—</b></div><div><small>硬约束掩膜检查</small><b id="hardStatus">—</b></div><div><small>DEM 有效采样</small><b id="dataCoverage">—</b></div><div><small>人口图层沿线覆盖</small><b id="populationCoverage">—</b></div></div><p id="feasibility" class="route-feasibility">工程可行性：未评估</p><ul id="engineeringBlockers" class="route-engineering-blockers" aria-label="工程校核未完成的原因" hidden></ul><p id="screeningSummary" class="route-help">约束和筛查数据情况将在路线输出后显示。</p><div class="route-links" id="artifactLinks"></div><h3>沿线 DEM 高程</h3><svg id="profile" class="profile-svg" viewBox="0 0 800 180" role="img" aria-label="沿线 DEM 高程剖面"></svg></section>
+      </div>
     </section>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
