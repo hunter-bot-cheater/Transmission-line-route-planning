@@ -15,11 +15,17 @@
       <span id="readiness" class="live-badge pending"><i></i><span>检查服务器数据</span></span>
     </header>
     <section class="route-layout" aria-label="线路规划工作台">
+      <section class="panel route-result-panel">
+        <div class="route-panel-title"><div><span class="route-step">02 / MAP VIEW</span><h2>线路地图</h2></div><span class="route-map-tag">台湾区域</span></div>
+        <div class="route-map-access"><label for="accessToken">服务器规划口令</label><input id="accessToken" form="routeForm" type="password" minlength="32" autocomplete="off" required placeholder="由服务器管理员配置；至少 32 个字符"><small>口令仅用于本次服务器任务与地图点位校验。</small></div>
+        <div class="route-map-controls" role="group" aria-label="地图端点选择"><button id="pickStartBtn" type="button" aria-pressed="false" disabled>地图选起点</button><button id="pickEndBtn" type="button" aria-pressed="false" disabled>地图选终点</button><span id="mapPickStatus" aria-live="polite">读取台湾 DEM 范围后，输入规划口令即可点选有效数据位置。</span></div>
+        <div id="routeMap" class="route-map" role="application" aria-label="点击地图设置线路起点和终点"></div>
+        <div class="route-map-notes"><p id="mapCoverage" class="route-help">规划服务必须配置台湾县市陆域 GeoJSON。地图框线展示 DEM 范围；端点和完整路线还要通过陆域边界校验。县市界不是测绘海岸线。</p><p class="route-help">规划成功后，路线会叠加到地图；OpenStreetMap 底图仅用于定位，不参与路线搜索。</p></div>
+      </section>
       <form id="routeForm" class="panel route-form">
         <div class="route-form-title"><div><span class="route-step">01 / ROUTE SETUP</span><h2>规划任务</h2></div><span class="route-form-tag">站间路径</span></div>
         <p class="route-note">当前服务没有权威站点接入点名录，不能独立核验用户输入；本页面只能按探索性端点规划。来源声明不会提升端点核验状态。</p>
         <div class="route-access-grid">
-          <div><label for="accessToken">服务器规划口令</label><input id="accessToken" type="password" minlength="32" autocomplete="off" required placeholder="由服务器管理员配置；至少 32 个字符"></div>
           <div><label for="endpointMode">端点类型</label><select id="endpointMode" name="endpoint_mode"><option value="exploratory">探索性端点 / 代理坐标</option><option value="verified" disabled>已核验线路接入点（需权威名录，当前不可用）</option></select></div>
         </div>
         <section class="route-station">
@@ -33,16 +39,12 @@
           <div class="route-verify-fields" hidden><label>接入点类型<input name="end_role" value="line_connection_point" readonly></label><label>坐标来源<input name="end_source" maxlength="240" placeholder="来源名称 / 文件"></label><label>核验凭证引用<input name="end_reference" maxlength="240" placeholder="凭证编号 / 可追溯记录"></label></div>
         </section>
         <label for="voltage">电压等级（仅记录）</label><input id="voltage" name="voltage_kv" maxlength="32" placeholder="可选，例如 161 kV">
-        <button id="submitBtn" class="button primary full" type="submit" disabled>在服务器规划</button>
-        <div id="jobStatus" class="route-status" role="status" aria-live="polite">正在检查服务器 DEM 配置。</div>
+        <div class="route-submit-area">
+          <button id="submitBtn" class="button primary full" type="submit" disabled>在服务器规划</button>
+          <div id="jobStatus" class="route-status" role="status" aria-live="polite">正在检查服务器 DEM 配置。</div>
+        </div>
         <details class="route-data-details"><summary>规划数据与工程限制</summary><p class="route-help">当前规划器不会按电压等级校核塔型、导线、档距或净空。地图底图仅供浏览，不参与规划代价。实际使用的约束、数据覆盖与来源以任务结果为准。</p><p id="dataLayers" class="route-help">数据图层：等待服务器配置。</p></details>
       </form>
-      <section class="panel route-result-panel">
-        <div class="route-panel-title"><div><span class="route-step">02 / MAP VIEW</span><h2>线路地图</h2></div><span class="route-map-tag">台湾区域</span></div>
-        <div class="route-map-controls" role="group" aria-label="地图端点选择"><button id="pickStartBtn" type="button" aria-pressed="false" disabled>地图选起点</button><button id="pickEndBtn" type="button" aria-pressed="false" disabled>地图选终点</button><span id="mapPickStatus" aria-live="polite">读取台湾 DEM 范围后，输入规划口令即可点选有效数据位置。</span></div>
-        <div id="routeMap" class="route-map" role="application" aria-label="点击地图设置线路起点和终点"></div>
-        <div class="route-map-notes"><p id="mapCoverage" class="route-help">规划服务必须配置台湾县市陆域 GeoJSON。地图框线展示 DEM 范围；端点和完整路线还要通过陆域边界校验。县市界不是测绘海岸线。</p><p class="route-help">规划成功后，路线会叠加到地图；OpenStreetMap 底图仅用于定位，不参与路线搜索。</p></div>
-      </section>
     </section>
     <section class="route-results-section" aria-labelledby="route-results-title">
       <header class="route-section-heading"><div><span class="route-step">03 / RESULTS</span><h2 id="route-results-title">规划结果与校核</h2></div><p>结果和筛查信息基于本次服务器任务输出；规划完成不等同于工程审查通过。</p></header>
