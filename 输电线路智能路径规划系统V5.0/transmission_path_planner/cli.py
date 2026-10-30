@@ -17,6 +17,7 @@ from .io_export import *
 from .stations import *
 from .official_hazards import load_official_hazard_masks
 from .provenance import capture_run_provenance, write_run_provenance
+from .engineering_assessment import engineering_assessment_record
 from .experimental_theta_star import (
     integrate_polyline_cost,
     theta_star_cost_path,
@@ -2368,6 +2369,8 @@ def main():
                 "real_evaluation_methods": real_evaluation_methods,
                 "planning_status": planning_status,
                 "engineering_feasibility": "not_evaluated",
+                "engineering_assessment": engineering_assessment_record(
+                    selected_metrics, station_task),
                 **station_endpoint_properties(station_task),
                 "hard_constraint_status": selected_metrics.get("hard_constraint_status", "no_path"),
                 "hard_violations": selected_metrics.get("hard_violations"),
