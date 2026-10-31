@@ -272,7 +272,8 @@ class ExperimentalAstar16Tests(unittest.TestCase):
             elevation=elevation, grade_penalty_weight=2.0)
 
         self.assertAlmostEqual(base, math.sqrt(5.0), places=12)
-        self.assertAlmostEqual(shared, 3.0 * math.sqrt(5.0), places=12)
+        expected = math.sqrt(5.0) + 2.0 * (10.0 / math.sqrt(5.0) / 0.30) * math.sqrt(5.0)
+        self.assertAlmostEqual(shared, expected, places=12)
 
     def test_knight_edge_integrates_soft_cost_in_crossed_cells(self):
         cost = np.ones((3, 2), dtype=np.float64)

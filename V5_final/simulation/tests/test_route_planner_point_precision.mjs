@@ -9,6 +9,12 @@ const directory = path.dirname(fileURLToPath(import.meta.url));
 const page = fs.readFileSync(path.join(directory, '..', 'web', 'route_planner.html'), 'utf8');
 const setter = page.match(/async function setEndpointFromMap\(prefix,latlng\)\{.*?return true;\}/s)?.[0];
 
+test('hard-mask status states its scope and unknown completeness', () => {
+  assert.match(page, /已加载掩膜筛查/);
+  assert.match(page, /掩膜图层未确认，筛查状态/);
+  assert.match(page, /数据完整性未验证/);
+});
+
 test('map click validates the same rounded coordinates that it stores', async () => {
   assert.ok(setter, 'map point setter exists');
 

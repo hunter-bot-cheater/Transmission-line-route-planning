@@ -876,6 +876,14 @@ def astar_search(cost_raster, start_rc, end_rc, use_dijkstra=False, elevation=No
             raise ValueError("pixel_m must be finite and positive") from None
         if not math.isfinite(pixel_m) or pixel_m <= 0.0:
             raise ValueError("pixel_m must be finite and positive")
+    if max_ground_grade is not None:
+        if (not math.isfinite(float(max_ground_grade))
+                or float(max_ground_grade) <= 0.0):
+            raise ValueError("max_ground_grade must be finite and positive")
+        if elevation is None:
+            raise ValueError("elevation is required when max_ground_grade is set")
+        if pixel_spacing is None and pixel_m is None:
+            raise ValueError("pixel_spacing or pixel_m is required when max_ground_grade is set")
     minimum_cost = math.inf
     flat_cost = np.asarray(cost_raster).reshape(-1)
     for offset in range(0, flat_cost.size, 1 << 20):

@@ -133,7 +133,7 @@ def _segment_grade_penalty(start_rc, end_rc, elevation, spacing, weight):
     if length == 0.0:
         return 0.0
     grade = abs(end_elevation - start_elevation) / length
-    return weight * min(grade / 0.30, 1.0) * length
+    return weight * (grade / 0.30) * length
 
 
 def integrate_path_cost(path, cost_raster, traversable_mask, pixel_spacing=(1.0, 1.0),

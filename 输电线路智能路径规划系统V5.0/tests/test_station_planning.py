@@ -10,6 +10,7 @@ import numpy as np
 from affine import Affine
 
 from transmission_path_planner.cost import build_route_cost
+from transmission_path_planner.engineering_assessment import engineering_assessment_record
 from transmission_path_planner.cli import (
     TOWER_GRAPH_METHOD,
     _select_final_route,
@@ -155,6 +156,78 @@ class StationPlanningTests(unittest.TestCase):
             tower_site_pad_radius_m=15.0, pixel_spacing_m=(35.0, 70.0))
 
         self.assertTrue(site_mask[2, 2])
+
+    def test_tower_site_pad_relief_is_optional_and_reports_screen_metrics(self):
+        dem = np.zeros((7, 7), dtype=np.float64)
+        slope = np.zeros_like(dem)
+
+        _, default_sites, default_report = build_tower_masks(
+            dem, slope, tower_site_pad_radius_m=1.1,
+            pixel_spacing_m=(1.0, 1.0), return_pad_relief_report=True)
+        self.assertTrue(default_sites[3, 3])
+        self.assertEqual(default_report["status"], "not_configured")
+
+        _, screened_sites, report = build_tower_masks(
+            dem, slope, tower_site_pad_radius_m=1.1,
+            pixel_spacing_m=(1.0, 1.0), tower_site_pad_max_relief_m=0.0,
+            return_pad_relief_report=True)
+        self.assertTrue(screened_sites[3, 3])
+        # Candidate cells near the DEM border lack a complete pad footprint,
+        # so the aggregate status must disclose those unknown candidates.
+        self.assertEqual(report["status"], "screened_with_unknown_candidates")
+        self.assertGreaterEqual(report["footprint_cell_count"], 2)
+        self.assertEqual(report["eligible_candidate_cell_count"],
+                         int(np.count_nonzero(screened_sites)))
+        self.assertEqual(report["max_measured_relief_m"], 0.0)
+
+    def test_tower_site_pad_relief_rejects_rough_and_unknown_support(self):
+        dem = np.zeros((7, 7), dtype=np.float64)
+        slope = np.zeros_like(dem)
+        dem[3, 4] = 2.0
+        _, rough_sites, rough_report = build_tower_masks(
+            dem, slope, tower_site_pad_radius_m=1.1,
+            pixel_spacing_m=(1.0, 1.0), tower_site_pad_max_relief_m=1.0,
+            return_pad_relief_report=True)
+        self.assertFalse(rough_sites[3, 3])
+        self.assertGreater(rough_report["over_limit_candidate_cell_count"], 0)
+
+        dem[3, 4] = np.nan
+        _, nodata_sites, nodata_report = build_tower_masks(
+            dem, slope, tower_site_pad_radius_m=1.1,
+            pixel_spacing_m=(1.0, 1.0), tower_site_pad_max_relief_m=1.0,
+            return_pad_relief_report=True)
+        self.assertFalse(nodata_sites[3, 3])
+        self.assertGreater(nodata_report["unknown_candidate_cell_count"], 0)
+        self.assertEqual(nodata_report["status"], "screened_with_unknown_candidates")
+        self.assertTrue(nodata_sites[1, 1])
+        route = [(121.0, 25.0), (121.003, 25.0)]
+        self.assertEqual(
+            tower_candidate_validation_status(
+                route, route, "not_requested", "pass", "interior_candidates_screened",
+                "site_pad_footprint_screened", 1.1, nodata_report["status"]),
+            "survived_configured_screening")
+
+        edge_nodata = np.zeros((7, 7), dtype=np.float64)
+        edge_nodata[0, 0] = np.nan
+        _, edge_sites, edge_report = build_tower_masks(
+            edge_nodata, slope, tower_site_pad_radius_m=1.1,
+            pixel_spacing_m=(1.0, 1.0), tower_site_pad_max_relief_m=1.0,
+            return_pad_relief_report=True)
+        self.assertGreater(edge_report["unknown_candidate_cell_count"], 0)
+        self.assertEqual(edge_report["status"], "screened_with_unknown_candidates")
+        self.assertFalse(edge_sites[1, 1])
+        self.assertTrue(edge_sites[4, 4])
+
+    def test_tower_site_pad_relief_rejects_unresolvable_single_cell_footprint(self):
+        dem = np.zeros((5, 5), dtype=np.float64)
+        slope = np.zeros_like(dem)
+        _, sites, report = build_tower_masks(
+            dem, slope, tower_site_pad_radius_m=0.1,
+            pixel_spacing_m=(20.0, 20.0), tower_site_pad_max_relief_m=2.0,
+            return_pad_relief_report=True)
+        self.assertFalse(np.any(sites))
+        self.assertEqual(report["status"], "unknown_resolution")
+        self.assertEqual(report["unknown_candidate_cell_count"], dem.size)
 
     def test_tower_site_hazard_exposure_reports_known_overlap_for_each_layer(self):
         layer_keys = (
@@ -379,6 +452,11 @@ class StationPlanningTests(unittest.TestCase):
                 "site_pad_footprint_screened", 15.0),
             "survived_configured_screening")
         self.assertEqual(
+            tower_candidate_validation_status(
+                route, route, "not_requested", "pass", "interior_candidates_screened",
+                "site_pad_footprint_screened", 15.0, "unknown_resolution"),
+            "tower_site_pad_relief_not_evaluated")
+        self.assertEqual(
             tower_candidate_validation_status(route, route, "not_requested", "pass"),
             "site_slope_not_evaluated")
         self.assertEqual(
@@ -404,6 +482,15 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(
             tower_candidate_validation_status(route, route, "dem_only_profile_screening", None),
             "incomplete_building_geometry_check")
+
+    def test_pad_relief_screen_does_not_mark_engineering_feasibility_pass(self):
+        record = engineering_assessment_record({
+            "tower_site_pad_relief_status": "screened_with_unknown_candidates",
+        })
+        self.assertEqual(record["status"], "not_evaluated")
+        self.assertEqual(
+            record["configured_screens"]["tower_site_pad_relief"],
+            "screened_with_unknown_candidates")
 
     def test_restored_tower_endpoints_are_rechecked_against_span_limits(self):
         invalid_route = [(121.0, 25.0), (121.001, 25.0), (121.02, 25.0)]
@@ -1310,6 +1397,21 @@ class StationPlanningTests(unittest.TestCase):
             with self.subTest(pixel_m=pixel_m), self.assertRaisesRegex(
                     ValueError, "pixel_m"):
                 astar_search(cost, (0, 0), (2, 2), pixel_m=pixel_m)
+
+    def test_astar_requires_inputs_for_ground_grade_hard_limit(self):
+        cost = np.ones((3, 3), dtype=np.float64)
+        elevation = np.zeros_like(cost)
+        with self.assertRaisesRegex(ValueError, "elevation is required"):
+            astar_search(cost, (0, 0), (2, 2), pixel_spacing=(10, 10),
+                         max_ground_grade=0.3)
+        with self.assertRaisesRegex(ValueError, "pixel_spacing or pixel_m"):
+            astar_search(cost, (0, 0), (2, 2), elevation=elevation,
+                         max_ground_grade=0.3)
+        for limit in (0.0, -0.1, float("nan"), float("inf")):
+            with self.subTest(limit=limit), self.assertRaisesRegex(
+                    ValueError, "max_ground_grade"):
+                astar_search(cost, (0, 0), (2, 2), elevation=elevation,
+                             pixel_spacing=(10, 10), max_ground_grade=limit)
 
     def test_zero_turn_penalty_keeps_legacy_path(self):
         cost = np.array([[1, 2, 2, 4, 1, 1],
