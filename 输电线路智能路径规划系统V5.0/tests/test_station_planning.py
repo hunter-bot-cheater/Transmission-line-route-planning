@@ -205,7 +205,7 @@ class StationPlanningTests(unittest.TestCase):
             tower_candidate_validation_status(
                 route, route, "not_requested", "pass", "interior_candidates_screened",
                 "site_pad_footprint_screened", 1.1, nodata_report["status"]),
-            "survived_configured_screening")
+            "clearance_not_screened")
 
         edge_nodata = np.zeros((7, 7), dtype=np.float64)
         edge_nodata[0, 0] = np.nan
@@ -450,7 +450,25 @@ class StationPlanningTests(unittest.TestCase):
             tower_candidate_validation_status(
                 route, route, "not_requested", "pass", "interior_candidates_screened",
                 "site_pad_footprint_screened", 15.0),
+            "clearance_not_screened")
+        all_clear = [{"status": "sampled_clearance_ok"}]
+        self.assertEqual(
+            tower_candidate_validation_status(
+                route, route, "dem_only_profile_screening", "pass",
+                "interior_candidates_screened", "site_pad_footprint_screened", 15.0,
+                "not_configured", all_clear),
             "survived_configured_screening")
+        self.assertEqual(
+            tower_candidate_validation_status(
+                route, route, "dem_only_profile_screening", "pass",
+                "interior_candidates_screened", "site_pad_footprint_screened", 15.0,
+                "not_configured", [{"status": "sampled_clearance_fail"}]),
+            "clearance_profile_not_passed")
+        self.assertEqual(
+            tower_candidate_validation_status(
+                route, route, "dem_only_profile_screening", "pass",
+                "interior_candidates_screened", "site_pad_footprint_screened", 15.0),
+            "clearance_profile_incomplete")
         self.assertEqual(
             tower_candidate_validation_status(
                 route, route, "not_requested", "pass", "interior_candidates_screened",
@@ -482,6 +500,23 @@ class StationPlanningTests(unittest.TestCase):
         self.assertEqual(
             tower_candidate_validation_status(route, route, "dem_only_profile_screening", None),
             "incomplete_building_geometry_check")
+
+    def test_fixed_station_endpoint_uses_span_mask_not_tower_site_slope_mask(self):
+        dem = np.zeros((5, 5), dtype=np.float64)
+        slope = np.zeros_like(dem)
+        slope[2, 0] = 45.0
+        span_mask, site_mask = build_tower_masks(
+            dem, slope, max_surface_slope_deg=30.0)
+        self.assertTrue(span_mask[2, 0])
+        self.assertFalse(site_mask[2, 0])
+        start, end = validate_endpoint_cells(
+            (2, 0), (2, 4), dem.shape, span_mask,
+            {"DEM NoData": ~np.isfinite(dem)},
+        )
+        route = astar_search(np.where(span_mask > 0, 1.0, np.inf), start, end)
+        self.assertIsNotNone(route)
+        self.assertEqual(route[0], (2, 0))
+        self.assertEqual(route[-1], (2, 4))
 
     def test_pad_relief_screen_does_not_mark_engineering_feasibility_pass(self):
         record = engineering_assessment_record({

@@ -1,6 +1,7 @@
 """OpenStreetMap 矢量数据的栅格化与距离/密度/用地波段。"""
 
 import ast
+import json
 from shapely import make_valid
 from shapely.ops import unary_union
 
@@ -10,6 +11,29 @@ from .data import _fill, _terrain_gradient, _landuse_tag_to_code
 
 _PKG_CACHE = {}
 _PKL_CACHE = _PKG_CACHE
+_OFFICIAL_BUILDING_INFO_CACHE = {}
+
+
+def _read_geojson_tail_value(path, key):
+    """Read a small top-level metadata value placed after a large GeoJSON feature array."""
+    with Path(path).open("rb") as source_file:
+        source_file.seek(max(0, Path(path).stat().st_size - 1024 * 1024))
+        tail = source_file.read().decode("utf-8", errors="ignore")
+    marker = json.dumps(key)
+    position = tail.rfind(marker)
+    if position < 0:
+        raise ValueError(f"官方建筑 GeoJSON 缺少顶层 {key}")
+    colon = tail.find(":", position + len(marker))
+    if colon < 0:
+        raise ValueError(f"官方建筑 GeoJSON 的 {key} 格式无效")
+    value_start = colon + 1
+    while value_start < len(tail) and tail[value_start].isspace():
+        value_start += 1
+    try:
+        value, _ = json.JSONDecoder().raw_decode(tail, value_start)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"官方建筑 GeoJSON 的 {key} 格式无效") from exc
+    return value
 
 class OSMBands(dict):
     """栅格波段字典；状态元数据放在属性中，不影响 ``items()`` 的数组接口。"""
@@ -555,6 +579,191 @@ def load_user_constraint_overlays(geojson_path, transform, shape, *,
     if data_sources is not None:
         metadata["data_sources"] = data_sources
     return {"hard_mask": hard_mask, "soft_cost": soft_cost, "metadata": metadata}
+
+
+def load_official_buildings_geojson(geojson_path, bbox_wgs84, transform, shape,
+                                   *, buffer_m=0.0):
+    """Load authorized WGS84 building footprints as an all-touched hard mask.
+
+    Coverage is deliberately left unverified: an empty clipped result does not
+    mean that the planning window contains no buildings.
+    """
+    if not HAS_RASTERIO or not HAS_SHAPELY:
+        raise RuntimeError("读取官方建筑图层需要 rasterio 和 shapely")
+    path = Path(geojson_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"官方建筑 GeoJSON 不存在: {path}")
+    if (len(bbox_wgs84) != 4
+            or not all(math.isfinite(float(value)) for value in bbox_wgs84)):
+        raise ValueError("bbox_wgs84 必须是四个有限坐标")
+    west, south, east, north = map(float, bbox_wgs84)
+    if not (-180 <= west < east <= 180 and -90 <= south < north <= 90):
+        raise ValueError("bbox_wgs84 必须是有效 WGS84 范围")
+    if not math.isfinite(float(buffer_m)) or buffer_m < 0:
+        raise ValueError("buffer_m 必须是非负有限数值")
+    if len(shape) != 2 or any(int(value) <= 0 for value in shape):
+        raise ValueError("shape 必须是正值 (height, width)")
+    planning_bbox = (west, south, east, north)
+    if buffer_m:
+        lat_buffer = float(buffer_m) / 110574.0
+        max_abs_lat = max(abs(south), abs(north))
+        lon_buffer = float(buffer_m) / max(
+            111320.0 * math.cos(math.radians(max_abs_lat)), 1e-6)
+        west = max(-180.0, west - lon_buffer)
+        east = min(180.0, east + lon_buffer)
+        south = max(-90.0, south - lat_buffer)
+        north = min(90.0, north + lat_buffer)
+
+    dataset_metadata = _read_geojson_tail_value(path, "metadata")
+    data_sources = _read_geojson_tail_value(path, "data_sources")
+    if not isinstance(dataset_metadata, dict):
+        raise ValueError("官方建筑 GeoJSON 的 metadata 必须是对象")
+    if not isinstance(data_sources, list):
+        raise ValueError("官方建筑 GeoJSON 的 data_sources 必须是数组")
+    coordinate_system = str(dataset_metadata.get("coordinate_system", "")).upper()
+    if "4326" not in coordinate_system and "CRS84" not in coordinate_system:
+        raise ValueError("官方建筑 GeoJSON 的 metadata 必须声明 WGS84 经纬度坐标")
+    if dataset_metadata.get("constraint_mode") != "hard":
+        raise ValueError("官方建筑 GeoJSON 必须声明 constraint_mode=hard")
+
+    try:
+        import geopandas as gpd
+        import pyogrio
+    except ImportError as exc:
+        raise RuntimeError("读取官方建筑 GeoJSON 需要 geopandas 和 pyogrio") from exc
+    stat = path.stat()
+    cache_key = (str(path.resolve()), stat.st_size, stat.st_mtime_ns)
+    info = _OFFICIAL_BUILDING_INFO_CACHE.get(cache_key)
+    if info is None:
+        info = pyogrio.read_info(path)
+        _OFFICIAL_BUILDING_INFO_CACHE[cache_key] = info
+    if info.get("driver") != "GeoJSON":
+        raise ValueError("官方建筑输入必须是 GeoJSON")
+    try:
+        metadata_feature_count = int(dataset_metadata["feature_count"])
+        source_feature_count = int(info.get("features", -1))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("官方建筑 GeoJSON 的 metadata.feature_count 无效") from exc
+    if metadata_feature_count < 1 or source_feature_count != metadata_feature_count:
+        raise ValueError("官方建筑 GeoJSON 要素数与 metadata.feature_count 不一致")
+    fields = {str(field) for field in info.get("fields", ())}
+    required_fields = {"mode", "source", "category"}
+    if not required_fields.issubset(fields):
+        raise ValueError("官方建筑 GeoJSON 缺少 mode/source/category 字段")
+    source_crs = str(info.get("crs") or "").upper()
+    if "4326" not in source_crs and "CRS84" not in source_crs:
+        raise ValueError("官方建筑 GeoJSON 必须使用 WGS84 经纬度坐标")
+    frame = gpd.read_file(
+        path, bbox=(west, south, east, north),
+        columns=["mode", "source", "category", "dataset_id", "source_updated_at"],
+        engine="pyogrio",
+    )
+    frame_crs = frame.crs.to_string().upper() if frame.crs is not None else ""
+    if "4326" not in frame_crs and "CRS84" not in frame_crs:
+        raise ValueError("官方建筑 GeoJSON 必须使用 WGS84 经纬度坐标")
+
+    from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, box
+
+    query_window = box(west, south, east, north)
+    planning_window = box(*planning_bbox)
+    geometries = []
+    intersecting_feature_count = 0
+    planning_feature_count = 0
+    route_geometries = []
+    feature_sources = set()
+
+    def polygon_parts(geometry):
+        if isinstance(geometry, Polygon):
+            return [geometry] if not geometry.is_empty else []
+        if isinstance(geometry, MultiPolygon):
+            return [part for part in geometry.geoms if not part.is_empty]
+        if isinstance(geometry, GeometryCollection):
+            return [part for item in geometry.geoms for part in polygon_parts(item)]
+        return []
+
+    for index, row in enumerate(frame.itertuples(), start=1):
+        geometry = row.geometry
+        source = getattr(row, "source", None)
+        mode = getattr(row, "mode", None)
+        category = getattr(row, "category", None)
+        if mode != "hard" or category != "building_footprint":
+            raise ValueError(f"官方建筑要素 {index} 必须声明 hard/building_footprint")
+        source_name = str(source or "").strip()
+        if source_name:
+            feature_sources.add(source_name)
+        properties = {
+            "mode": mode,
+            "source": source_name,
+            "category": category,
+            "dataset_id": getattr(row, "dataset_id", None),
+            "source_updated_at": getattr(row, "source_updated_at", None),
+        }
+        if (geometry.is_empty or geometry.geom_type not in {"Polygon", "MultiPolygon"}
+                or not geometry.is_valid):
+            raise ValueError(f"官方建筑要素 {index} 必须是有效 Polygon 或 MultiPolygon")
+        min_lon, min_lat, max_lon, max_lat = geometry.bounds
+        if (not all(math.isfinite(value) for value in geometry.bounds)
+                or min_lon < -180 or max_lon > 180
+                or min_lat < -90 or max_lat > 90):
+            raise ValueError(f"官方建筑要素 {index} 坐标超出 WGS84 经纬度范围")
+        if not geometry.intersects(query_window):
+            continue
+        intersecting_feature_count += 1
+        clipped = geometry.intersection(query_window)
+        parts = polygon_parts(clipped)
+        geometries.extend((part, properties) for part in parts)
+        if geometry.intersects(planning_window):
+            planning_feature_count += 1
+            route_clipped = geometry.intersection(planning_window)
+            route_geometries.extend(
+                (part, properties) for part in polygon_parts(route_clipped))
+
+    mask = rasterize_on(geometries, transform, tuple(map(int, shape)))
+    metadata = {
+        "path": str(path.resolve()),
+        "status": "loaded" if planning_feature_count else "loaded_no_features_in_window",
+        "source": "NLSC Taiwan e-Map BUILD",
+        "feature_sources": sorted(feature_sources),
+        "source_feature_count": metadata_feature_count,
+        "source_features_intersecting_window": planning_feature_count,
+        "source_features_intersecting_query_bbox": intersecting_feature_count,
+        "clipped_polygon_count": len(geometries),
+        "covered_cell_count": int(np.count_nonzero(mask)),
+        "rasterization": "all_touched",
+        "requested_bbox_wgs84": [west, south, east, north],
+        "planning_window_bbox_wgs84": list(planning_bbox),
+        "load_buffer_m": float(buffer_m),
+        "coverage_status": "not_independently_verified",
+        "coverage_reason": (
+            "Input file coverage is not independently certified; zero features in the window "
+            "does not establish absence of buildings."),
+        "check_scope": "loaded_official_building_features_only",
+        "data_sources": data_sources,
+        "dataset_metadata": dataset_metadata,
+    }
+    return {
+        "geometries": geometries, "route_geometries": route_geometries,
+        "mask": mask, "metadata": metadata,
+    }
+
+
+def merge_official_buildings_into_bands(osm_bands, official_layer, transform, shape,
+                                        *, include_building_distance=False):
+    """Union official footprints with OSM footprints for hard screening only."""
+    official_mask = np.asarray(official_layer["mask"], dtype=np.uint8)
+    if official_mask.shape != tuple(shape):
+        raise ValueError("official building mask must match the DEM")
+    existing_mask = np.asarray(osm_bands.get("building_mask"), dtype=np.uint8)
+    if existing_mask.shape != tuple(shape):
+        raise ValueError("OSM building mask must match the DEM")
+    geometries = list(osm_bands.geometries.get("buildings", []))
+    geometries.extend(official_layer["geometries"])
+    osm_bands.geometries["buildings"] = geometries
+    osm_bands["building_mask"] = np.maximum(existing_mask, official_mask)
+    if include_building_distance and official_layer["geometries"]:
+        osm_bands["building_distance_m"] = compute_distance_band(
+            geometries, transform, shape)
+    return geometries
 
 
 def compute_vegetation_height(geoms, transform, shape):

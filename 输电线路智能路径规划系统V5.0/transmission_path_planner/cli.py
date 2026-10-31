@@ -15,7 +15,10 @@ from .metrics import *
 from .visualization import *
 from .io_export import *
 from .stations import *
-from .official_hazards import load_official_hazard_masks
+from .official_hazards import (
+    load_official_hazard_masks,
+    load_official_hazard_vector_masks,
+)
 from .provenance import capture_run_provenance, write_run_provenance
 from .engineering_assessment import engineering_assessment_record
 from .engineering_profile import load_engineering_profile
@@ -268,7 +271,9 @@ def validate_tower_span_lengths(geo, min_span_m, max_span_m, tolerance_m=0.5):
 def tower_candidate_validation_status(geo, searched_path, clearance_status,
                                      building_geometry_status, tower_site_slope_status=None,
                                      tower_site_pad_status=None,
-                                     tower_site_pad_radius_m=None):
+                                     tower_site_pad_radius_m=None,
+                                     tower_site_pad_relief_status="not_configured",
+                                     clearance_profile_spans=None):
     if str(clearance_status).startswith("unknown_"):
         return "unknown_clearance_reference"
     if not geo:
@@ -283,6 +288,22 @@ def tower_candidate_validation_status(geo, searched_path, clearance_status,
             or not math.isfinite(float(tower_site_pad_radius_m))
             or tower_site_pad_radius_m <= 0):
         return "tower_site_pad_not_screened"
+    # Unknown pad centers are excluded from site_mask; a route through the
+    # remaining eligible centers may proceed through the configured-screen gate.
+    if tower_site_pad_relief_status not in {
+            "not_configured", "screened", "screened_with_unknown_candidates"}:
+        return "tower_site_pad_relief_not_evaluated"
+    if clearance_status == "not_requested":
+        return "clearance_not_screened"
+    if clearance_status not in {
+            "dem_only_profile_screening",
+            "station_elevation_anchored_profile_screening"}:
+        return "clearance_not_screened"
+    if not clearance_profile_spans:
+        return "clearance_profile_incomplete"
+    if any(span.get("status") != "sampled_clearance_ok"
+           for span in clearance_profile_spans):
+        return "clearance_profile_not_passed"
     return "survived_configured_screening"
 
 
@@ -459,6 +480,76 @@ def _tower_site_pad_structure(radius_m, pixel_spacing_m):
     return touched_cells[rows.min():rows.max() + 1, cols.min():cols.max() + 1]
 
 
+def _tower_site_pad_relief_screen(elevation, candidate_mask, pad_valid_mask,
+                                  footprint, max_relief_m):
+    """Filter tower centers by complete-DEM pad relief; this is not geotechnical."""
+    candidate = np.asarray(candidate_mask, dtype=bool)
+    pad_valid = np.asarray(pad_valid_mask, dtype=bool)
+    if candidate.shape != pad_valid.shape:
+        raise ValueError("candidate and pad-valid masks must have the same shape")
+    if max_relief_m is None:
+        return pad_valid, {
+            "status": "not_configured", "threshold_m": None,
+            "footprint_cell_count": int(np.count_nonzero(footprint)),
+            "unknown_candidate_cell_count": 0,
+            "over_limit_candidate_cell_count": 0,
+            "eligible_candidate_cell_count": int(np.count_nonzero(pad_valid)),
+            "relief_method": "not_run",
+        }
+    if (isinstance(max_relief_m, bool) or not isinstance(max_relief_m, (int, float))
+            or not math.isfinite(float(max_relief_m)) or max_relief_m < 0):
+        raise ValueError("tower_site_pad_max_relief_m must be finite and non-negative")
+    if not HAS_SCIPY:
+        raise RuntimeError("SciPy is required for tower-site pad relief screening")
+
+    footprint = np.asarray(footprint, dtype=bool)
+    footprint_cell_count = int(np.count_nonzero(footprint))
+    report = {
+        "status": "screened", "threshold_m": float(max_relief_m),
+        "footprint_cell_count": footprint_cell_count,
+        "unknown_candidate_cell_count": 0,
+        "over_limit_candidate_cell_count": 0,
+        "eligible_candidate_cell_count": 0,
+        "relief_method": "max_minus_min_dem_elevation_over_touched_pad_cells",
+    }
+    # One DEM sample cannot measure local relief. Exclude all centers rather than
+    # silently interpreting an unresolvable pad as flat.
+    if footprint_cell_count < 2:
+        report["status"] = "unknown_resolution"
+        report["unknown_candidate_cell_count"] = int(np.count_nonzero(candidate))
+        return np.zeros_like(candidate), report
+
+    dem = np.asarray(elevation, dtype=np.float64)
+    if dem.shape != candidate.shape:
+        raise ValueError("elevation must match the tower candidate mask")
+    valid = np.isfinite(dem)
+    support = ndi.convolve(valid.astype(np.int32), footprint.astype(np.int32),
+                           mode="constant", cval=0)
+    complete = support == footprint_cell_count
+    low = ndi.minimum_filter(np.where(valid, dem, np.inf), footprint=footprint,
+                             mode="constant", cval=np.inf)
+    high = ndi.maximum_filter(np.where(valid, dem, -np.inf), footprint=footprint,
+                              mode="constant", cval=-np.inf)
+    relief = high - low
+    measured = complete & np.isfinite(relief)
+    unknown = candidate & ~measured
+    over_limit = pad_valid & measured & (relief > float(max_relief_m))
+    eligible = pad_valid & measured & (relief <= float(max_relief_m))
+    measured_candidates = pad_valid & measured
+    unknown_count = int(np.count_nonzero(unknown))
+    report.update({
+        "unknown_candidate_cell_count": unknown_count,
+        "over_limit_candidate_cell_count": int(np.count_nonzero(over_limit)),
+        "eligible_candidate_cell_count": int(np.count_nonzero(eligible)),
+        "max_measured_relief_m": (
+            round(float(np.max(relief[measured_candidates])), 3)
+            if np.any(measured_candidates) else None),
+    })
+    if unknown_count:
+        report["status"] = "screened_with_unknown_candidates"
+    return eligible, report
+
+
 def tower_site_hazard_exposure_diagnostic(
         tower_path, hazard_masks, hazard_metadata, pixel_spacing_m,
         pad_radius_m, grid_shape=None):
@@ -561,7 +652,8 @@ def build_tower_masks(dem, slope, custom_hard_mask=None,
                       max_surface_slope_deg=None, max_terrain_elevation_m=None,
                       building_mask=None, building_distance_m=None,
                       building_clearance_m=0.0, tower_site_pad_radius_m=None,
-                      pixel_spacing_m=None):
+                      pixel_spacing_m=None, tower_site_pad_max_relief_m=None,
+                      return_pad_relief_report=False):
     """Separate overhead-span traversability from candidate tower-site limits.
 
     A configured pad radius screens every touched terrain cell conservatively;
@@ -588,11 +680,14 @@ def build_tower_masks(dem, slope, custom_hard_mask=None,
         span_mask &= distance > building_clearance_m
 
     site_mask = span_mask.copy()
+    pad_structure = None
     if max_surface_slope_deg is not None:
         site_mask &= surface_slope <= max_surface_slope_deg
+    site_center_mask = site_mask.copy()
     if tower_site_pad_radius_m is not None:
         radius = float(tower_site_pad_radius_m)
         touched_cells = _tower_site_pad_structure(radius, pixel_spacing_m)
+        pad_structure = touched_cells
         if not HAS_SCIPY:
             raise RuntimeError("SciPy is required for tower-site pad screening")
 
@@ -600,6 +695,22 @@ def build_tower_masks(dem, slope, custom_hard_mask=None,
         if max_surface_slope_deg is not None:
             pad_data_valid &= surface_slope <= max_surface_slope_deg
         site_mask &= binary_erosion(pad_data_valid, structure=touched_cells, border_value=0)
+    pad_relief_report = {
+        "status": "not_configured", "threshold_m": None,
+        "footprint_cell_count": 0, "unknown_candidate_cell_count": 0,
+        "over_limit_candidate_cell_count": 0,
+        "eligible_candidate_cell_count": int(np.count_nonzero(site_mask)),
+        "relief_method": "not_run",
+    }
+    if tower_site_pad_max_relief_m is not None:
+        if pad_structure is None:
+            raise ValueError("tower_site_pad_max_relief_m requires tower_site_pad_radius_m")
+        site_mask, pad_relief_report = _tower_site_pad_relief_screen(
+            elevation, site_center_mask, site_mask, pad_structure,
+            tower_site_pad_max_relief_m)
+    if return_pad_relief_report:
+        return (span_mask.astype(np.uint8), site_mask.astype(np.uint8),
+                pad_relief_report)
     return span_mask.astype(np.uint8), site_mask.astype(np.uint8)
 
 
@@ -634,7 +745,8 @@ def _geometry_intersection_count(geometry, features):
 
 def open_safe_building_endpoint_pixels(endpoints, hard_mask, blocking_layers,
                                        building_geometries, transform,
-                                       building_clearance_m=0.0):
+                                       building_clearance_m=0.0,
+                                       building_blocker_name="OSM建筑足迹"):
     """Open only endpoint cells blocked by rasterization when exact geometry is clear."""
     if not building_geometries or building_clearance_m > 0:
         return []
@@ -647,7 +759,7 @@ def open_safe_building_endpoint_pixels(endpoints, hard_mask, blocking_layers,
             continue
         reasons = [name for name, mask in blocking_layers.items()
                    if mask is not None and bool(mask[row, col])]
-        if reasons != ["OSM建筑足迹"]:
+        if reasons != [building_blocker_name]:
             continue
 
         point = Point(*point_xy)
@@ -671,16 +783,31 @@ def open_safe_building_endpoint_pixels(endpoints, hard_mask, blocking_layers,
 
 
 def validate_route_against_buildings(geo, building_geometries):
-    """Fail closed when an exported route intersects an available building footprint."""
+    """Check exact intersections with loaded footprints; never infer absence."""
     if not geo:
         return None, {"building_geometry_status": "no_path",
-                      "building_geometry_intersections": 0}
+                      "building_geometry_intersections": 0,
+                      "building_geometry_status_semantics": (
+                          "no_path_no_intersection_check_performed"),
+                      "building_geometry_absence_claim": False}
+    if not building_geometries:
+        return geo, {"building_geometry_status": "not_checked_no_loaded_features",
+                     "building_geometry_intersections": None,
+                     "building_geometry_status_semantics": (
+                         "no_loaded_features_no_intersection_check_performed"),
+                     "building_geometry_absence_claim": False}
     route = LineString(geo) if len(geo) > 1 else Point(*geo[0])
     intersections, repaired = _geometry_intersection_summary(route, building_geometries)
     report = {
         "building_geometry_status": "fail" if intersections else "pass",
         "building_geometry_intersections": intersections,
+        "building_geometry_intersection_count_semantics": (
+            "intersected_loaded_feature_count; identical footprints from separate sources "
+            "may be counted more than once"),
         "building_geometry_repaired_features": repaired,
+        "building_geometry_status_semantics": (
+            "pass_means_no_intersection_with_loaded_features_only"),
+        "building_geometry_absence_claim": False,
     }
     return (None if intersections else geo), report
 
@@ -696,14 +823,76 @@ def annotate_route_validation_context(report, endpoint_exceptions, building_meta
         "coverage_status", "unknown")
     report["building_geometry_coverage_reason"] = building_metadata.get(
         "coverage_reason")
-    report["building_geometry_check_scope"] = (
+    report["building_geometry_check_scope"] = building_metadata.get(
+        "check_scope",
         "loaded_osm_features_only"
         if building_metadata.get("status") == "available" else "unavailable")
+    report["building_geometry_sources"] = building_metadata.get("sources", [])
+    report.setdefault(
+        "building_geometry_status_semantics",
+        "pass_means_no_intersection_with_loaded_features_only")
+    report["building_geometry_absence_claim"] = False
     report["building_geometry_source_repair_count"] = int(
         building_metadata.get("geometry_repaired_count", 0))
     report["building_geometry_skipped_nonfinite_count"] = int(
         building_metadata.get("nonfinite_geometry_outside_bbox_count", 0))
     return report
+
+
+def building_validation_metadata(osm_metadata, official_metadata=None):
+    """Describe building-intersection checks without implying inventory completeness."""
+    osm_metadata = osm_metadata or {}
+    osm_status = osm_metadata.get("status", "not_loaded")
+    sources = [{
+        "source": "OpenStreetMap",
+        "status": osm_status,
+        "coverage_status": osm_metadata.get("coverage_status", "unknown"),
+        "feature_count": int(osm_metadata.get("geometry_count_in_bbox", 0)),
+        "check_scope": "features in the loaded OSM cache only",
+    }]
+    if official_metadata is not None:
+        sources.append({
+            "source": official_metadata.get("source", "NLSC Taiwan e-Map BUILD"),
+            "status": official_metadata.get("status", "unknown"),
+            "coverage_status": official_metadata.get(
+                "coverage_status", "not_independently_verified"),
+            "source_feature_count": official_metadata.get("source_feature_count", 0),
+            "features_in_window": official_metadata.get(
+                "source_features_intersecting_window", 0),
+            "features_in_query_bbox": official_metadata.get(
+                "source_features_intersecting_query_bbox", 0),
+            "load_buffer_m": official_metadata.get("load_buffer_m", 0.0),
+            "feature_sources": official_metadata.get("feature_sources", []),
+            "data_sources": official_metadata.get("data_sources", []),
+            "check_scope": "features in the supplied official GeoJSON only",
+        })
+    osm_loaded = osm_status == "available"
+    official_loaded = (official_metadata is not None
+                       and official_metadata.get("source_features_intersecting_window", 0) > 0)
+    if official_metadata is not None:
+        check_scope = (
+            "loaded_official_and_osm_features_only" if osm_loaded and official_loaded
+            else "loaded_official_features_only" if official_loaded
+            else "loaded_osm_features_only" if osm_loaded
+            else "loaded_sources_no_features_in_window")
+        coverage_status = "not_independently_verified"
+        coverage_reason = official_metadata.get("coverage_reason")
+    else:
+        check_scope = "loaded_osm_features_only" if osm_loaded else "unavailable"
+        coverage_status = osm_metadata.get("coverage_status", "unknown")
+        coverage_reason = osm_metadata.get("coverage_reason")
+    return {
+        "status": "available" if osm_loaded or official_loaded else "no_loaded_features",
+        "coverage_status": coverage_status,
+        "coverage_reason": coverage_reason,
+        "check_scope": check_scope,
+        "sources": sources,
+        "geometry_repaired_count": int(osm_metadata.get("geometry_repaired_count", 0)),
+        "nonfinite_geometry_outside_bbox_count": int(
+            osm_metadata.get("nonfinite_geometry_outside_bbox_count", 0)),
+        "pass_semantics": "no_intersection_with_loaded_features_only",
+        "absence_claim": False,
+    }
 
 
 def run_method_or_skip_on_oom(method_name, run_method):
@@ -922,9 +1111,13 @@ def main():
                     help="可选 WGS84 多边形图层; properties 需含 mode=hard/soft、source；soft 还需 weight。选塔时硬约束另需核验声明和凭证")
     ap.add_argument("--land-mask-geojson", type=str, default=None,
                     help="可选 WGS84 陆域 Polygon/MultiPolygon；多边形外区域作为硬不可通行区")
+    ap.add_argument("--official-building-geojson", type=str, default=None,
+                    help="可选已获授权、由 prepare_official_buildings.py 生成的 WGS84 建筑 GeoJSON；覆盖完整性须另行核实")
     default_hazard_dir = PACKAGE_DIR / "data" / "official_sources" / "ardswc_115_mvt_z10_20261023"
     ap.add_argument("--official-hazards-dir", type=str, default=str(default_hazard_dir),
                     help="农业部 115 年土石流/大规模崩塌 MVT 数据目录；默认读取软件包内离线图层")
+    ap.add_argument("--official-hazard-vector-dir", type=str, default=None,
+                    help="可选的脱敏农业部 2026 官方灾害 SHP 目录；指定后取代 MVT 图层用于路线代价")
     ap.add_argument("--official-hazard-weight", type=float, default=1.0,
                     help="官方土石流/崩塌图层联合软代价权重；重叠类别不重复累计，0 表示关闭")
     ap.add_argument("--turn-penalty-weight", type=float, default=0.0,
@@ -989,6 +1182,8 @@ def main():
                     help="塔位候选列相位；必须在 [0, stride) 内，仅用于塔位图相位敏感性复测")
     ap.add_argument("--tower-site-pad-radius-m", type=float, default=None,
                     help="显式塔位地表平台筛查半径；需与 experimental tower graph 同用；仅筛查已知DEM/硬掩膜/坡度")
+    ap.add_argument("--tower-site-pad-max-relief-m", type=float, default=None,
+                    help="可选DEM塔位平台局部高程起伏上限(米)；需有至少2个有效像元；不表示地基承载力")
     ap.add_argument("--tower-site-cost-equivalent-distance-m", type=float, default=0.0,
                     help="塔址软成本敏感性参数：每个中间塔增加‘当地跨越代价×等效米数’；0关闭；不是工程造价")
     ap.add_argument("--tower-attachment-height-m", type=float, default=None,
@@ -1142,6 +1337,7 @@ def main():
         "--tower-min-span-m": args.tower_min_span_m,
         "--tower-max-span-m": args.tower_max_span_m,
         "--tower-site-pad-radius-m": args.tower_site_pad_radius_m,
+        "--tower-site-pad-max-relief-m": args.tower_site_pad_max_relief_m,
         "--tower-site-cost-equivalent-distance-m": (
             args.tower_site_cost_equivalent_distance_m),
         "--tower-attachment-height-m": args.tower_attachment_height_m,
@@ -1156,6 +1352,13 @@ def main():
             ap.error("--tower-site-pad-radius-m 必须大于0")
         if not args.experimental_tower_graph:
             ap.error("--tower-site-pad-radius-m 必须与 --experimental-tower-graph 同用")
+    if args.tower_site_pad_max_relief_m is not None:
+        if args.tower_site_pad_max_relief_m < 0:
+            ap.error("--tower-site-pad-max-relief-m 必须大于或等于0")
+        if args.tower_site_pad_radius_m is None:
+            ap.error("--tower-site-pad-max-relief-m 必须与 --tower-site-pad-radius-m 同用")
+        if not args.experimental_tower_graph:
+            ap.error("--tower-site-pad-max-relief-m 必须与 --experimental-tower-graph 同用")
     if (args.building_clearance_m < 0 or args.ridge_penalty_weight < 0
             or args.landcover_penalty_weight < 0
             or args.settlement_weight < 0
@@ -1400,16 +1603,48 @@ def main():
                 include_model_features=needs_feature_stack,
                 include_building_distance=args.building_clearance_m > 0,
             )
+            osm_building_geometries = list(
+                getattr(osm, "geometries", {}).get("buildings", []))
             osm_layer_metadata = getattr(osm, "metadata", {}).get("layers", {})
             reject_osm_planning_layer_read_errors(osm_layer_metadata)
+            official_building_layer = None
+            if args.official_building_geojson:
+                official_building_buffer_m = 0.0
+                if args.building_clearance_m > 0:
+                    row_m, col_m = pixel_spacing_meters(
+                        transform, transform.f + transform.e * (H / 2), crs)
+                    official_building_buffer_m = (
+                        args.building_clearance_m + 0.5 * math.hypot(row_m, col_m))
+                official_building_layer = load_official_buildings_geojson(
+                    args.official_building_geojson, bbox, transform, dem.shape,
+                    buffer_m=official_building_buffer_m)
+            official_building_metadata = (
+                official_building_layer["metadata"] if official_building_layer else None)
+            if official_building_layer:
+                merge_official_buildings_into_bands(
+                    osm, official_building_layer, transform, dem.shape,
+                    include_building_distance=args.building_clearance_m > 0)
+                if official_building_metadata["status"] == "loaded_no_features_in_window":
+                    print("  [warn] 官方建筑 GeoJSON 在规划窗口内无相交要素；"
+                          "文件覆盖未经独立核验，不能据此认定无建筑。")
+            building_layer_metadata = building_validation_metadata(
+                osm_layer_metadata.get("buildings", {}), official_building_metadata)
             terrain = compute_terrain_factors(dem, pm, transform, crs)
-            official_hazard_masks, official_hazard_metadata = load_official_hazard_masks(
-                args.official_hazards_dir, bbox, transform, dem.shape)
+            if args.official_hazard_vector_dir:
+                official_hazard_masks, official_hazard_metadata = load_official_hazard_vector_masks(
+                    args.official_hazard_vector_dir, bbox, transform, dem.shape)
+            else:
+                official_hazard_masks, official_hazard_metadata = load_official_hazard_masks(
+                    args.official_hazards_dir, bbox, transform, dem.shape)
             official_hazard_metadata["soft_weight_applied_in_run"] = args.official_hazard_weight
             if official_hazard_metadata.get("coverage_status") != "complete":
-                print("  [warn] 官方灾害图层覆盖不完整；未知瓦片不按无风险处理。"
-                      f" status={official_hazard_metadata.get('status')}, "
-                      f"coverage={official_hazard_metadata.get('coverage_status')}")
+                if official_hazard_metadata.get("source_type") == "sanitized_shapefile":
+                    print("  [warn] 官方灾害矢量档案已按清单校验；空间覆盖完整性未独立验证，"
+                          "结果仅作软风险筛查。")
+                else:
+                    print("  [warn] 官方灾害图层覆盖不完整；未知瓦片不按无风险处理。"
+                          f" status={official_hazard_metadata.get('status')}, "
+                          f"coverage={official_hazard_metadata.get('coverage_status')}")
             custom_constraints = (
                 load_user_constraint_overlays(
                     args.constraint_geojson, transform, dem.shape,
@@ -1471,7 +1706,7 @@ def main():
             else:
                 lat_center = transform.f + transform.e * (H / 2.0)
                 route_pixel_spacing = pixel_spacing_meters(transform, lat_center, crs)
-            tower_span_mask, tower_site_mask = build_tower_masks(
+            tower_span_mask, tower_site_mask, tower_site_pad_relief_report = build_tower_masks(
                 dem, slope,
                 custom_hard_mask=combined_hard_mask,
                 max_surface_slope_deg=args.max_surface_slope_deg,
@@ -1481,33 +1716,35 @@ def main():
                 building_clearance_m=args.building_clearance_m,
                 tower_site_pad_radius_m=args.tower_site_pad_radius_m,
                 pixel_spacing_m=route_pixel_spacing,
+                tower_site_pad_max_relief_m=args.tower_site_pad_max_relief_m,
+                return_pad_relief_report=True,
             )
             endpoint_blockers = {"DEM NoData": ~np.isfinite(dem)}
             if custom_constraints:
                 endpoint_blockers["用户硬约束"] = custom_constraints["hard_mask"] > 0
             if land_mask_layer:
                 endpoint_blockers["陆域范围外"] = land_mask_layer["land_mask"] == 0
-            if args.max_surface_slope_deg is not None:
-                endpoint_blockers["地表坡度阈值"] = slope > args.max_surface_slope_deg
             if args.max_terrain_elevation_m is not None:
                 endpoint_blockers["地形海拔阈值"] = elev > args.max_terrain_elevation_m
+            building_blocker_name = (
+                "OSM+官方建筑足迹" if official_building_layer else "OSM建筑足迹")
             if building_mask is not None:
-                endpoint_blockers["OSM建筑足迹"] = np.asarray(building_mask) > 0
+                endpoint_blockers[building_blocker_name] = np.asarray(building_mask) > 0
             if args.building_clearance_m > 0 and "building_distance_m" in osm:
                 endpoint_blockers["建筑净距阈值"] = (
                     osm["building_distance_m"] <= args.building_clearance_m)
-            building_geometries = getattr(osm, "geometries", {}).get("buildings", [])
+            building_geometries = list(osm_building_geometries)
+            if official_building_layer:
+                building_geometries.extend(official_building_layer["route_geometries"])
             endpoint_building_exceptions = open_safe_building_endpoint_pixels(
                 (("起点", (sr, sc), (slon, slat)),
                  ("终点", (er, ec), (elon, elat))),
-                tower_site_mask, endpoint_blockers, building_geometries, transform,
-                args.building_clearance_m,
+                tower_span_mask, endpoint_blockers, building_geometries, transform,
+                args.building_clearance_m, building_blocker_name,
             )
             for exception in endpoint_building_exceptions:
                 tower_span_mask[exception["row"], exception["col"]] = 1
-            endpoint_mask = (tower_span_mask if args.experimental_tower_graph
-                             else tower_site_mask)
-            validate_endpoint_cells((sr, sc), (er, ec), dem.shape, endpoint_mask,
+            validate_endpoint_cells((sr, sc), (er, ec), dem.shape, tower_span_mask,
                                     endpoint_blockers)
             same_grid_cell = (sr, sc) == (er, ec)
             cost_grid = (1.0 + 4.0 * cost).astype(np.float64)
@@ -1906,6 +2143,9 @@ def main():
                         "interior_candidates_screened" if args.max_surface_slope_deg is not None
                         else "not_evaluated"),
                     "tower_site_pad_radius_m": args.tower_site_pad_radius_m,
+                    "tower_site_pad_max_relief_m": args.tower_site_pad_max_relief_m,
+                    "tower_site_pad_relief_screening": tower_site_pad_relief_report,
+                    "tower_site_pad_relief_status": tower_site_pad_relief_report["status"],
                     "tower_site_pad_status": (
                         "site_pad_footprint_screened"
                         if args.tower_site_pad_radius_m is not None else "not_configured"),
@@ -1951,7 +2191,7 @@ def main():
                     geo, hard_report = validate_route_hard_constraints(
                         geo, transform, validation_mask)
                     hard_report.update(tower_span_reports.get(method, {}))
-                    if geo and osm_layer_metadata.get("buildings", {}).get("status") == "available":
+                    if geo:
                         geo, building_report = validate_route_against_buildings(
                             geo, building_geometries)
                         hard_report.update(building_report)
@@ -1960,7 +2200,7 @@ def main():
                             hard_report["hard_violations"] += 1
                     annotate_route_validation_context(
                         hard_report, endpoint_building_exceptions,
-                        osm_layer_metadata.get("buildings", {}))
+                        building_layer_metadata)
                     methods[method] = geo
                     grade_reports[method] = grade_report
                     hard_violation_reports[method] = hard_report
@@ -1983,7 +2223,7 @@ def main():
                     geo, hard_report = validate_route_hard_constraints(
                         geo, transform, validation_mask)
                     hard_report.update(tower_span_reports.get(method, {}))
-                    if geo and osm_layer_metadata.get("buildings", {}).get("status") == "available":
+                    if geo:
                         geo, building_report = validate_route_against_buildings(
                             geo, building_geometries)
                         hard_report.update(building_report)
@@ -1992,7 +2232,7 @@ def main():
                             hard_report["hard_violations"] += 1
                     annotate_route_validation_context(
                         hard_report, endpoint_building_exceptions,
-                        osm_layer_metadata.get("buildings", {}))
+                        building_layer_metadata)
                     hard_violation_reports[method] = hard_report
                     methods[method] = geo
 
@@ -2147,7 +2387,9 @@ def main():
                             met.get("building_geometry_status"),
                             experimental_tower_graph_results["tower_site_slope_status"],
                             experimental_tower_graph_results["tower_site_pad_status"],
-                            experimental_tower_graph_results["tower_site_pad_radius_m"]),
+                            experimental_tower_graph_results["tower_site_pad_radius_m"],
+                            experimental_tower_graph_results["tower_site_pad_relief_status"],
+                            experimental_tower_graph_results["clearance_profile_spans"]),
                         "candidate_stride": experimental_tower_graph_results[
                             "candidate_stride"],
                         "candidate_phase": experimental_tower_graph_results[
@@ -2165,6 +2407,12 @@ def main():
                             "tower_site_slope_scope"],
                         "tower_site_pad_radius_m": experimental_tower_graph_results[
                             "tower_site_pad_radius_m"],
+                        "tower_site_pad_max_relief_m": experimental_tower_graph_results[
+                            "tower_site_pad_max_relief_m"],
+                        "tower_site_pad_relief_screening": experimental_tower_graph_results[
+                            "tower_site_pad_relief_screening"],
+                        "tower_site_pad_relief_status": experimental_tower_graph_results[
+                            "tower_site_pad_relief_status"],
                         "tower_site_pad_status": experimental_tower_graph_results[
                             "tower_site_pad_status"],
                         "selected_intermediate_tower_site_count": experimental_tower_graph_results[
@@ -2255,7 +2503,9 @@ def main():
                         experimental_tower_graph_results["clearance_profile_status"],
                         None, experimental_tower_graph_results["tower_site_slope_status"],
                         experimental_tower_graph_results["tower_site_pad_status"],
-                        experimental_tower_graph_results["tower_site_pad_radius_m"]),
+                        experimental_tower_graph_results["tower_site_pad_radius_m"],
+                        experimental_tower_graph_results["tower_site_pad_relief_status"],
+                        experimental_tower_graph_results["clearance_profile_spans"]),
                     "candidate_stride": experimental_tower_graph_results[
                         "candidate_stride"],
                     "candidate_phase": experimental_tower_graph_results[
@@ -2274,6 +2524,12 @@ def main():
                         "tower_site_slope_scope"],
                     "tower_site_pad_radius_m": experimental_tower_graph_results[
                         "tower_site_pad_radius_m"],
+                    "tower_site_pad_max_relief_m": experimental_tower_graph_results[
+                        "tower_site_pad_max_relief_m"],
+                    "tower_site_pad_relief_screening": experimental_tower_graph_results[
+                        "tower_site_pad_relief_screening"],
+                    "tower_site_pad_relief_status": experimental_tower_graph_results[
+                        "tower_site_pad_relief_status"],
                     "tower_site_pad_status": experimental_tower_graph_results[
                         "tower_site_pad_status"],
                     "selected_intermediate_tower_site_count": experimental_tower_graph_results[
@@ -2432,6 +2688,9 @@ def main():
                 "missing_screening_layers": missing_screening_layers,
                 "official_hazard_metadata": official_hazard_metadata,
                 "official_hazard_route_exposure": hazard_route_exposure,
+                "official_building_metadata": official_building_metadata or {
+                    "status": "not_requested", "coverage_status": "not_checked"},
+                "building_layer_metadata": building_layer_metadata,
                 "constraint_layer_metadata": custom_constraint_metadata,
                 "land_mask_metadata": land_mask_metadata,
             }
@@ -2463,10 +2722,18 @@ def main():
                 "max_surface_slope_scope": "candidate_tower_sites_only",
                 "max_terrain_elevation_m": args.max_terrain_elevation_m,
                 "osm_layer_metadata": osm_layer_metadata,
+                "official_building_metadata": official_building_metadata or {
+                    "status": "not_requested", "coverage_status": "not_checked"},
+                "building_layer_metadata": building_layer_metadata,
                 "voltage_rules_applied": False,
                 "route_constraints_limitations": (
-                    "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area boundaries, "
-                    "conductor clearance, tower siting or span feasibility checked; administrative land polygons, when enabled, are a coarse land-area screen, not a surveyed shoreline"),
+                    "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory or comprehensive official protected-area layer; "
+                    "building checks cover loaded OSM/official features only and do not prove absence; conductor clearance, tower siting, and span feasibility are not evaluated; "
+                    "administrative land polygons, when enabled, are a coarse land-area screen, not a surveyed shoreline"),
+                "route_constraints_limitations_zh": (
+                    "人口栅格（启用时）是模型估算代理；未接入敏感目标清单或完整官方保护区边界；"
+                    "建筑相交复核仅针对已加载的 OSM/官方要素，不能证明无建筑；未评估导线净空、塔位工程适宜性或档距可行性；"
+                    "行政陆域多边形（启用时）仅作粗略陆域筛查，不代表实测海岸线。"),
             })
             if station_task:
                 start_station = station_task["from_station"]
@@ -2503,7 +2770,12 @@ def main():
                             "max_surface_slope_deg": args.max_surface_slope_deg,
                             "max_surface_slope_scope": "candidate_tower_sites_only",
                             "max_terrain_elevation_m": args.max_terrain_elevation_m,
-                            "route_constraints_limitations": "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area layer, conductor clearance, tower siting or span feasibility checked",
+                            "route_constraints_limitations": (
+                                "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory or comprehensive official protected-area layer; "
+                                "building checks cover loaded OSM/official features only and do not prove absence; conductor clearance, tower siting, and span feasibility are not evaluated"),
+                            "route_constraints_limitations_zh": (
+                                "人口栅格（启用时）是模型估算代理；未接入敏感目标清单或完整官方保护区边界；"
+                                "建筑相交复核仅针对已加载的 OSM/官方要素，不能证明无建筑；未评估导线净空、塔位工程适宜性或档距可行性。"),
                         })
             print(f"  [集成] 最终路线采用 {best_method} ({selection_rule})；线路相似度仅作事后指标")
             # 导出最终路线矢量 (GeoJSON)
@@ -2576,8 +2848,11 @@ def main():
                                            "max_terrain_elevation_m": args.max_terrain_elevation_m,
                                            "osm_layer_metadata": osm_layer_metadata,
                                            "route_constraints_limitations": (
-                                                "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory, official protected-area boundaries, "
-                                               "conductor clearance, tower siting or span feasibility checked"),
+                                               "Population raster, when enabled, is a modelled exposure proxy; no sensitive-target inventory or comprehensive official protected-area layer; "
+                                               "building checks cover loaded OSM/official features only and do not prove absence; conductor clearance, tower siting, and span feasibility are not evaluated"),
+                                           "route_constraints_limitations_zh": (
+                                               "人口栅格（启用时）是模型估算代理；未接入敏感目标清单或完整官方保护区边界；"
+                                               "建筑相交复核仅针对已加载的 OSM/官方要素，不能证明无建筑；未评估导线净空、塔位工程适宜性或档距可行性。"),
                                            **grade_reports.get(best_method, {}),
                                            **station_offsets_by_method.get(best_method, {}),
                                            **(route_profile_metrics(final_geo, dem, transform) if final_geo else {})}}]

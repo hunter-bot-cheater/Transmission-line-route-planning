@@ -84,6 +84,7 @@ def _planning_input_records(args, dem_path, default_osm_cache_dir, model_weights
         ("real_cases_csv", "case_tasks"),
         ("constraint_geojson", "user_constraints"),
         ("land_mask_geojson", "land_mask"),
+        ("official_building_geojson", "official_building_layer"),
         ("population_raster", "population_raster"),
     ):
         path = _arg(args, name)
@@ -118,21 +119,38 @@ def _planning_input_records(args, dem_path, default_osm_cache_dir, model_weights
         records.append(_file_record(
             f"osm_cache:{layer_name}", cache_dir / OSM_CACHE_FILES[layer_name]))
 
-    hazard_dir = Path(_arg(args, "official_hazards_dir"))
-    if hazard_dir.is_dir():
-        for fixed_name in ("manifest.json", "tiles.sha256"):
-            path = hazard_dir / fixed_name
-            if path.is_file():
-                records.append(_file_record("official_hazard_manifest", path))
-        for path in sorted(hazard_dir.rglob("*.pbf")):
-            if path.is_file() and not path.is_symlink():
-                records.append(_file_record("official_hazard_tile", path))
+    vector_dir_arg = _arg(args, "official_hazard_vector_dir")
+    if vector_dir_arg:
+        vector_dir = Path(vector_dir_arg)
+        if vector_dir.is_dir():
+            manifest_path = vector_dir / "manifest.json"
+            if manifest_path.is_file():
+                records.append(_file_record("official_hazard_vector_manifest", manifest_path))
+            for path in sorted(vector_dir.glob("*.zip")):
+                if path.is_file() and not path.is_symlink():
+                    records.append(_file_record("official_hazard_vector_archive", path))
+        else:
+            records.append({
+                "role": "official_hazard_vector_dir",
+                "path": str(vector_dir.resolve()),
+                "status": "missing",
+            })
     else:
-        records.append({
-            "role": "official_hazards_dir",
-            "path": str(hazard_dir.resolve()),
-            "status": "missing",
-        })
+        hazard_dir = Path(_arg(args, "official_hazards_dir"))
+        if hazard_dir.is_dir():
+            for fixed_name in ("manifest.json", "tiles.sha256"):
+                path = hazard_dir / fixed_name
+                if path.is_file():
+                    records.append(_file_record("official_hazard_manifest", path))
+            for path in sorted(hazard_dir.rglob("*.pbf")):
+                if path.is_file() and not path.is_symlink():
+                    records.append(_file_record("official_hazard_tile", path))
+        else:
+            records.append({
+                "role": "official_hazards_dir",
+                "path": str(hazard_dir.resolve()),
+                "status": "missing",
+            })
 
     if _arg(args, "use_costunet") and has_torch:
         for path in model_weights:
@@ -194,12 +212,26 @@ def _runtime_info():
             versions[package] = metadata.version(package)
         except metadata.PackageNotFoundError:
             versions[package] = None
+    geospatial_io = {"vector_io_engine": "pyogrio"}
+    try:
+        import pyogrio
+        geospatial_io["pyogrio_gdal_version"] = getattr(
+            pyogrio, "__gdal_version_string__", None)
+    except ImportError:
+        geospatial_io["pyogrio_gdal_version"] = None
+    try:
+        import rasterio
+        geospatial_io["rasterio_gdal_version"] = getattr(
+            rasterio, "__gdal_version__", None)
+    except ImportError:
+        geospatial_io["rasterio_gdal_version"] = None
     return {
         "python_version": sys.version,
         "python_executable": sys.executable,
         "implementation": platform.python_implementation(),
         "platform": platform.platform(),
         "dependencies": versions,
+        "geospatial_io": geospatial_io,
     }
 
 

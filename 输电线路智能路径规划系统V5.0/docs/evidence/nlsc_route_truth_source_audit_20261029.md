@@ -63,3 +63,54 @@ WMS 只返回地图图像，B5000 的 GetCapabilities 标记为不可查询（qu
 - [e 商城申购说明及 1:5,000 向量内容](https://www.nlsc.gov.tw/News_Toggle.aspx?_CSN=2033&n=1564&sms=9708)：FAQ 第 18、19 项载明申购身份验证流程与 SHP/DWG/DXF 内容。
 - [基本地形图成果资料申请书下载页](https://www.nlsc.gov.tw/News.aspx?n=1553&sms=9702)：可申请 1:5,000 数据及 SHP；申请人身份、使用目的和数据限制条款见[官方申请书 PDF](https://ws.moi.gov.tw/Download.ashx?icon=..pdf&n=6ZmE6KGo5Y2B5LiJ44CB5YWn5pS%2F6YOo5ZyL5Zyf5ris57mq5Lit5b%2BD5Z%2B65pys5Zyw5b2i5ZyW5Y%2BK6Ly%2F5ZyW5oiQ5p6c6LOH5paZ55Sz6KuL5pu4LlBERg%3D%3D&u=LzAwMS9VcGxvYWQvNDA3L3JlbGZpbGUvOTcwMi83MjQzMC9jMGQ0NTViZS1mNWM5LTQwYzYtYjBmOC1jNWFmZWFhNDc4OTYucGRm)。
 - [NLSC 服务条款](https://maps.nlsc.gov.tw/pro/use_clause.jsp)：允许合法用途展示并标注来源，但禁止大量下载，因此不将 WMS/WMTS 图像批量拼接或数字化成线路真值。
+
+### 2026 年版官方 20 m DTM 更新核查（2026-10-29）
+
+- 内政部地政司已发布[2026 年版全台 20 m DTM 数据集](https://data.gov.tw/dataset/178729)，页面标注 OGL v1、免费；用途说明是地形起伏展示与概略分析，各图幅产制年度不一。2026 版下载清单 CSV 共 23 条记录，包含“分幅_宜兰县20MDEM(2026).zip”，坐标标识为 TWD97(N、E、H)，制作说明为航空摄影测量。
+- 官方清单中的宜兰 ZIP 直链为 `https://www.tgos.tw/MDE/VirtualDir_TC/Product/30a235de-9f73-4673-94b2-289a7a235315/%E5%88%86%E5%B9%85_%E5%AE%9C%E8%98%AD%E7%B8%A320MDEM%282026%29.zip`。当前工作站对该链接的只读 HEAD 请求返回 HTTP 403，未取得 ZIP，未将其作为本地或服务器规划输入；原因尚未确认。
+- 内政部 DTM 服务页明确：20 m 服务是开放资料、无需申请；1 m 服务属一般公务机密，仅限机关内部使用。国土测绘中心的历史资料说明将网格间距不大于 5 m 的成果列为限制资料，不能把它们当作个人可自由下载的精度升级选项。
+- 官方 TGOS 直链虽然对当前工作站返回 403，但随后找到第三方公开 OCI 镜像 `outdoorsafetylab/moidemd:latest`，其维护者称只解压官方压缩包、不重投影或重采样，并发布了输入文件哈希。2026 三案例服务器实验记录的原始 TIFF SHA-256 为 `f05912e2233b40497c1b9d7f469893f668823f72005a949e9634ce69303d0e3f`，与镜像下载脚本中的 pin 相同；配套 TFW pin 为 `7e497cc09921a3fa2091d1a3680d99721883145ef77f700b88bc4211270ffa32`。镜像 tag 当前 digest 为 `sha256:1159a342d57c9408c55f659482c2dc84971acf36409736adfb3ab5314754ae65`。服务器三案例实验已使用此源 TIFF 派生的 20 m 输入，派生输入 SHA-256 为 `661bee946235602398c67a46cc76d1180952ccc52d104b73b481b57d9a557fbe`；因此不是尚未接入的数据候选。
+- 这仍是第三方来源声明，不等同官方数字签章或官方 ZIP 字节校验。现有服务器审计还记录了 TIFF 的 CRS GeoKey 为用户自定义、未独立证明 EPSG:3826；TWVD2001 来自镜像维护者说明，垂直基准标签未在本轮独立核实。没有再次下载 302 MB OCI 数据层；也没有将 1 m 或不大于 5 m 的受限资料取入。具体重投影和误差限制见[`2026 DTM 三案例复测`](deepmei_dongshan_exploratory_20261029/../dtm_2026_native_20m_3case_6400_20261028/README.md)。
+
+来源：[2026 DTM 官方目录](https://data.gov.tw/dataset/178729)、[2026 DTM 下载清单 CSV](https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/B6219841-E247-4743-958D-77FB61067092/resource/D788C60B-33CB-4A84-A438-EC6E8B7060F1/download)、[公开镜像说明](https://github.com/outdoorsafetylab/moidemd)、[镜像获取脚本与 SHA-256 pin](https://github.com/outdoorsafetylab/moidemd/blob/master/scripts/fetch-dem.py)、[DTM 服务与精度权限说明](https://dtm.moi.gov.tw/)、[国土测绘中心 DTM 建置与供给说明](https://www.nlsc.gov.tw/cp.aspx?n=1853)。
+
+### 输电线路开放资料补充核查（2026-10-29）
+
+- 台电[全台电杆坐标及杆号 CSV](https://data.gov.tw/dataset/33305) 为政府开放资料第 1 版、每月更新，字段含县市、行政区、乡里、形式、杆号及 TWD97 X/Y。资料页没有注明这些点是输电铁塔，也没有线路回路、塔序或额定电压字段；不能把全台电杆自动当作输电塔，更不能据此拼接出历史线路中心线。此前对宜兰县子集的核查也发现，记录不含“塔”类形式。
+- 台南市[输电系统电杆 SHP](https://data.tainan.gov.tw/DataSet/Detail/b2d312c5-99e9-42af-a512-514634066443) 是目前找到的较有针对性的官方候选：市府将其标为“110 年输电系统电杆”，开放资料授权第 1 版，范围覆盖台南 37 区；字段含 PoleNo、Agency、Length、Material、UseStat 和 Status。但资料说明公共管线图资仅供参考、需向管线单位取得详细资料，且没有公布电压、回路或塔序字段。因此它只能在拿到文件并验证其确为架空输电资产后用于局部事后核对，不能作为全台线路真值或当前规划先验。
+- 台南市另有[输电系统管线 WMS](https://data.gov.tw/dataset/122514)，同样仅供参考、暂无更新资料。WMS 图层是市级公共管线图资，不等于已确认的架空高压线竣工中心线；本轮服务请求超时，未从图像数字化线路。
+- 台北市[输电系统管线 XML](https://data.gov.tw/dataset/156861) 提供 geometry、起点编号、终点编号、管理单位、作业区分、管道编号和尺寸等字段，免费、政府开放资料第 1 版；官方说明其仅供参考、确切资料需洽管线机构。其“管线/管道”语义和字段尚未证明是架空输电导线或杆塔间档距，现阶段不作为山地架空线路基准。
+- 台湾 OSM 是可取得的开放社区线路候选。[OpenInfraMap 的台湾统计](https://openinframap.org/stats/area/Taiwan)报告约 7,637 km 电力线，含不同电压和缺失电压要素；[OpenStreetMap Wiki 的台湾电网页](https://wiki.openstreetmap.org/wiki/Power_networks/Taiwan)列出 345 kV、161 kV 等输电电压。一个[台湾 OSM PBF 分区页](https://www.osmtoday.com/asia/taiwan.html)列出约 4,004 条电力线要素和 33,488 个电力塔位要素，数据截至 2026-07-13，PBF 约 284.68 MB；这些是地图要素数，不代表实际线路总数或完整率。另有具名的[协和—深美 345 kV OSM way](https://www.openstreetmap.org/way/123843700)，可作为与既有深美—冬山案例不同的候选对照。OSM 可按[ODbL 署名及共享要求](https://www.openstreetmap.org/copyright)使用，但其几何由社区编辑，完整性与竣工精度未有台电保证；不能称为官方真值。
+- 服务器内已有只读 Overpass 快照 `/data1/B24041626/pp/osm_power_reference_audit_20261029_01/taiwan_osm_power_lines_and_nodes_20261029.json`，OSM 时间戳为 `2026-10-29T10:04:44Z`，SHA-256 为 `9d50f1bd3ca5da3139770bc4da98d51e8e43e1c5ebed9f9bd9e0bf859326cebe`。快照包含 34,200 个元素；按 `power=line`、电压不低于 69 kV、单个 way 长度至少 1 km 筛选，得到 546 个线路 way（69 kV 213、161 kV 230、345 kV 103），折线长度合计约 5,245 km。这里统计的是 OSM way，不是去重后的输电回路或实际线路总长。
+- 从该快照已筛出三个 345 kV 事后比较候选：深美—冬山 way 135694791（143 个顶点、约 49.496 km）、协和—深美 way 123843700（70 个顶点、约 24.242 km）、深美—板桥 way 135761514（56 个顶点、约 22.252 km）。所列长度是对本快照坐标逐段测地计算的 OSM 折线长度；way 端点不等同于已核验的站内线路侧接入点。若用来跑新案例，应把端点来源标为 OSM 代理坐标，并将 OSM 几何只留作事后评分。
+- [Geofabrik 台湾 OSM 下载页](https://download.geofabrik.de/asia/taiwan.html)提供 PBF 区域提取，适合筛选有电压标签的 `power=line` 线路及相连塔位，再人工核对站名、回路和数据质量。本轮尚未取得 PBF。服务器访问 Geofabrik 下载端点超时；台电开放 CSV 主机 DNS 解析失败；台南 SHP 下载端点连接超时。没有留下不完整下载文件，也没有把这些候选数据输入规划任务。
+
+因此，当前能确认的是：官方公开目录存在市级输电系统设施候选和全台电杆坐标，OSM 有较广覆盖的线路/塔位几何；尚未获得可独立确认架空回路、站端接入点及竣工精度的全台官方开放矢量真值。后续可以用 OSM 做分层的探索性事后比较，用台南/台北图层做局部数据适用性审查；真实线路误差结论仍须明确标为相对于 OSM/市级参考图资，而不是相对于台电竣工线路。
+
+### 2026-10-29 后续复核：取得台南点位与实际几何事后评分
+
+- 已从台南市政府[110 年输电系统电桿资源页](https://data.tainan.gov.tw/Resource/f5f7257d-418f-4972-811b-a082635daca8)取得官方 ZIP，并传入服务器目录 `/data1/B24041626/pp/official_tainan_transmission_poles_20261029_01/tainan_2021_transmission_poles.zip`。下载大小 15,135 bytes，SHA-256 `6d8ef147a73f15803ff5429fed8d694c59b9adcdc1b1bcf48811ae3671c77720`；ZIP 完整性检查通过，内含 DBF、SHP、SHX。
+- 服务器只读检查得到 343 个 Point，边界约为 `120.1637–120.4712°E, 22.9664–23.3020°N`。压缩包没有 PRJ/CRS 文件，原始坐标基准未确认。属性中 339 条为“水泥桿”、4 条为“水泥”；341 条 `TimePos` 为 2011-01-01、2 条为 2019-03-31；资料没有电压、输电回路、塔序或站点关联字段。`PoleNo` 中仅少量记录带“山上∼新市001”字样，其余记录无法由公开属性确认对应的架空回路。此文件可留作台南设施候选，不能直接作为 345 kV 架空线塔序或线路真值。
+- 该点位集位于台南，与本次深美—冬山案例相距数百公里，不能用于这条线路的误差验证；它只证明官方市级设施资源可取得，不解决北部线路缺少站端接入点和竣工塔位的问题。
+- 官方资源主机从服务器连接超时，但从本机取得该公开文件后经既有 SSH 会话传入服务器 `/pp`；规划计算仍全部在服务器运行，本机仅执行下载传输，没有在本机跑规划。
+- 对服务器实验 `tower_graph_coarse_stride4_20261029_02` 做了事后评分：规划输入未读取 OSM 参考几何。参照为 OSM way `135694791`（“深美～冬山線”，标签电压 345000 V，143 个顶点；社区地图而非台电竣工测量）。评分使用服务器的双向弧长采样几何指标，距离采样约 20 m，离散 Fréchet 近似采样上限 100 m；计算坐标系 EPSG:3826。
+
+| 输出路线 | 长度 (km) | 长度差 | 对称 P95 | F1@100 m | F1@500 m | Fréchet 近似 |
+|---|---:|---:|---:|---:|---:|---:|
+| A* baseline（最终采用） | 46.534 | 5.79% | 6.917 km | 1.17% | 10.55% | 7.607 km |
+| TowerGraph experimental | 43.967 | 10.98% | 6.992 km | 1.35% | 11.17% | 7.668 km |
+
+- A* 路线虽然长度差仅约 5.8%，但双向 100 m 覆盖率分别只有 1.16% 和 1.17%，100 m 缓冲区 IoU 为 0.0069；两端与 OSM 线端点约差 213 m、171 m，且端点方向相反。TowerGraph 也没有改善整体贴合。该案例明确说明长度误差不能代表线路形状相似度；对 OSM 参考本身也未达到 100 m 贴合目标，更不能据此宣称真实竣工线误差达标。
+- 服务器结果文件：`/data1/B24041626/pp/osm_power_reference_audit_20261029_01/posthoc_route_compare_20261029_01/posthoc_metrics.json`、`route_comparison.png`、`route_comparison.svg`。指标 JSON SHA-256 `874c6a2ea5478f0da4fe1716a18a8fdf3c4d4e6e6f6b20e93e991f45234585ac`；PNG SHA-256 `052c77e6f8b78b10b687e24329461c378a8a8c47901afde534e3d6dbd64a2204`。
+
+### 2026-10-29 服务器只读复核：OSM 塔位点
+
+- 在服务器已有台湾 OSM 快照 `/data1/B24041626/pp/osm_power_reference_audit_20261029_01/taiwan_osm_power_lines_and_nodes_20261029.json` 中，way `135694791` 标注为台电 `345000 V`、2 回路的“深美～冬山線”，含 143 个几何顶点。快照中有 143 个 `power=tower` 点与这 143 个顶点坐标逐点完全相同；其中仅 4 个点带 `ref` 字段，其余 139 个没有塔号。
+- 这能提供 OSM 内部的塔点/线路几何一致性检查，但两者来自同一 OSM 快照，不能算独立的竣工塔位真值，也无法补齐塔号序列或站端线路侧接入点。该检查只读完成，没有改动快照、生成新服务器文件或把 OSM 塔位输入规划。
+- 官方数据检索结果仍是：NLSC FAQ 明确列出 1:5,000 向量图含高压线塔和高压电线，格式为 SHP、DWG/DXF；政府开放目录没有找到带完整目标回路塔号、坐标和竣工中心线的免费数据集。官方收费表出现“像片基本图数值资料”每幅 NT$150（非加值）/NT$600（加值），但具体购买商品、目标图幅可供年份、公开状态及费用仍须在 e 商城逐幅确认；没有下单或付款。
+
+### 2026-11-01 台电全台电桿开放资料字段核验
+
+- 复查[台电全台电桿坐标及桿号资料](https://data.gov.tw/dataset/33305)；平台描述其覆盖全台各县市并按月更新，授权为政府资料开放授权第 1 版。官方资源链接 `https://service.taipower.com.tw/data/opendata/apply/file/d077006/all.csv` 的只读 HEAD 返回 HTTP 200、`Content-Length: 319982717`（约 305 MiB）。
+- 使用 HTTP Range 只读取前 4,096 bytes，CSV 表头为“县市、行政区、乡里、图号座标、形式、桿号、TWD_97_X、TWD_97_Y”。该字段结构没有电压等级、输电回路/线路编号或塔序，无法可靠地区分输电铁塔与配电电桿；没有下载完整 320 MB 文件，也没有把它用于线路先验或误差评分。
+- 因此该全台电桿库可用于设施位置背景或后续经验证的设施分类，不构成本项目所需的独立输电中心线/塔位真值。优先数据缺口仍是已授权的 NLSC 1:5,000 高压线及塔位矢量、具体线路回路属性和站端接入点。

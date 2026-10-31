@@ -8,12 +8,21 @@ from types import SimpleNamespace
 import unittest
 
 from transmission_path_planner.provenance import (
+    _runtime_info,
     capture_run_provenance,
     write_run_provenance,
 )
 
 
 class RunProvenanceTests(unittest.TestCase):
+    def test_runtime_records_vector_engine_and_gdal_versions(self):
+        runtime = _runtime_info()
+        geospatial_io = runtime["geospatial_io"]
+
+        self.assertEqual(geospatial_io["vector_io_engine"], "pyogrio")
+        self.assertIn("pyogrio_gdal_version", geospatial_io)
+        self.assertIn("rasterio_gdal_version", geospatial_io)
+
     def test_captures_planning_inputs_but_never_hashes_reference_geometry(self):
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -76,6 +85,64 @@ class RunProvenanceTests(unittest.TestCase):
                 hashlib.sha256(b"synthetic population").hexdigest())
             self.assertEqual(snapshot["reference_geometry_policy"]["hashed_by_provenance"], False)
             self.assertEqual(snapshot["cases"][0]["case"], "R1")
+
+    def test_selected_vector_hazard_archives_are_hashed_instead_of_mvt_tiles(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            dem = root / "dem.tif"
+            dem.write_bytes(b"synthetic dem")
+            vector_dir = root / "sanitized_hazards"
+            vector_dir.mkdir()
+            manifest = vector_dir / "manifest.json"
+            manifest.write_text('{"sanitized_files":[]}', encoding="utf-8")
+            archive = vector_dir / "risk_sanitized.zip"
+            archive.write_bytes(b"sanitized risk geometry")
+
+            args = SimpleNamespace(
+                stations_csv=None, route_tasks_csv=None, real_cases_csv=None,
+                constraint_geojson=None, land_mask_geojson=None,
+                population_raster=None, osm_cache_dir=str(root / "osm"),
+                official_hazards_dir=str(root / "mvt_unused"),
+                official_hazard_vector_dir=str(vector_dir),
+                include_ai_diagnostics=False, no_vin=False, use_costunet=False,
+                real_dir=None, real_shp=None,
+            )
+            snapshot = capture_run_provenance(
+                root, args, [("R1", (24.0, 121.0), (24.1, 121.1))],
+                dem, root / "osm", has_torch=False)
+
+        records = snapshot["planning_inputs"]
+        self.assertEqual({record["role"] for record in records
+                          if "official_hazard_vector" in record["role"]},
+                         {"official_hazard_vector_manifest", "official_hazard_vector_archive"})
+        self.assertFalse(any(record["role"].startswith("official_hazard_tile")
+                             for record in records))
+
+    def test_official_building_geojson_is_hashed_as_a_planning_input(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            dem = root / "dem.tif"
+            dem.write_bytes(b"synthetic dem")
+            buildings = root / "official-buildings.geojson"
+            buildings.write_text('{"type":"FeatureCollection"}', encoding="utf-8")
+            expected_building_sha256 = hashlib.sha256(buildings.read_bytes()).hexdigest()
+            args = SimpleNamespace(
+                stations_csv=None, route_tasks_csv=None, real_cases_csv=None,
+                constraint_geojson=None, land_mask_geojson=None,
+                official_building_geojson=str(buildings), population_raster=None,
+                osm_cache_dir=str(root / "osm"), official_hazards_dir=str(root / "mvt"),
+                official_hazard_vector_dir=None, include_ai_diagnostics=False,
+                no_vin=False, use_costunet=False, real_dir=None, real_shp=None,
+            )
+
+            snapshot = capture_run_provenance(
+                root, args, [("R1", (24.0, 121.0), (24.1, 121.1))],
+                dem, root / "osm", has_torch=False)
+
+        building_record = next(
+            record for record in snapshot["planning_inputs"]
+            if record["role"] == "official_building_layer")
+        self.assertEqual(building_record["sha256"], expected_building_sha256)
 
     def test_final_manifest_hashes_outputs_and_excludes_its_own_file_and_references(self):
         with TemporaryDirectory() as temp_dir:

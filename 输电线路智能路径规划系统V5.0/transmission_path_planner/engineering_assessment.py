@@ -80,6 +80,8 @@ def engineering_assessment_record(route_metrics, station_task=None,
             "tower_span_length": metrics.get("tower_span_status", "not_evaluated"),
             "tower_site_slope": metrics.get("tower_site_slope_status", "not_evaluated"),
             "tower_site_pad": metrics.get("tower_site_pad_status", "not_evaluated"),
+            "tower_site_pad_relief": metrics.get(
+                "tower_site_pad_relief_status", "not_evaluated"),
             "building_geometry": metrics.get("building_geometry_status", "not_evaluated"),
             "dem_parabolic_sag_clearance": profile_screen,
         },

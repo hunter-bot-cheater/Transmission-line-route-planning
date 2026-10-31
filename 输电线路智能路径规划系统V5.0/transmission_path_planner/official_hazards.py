@@ -1,4 +1,4 @@
-"""Read official ARDSWC MVT hazard tiles for a WGS84 planning window.
+"""Read official ARDSWC MVT and sanitized SHP data for WGS84 planning windows.
 
 The returned masks are screening inputs only. In particular, mapped potential
 landslide and debris-flow impact areas are never interpreted as legal exclusions.
@@ -19,6 +19,12 @@ LAYER_SPECS = {
     "debris_flow_impact": "DEBRIS1753_20260126",
     "landslide_potential": "POTENTIAL_LANDSLIDE_20260106",
     "landslide_impact": "POTENTIAL_LANDSLIDE_AFFECT_20260106",
+}
+
+VECTOR_LAYER_SPECS = {
+    "debris_flow_impact": ("debris_flow_impact_115_2026_sanitized.zip", "176526"),
+    "landslide_potential": ("landslide_potential_115_2026_sanitized.zip", "176527"),
+    "landslide_impact": ("landslide_impact_115_2026_sanitized.zip", "176528"),
 }
 
 
@@ -196,6 +202,156 @@ def _rasterize_union(geometries, transform, shape):
         all_touched=True,
         dtype="uint8",
     )
+
+
+def load_official_hazard_vector_masks(source_dir, bbox_wgs84, transform, shape):
+    """Load validated, sanitized nationwide 2026 ARDSWC SHP risk layers.
+
+    The vector files are projected from TWD97 / TM2 zone 121 to WGS84,
+    clipped to the route window, then rasterized on the planner's DEM grid.
+    Their masks remain soft screening signals; they are not legal exclusions.
+    """
+    bbox = tuple(float(value) for value in bbox_wgs84)
+    if len(bbox) != 4 or not all(math.isfinite(value) for value in bbox):
+        raise ValueError("bbox_wgs84 必须包含四个有限坐标")
+    west, south, east, north = bbox
+    if not (-180 <= west < east <= 180 and -90 <= south < north <= 90):
+        raise ValueError("bbox_wgs84 必须是有效 west,south,east,north 范围")
+    if len(shape) != 2 or any(int(value) <= 0 for value in shape):
+        raise ValueError("shape 必须是正值 (height, width)")
+
+    root = Path(source_dir)
+    if root.is_symlink():
+        raise ValueError("官方灾害矢量目录不能是符号链接")
+    if not root.is_dir():
+        raise FileNotFoundError(f"官方灾害矢量目录不存在: {root}")
+    manifest_path = root / "manifest.json"
+    if manifest_path.is_symlink():
+        raise ValueError("官方灾害矢量清单不能是符号链接")
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"官方灾害矢量清单不存在: {manifest_path}")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        files = {item["name"]: item for item in manifest["sanitized_files"]}
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("官方灾害矢量清单格式无效") from exc
+    if manifest.get("address_values_read_or_emitted") is not False:
+        raise ValueError("官方灾害矢量清单未声明地址值未读取或导出")
+
+    try:
+        import geopandas as gpd
+        import pyogrio
+        from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, box
+        from shapely import force_2d, make_valid
+    except ImportError as exc:
+        raise RuntimeError("读取官方灾害矢量需要 geopandas、pyogrio 和 shapely") from exc
+
+    masks = _zero_masks(tuple(map(int, shape)))
+    clip = box(*bbox)
+    metadata = {
+        "status": "available",
+        "coverage_status": "unknown",
+        "source_integrity_status": "validated_against_local_manifest",
+        "spatial_coverage_status": "not_independently_verified",
+        "source_dir": str(root.resolve()),
+        "source": "Taiwan MOA ARDSWC official 2026 sanitized SHP",
+        "source_type": "sanitized_shapefile",
+        "source_manifest_path": str(manifest_path.resolve()),
+        "source_manifest_sha256": _sha256(manifest_path),
+        "requested_bbox_wgs84": list(bbox),
+        "raster_crs": "EPSG:4326",
+        "risk_mode": "soft_only_screening; no hard exclusion",
+        "risk_semantics": "binary_union; source Risk attributes are not interpreted",
+        "address_values_read_or_emitted": False,
+        "warning": "All source archives are checked against the local manifest; spatial inventory completeness is unverified. Polygons are screening data, not surveyed exclusions.",
+        "layers": {},
+    }
+
+    for layer_name, (filename, dataset_id) in VECTOR_LAYER_SPECS.items():
+        archive = root / filename
+        entry = files.get(filename)
+        if archive.is_symlink():
+            raise ValueError(f"官方灾害矢量文件不能是符号链接: {filename}")
+        if entry is None or not archive.is_file():
+            raise FileNotFoundError(f"官方灾害矢量文件缺失: {filename}")
+        actual_hash = _sha256(archive)
+        if actual_hash != str(entry.get("sha256", "")).lower():
+            raise ValueError(f"官方灾害矢量 SHA-256 不匹配: {filename}")
+        if entry.get("address_field_removed") is not True:
+            raise ValueError(f"官方灾害矢量未声明移除地址字段: {filename}")
+
+        vector_path = f"/vsizip/{archive.resolve().as_posix()}"
+        layer_info = pyogrio.read_info(vector_path)
+        fields = {str(column).strip().casefold()
+                  for column in layer_info.get("fields", ())}
+        if "address" in fields or "地址" in fields:
+            raise ValueError(f"脱敏灾害图层仍含地址字段: {filename}")
+        try:
+            expected_count = int(entry.get("feature_count", -1))
+            observed_count = int(layer_info.get("features", -1))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"官方灾害矢量要素数清单无效: {filename}") from exc
+        if expected_count < 0 or observed_count != expected_count:
+            raise ValueError(f"官方灾害矢量要素数与清单不一致: {filename}")
+        geometry_type = str(layer_info.get("geometry_type", "")).upper()
+        if not geometry_type.startswith(("POLYGON", "MULTIPOLYGON")):
+            raise ValueError(f"官方灾害矢量必须仅包含面几何: {filename}")
+        frame = gpd.read_file(vector_path, columns=[], engine="pyogrio")
+        geometry_column = getattr(frame.geometry, "name", "geometry")
+        if any(column != geometry_column for column in frame.columns):
+            raise RuntimeError("pyogrio 几何读取意外加载了属性字段")
+        if frame.crs is None or frame.crs.to_epsg() != 3826:
+            raise ValueError(f"官方灾害矢量必须使用 EPSG:3826: {filename}")
+        if len(frame) != expected_count:
+            raise ValueError(f"官方灾害矢量要素数与清单不一致: {filename}")
+        if not bool(frame.geometry.is_valid.all()):
+            raise ValueError(f"官方灾害矢量含无效几何: {filename}")
+
+        frame = frame.to_crs("EPSG:4326")
+        geometries = []
+        intersecting = 0
+        for geometry in frame.geometry:
+            if geometry is None or geometry.is_empty:
+                raise ValueError(f"官方灾害矢量含空几何: {filename}")
+            if geometry.geom_type not in ("Polygon", "MultiPolygon"):
+                raise ValueError(f"官方灾害矢量含非面要素: {filename}")
+            if not geometry.intersects(clip):
+                continue
+            intersecting += 1
+            geometry = force_2d(geometry)
+            clipped = make_valid(geometry.intersection(clip))
+            if isinstance(clipped, Polygon):
+                geometries.append(clipped)
+            elif isinstance(clipped, MultiPolygon):
+                geometries.extend(clipped.geoms)
+            elif isinstance(clipped, GeometryCollection):
+                parts = [part for part in clipped.geoms
+                         if isinstance(part, (Polygon, MultiPolygon)) and not part.is_empty]
+                for part in parts:
+                    geometries.extend([part] if isinstance(part, Polygon) else part.geoms)
+
+        masks[layer_name] = _rasterize_union(geometries, transform, tuple(map(int, shape)))
+        metadata["layers"][layer_name] = {
+            "source_layer": layer_name,
+            "source_dataset_id": dataset_id,
+            "source_archive": filename,
+            "source_archive_sha256": actual_hash,
+            "source_crs": "EPSG:3826",
+            "planning_role": "soft_risk_only",
+            "hard_exclusion_allowed": False,
+            "source_integrity_status": "validated_against_local_manifest",
+            "spatial_coverage_status": "not_independently_verified",
+            "coverage_status": "unknown",
+            "status": "loaded" if geometries else "official_empty_for_window",
+            "source_feature_count": len(frame),
+            "feature_fragment_count": len(geometries),
+            "source_features_intersecting_window": intersecting,
+            "covered_cell_count": int(np.count_nonzero(masks[layer_name])),
+        }
+
+    metadata["covered_cell_count"] = int(np.count_nonzero(
+        np.maximum.reduce(list(masks.values()))))
+    return masks, metadata
 
 
 def load_official_hazard_masks(source_dir, bbox_wgs84, transform, shape):
