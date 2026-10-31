@@ -34,7 +34,7 @@ For stride `s`, the union of candidate vertices across all `s²` phases equals t
 
 Any no-reference phase comparison must use frozen common objective and constraints. Candidate-to-candidate distance clusters, site-use frequency, common objective cost, and fresh hard-constraint checks can describe stability; post-hoc real-line similarity must not select a phase. The two-phase result above is insufficient for a full sweep conclusion. Once server access returns, read this run's existing manifest before deciding whether to resume it; do not launch a duplicate sweep while its status is unknown.
 
-Local synthetic regression: `pytest -q tests/test_experimental_tower_graph.py` completed with 37 passed on 2026-11-01. This verifies small-grid implementation cases only, not the server phase sweep or real-line accuracy.
+Local synthetic regression: `pytest -q tests/test_experimental_tower_graph.py` completed with 37 passed on 2026-11-01. A separate synthetic phase diagnostic ran all 16 phases on the existing 51×61 illustrative surface with the same stride-4 graph and sampled-clearance configuration: 9 phases found routes, yielding 36 candidate pairs; pairwise bidirectional P95 distance had a 303.756 m median and 453.103 m maximum, while the median fraction within 100 m was 53.45%. These results show the previous two-phase pair was unusually stable for this synthetic case; they do not measure Taiwan route accuracy. Reproduce with `D:\python\python.exe scripts/benchmark_tower_graph_phase_stability.py --output-dir docs\evidence\tower_graph_phase_synthetic_20261101`. Raw phase and pair CSVs plus the input/config manifest are in `docs/evidence/tower_graph_phase_synthetic_20261101/`.
 
 ## Per-phase evidence
 
