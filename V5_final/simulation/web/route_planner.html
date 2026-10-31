@@ -21,30 +21,6 @@
     </header>
 
     <section class="route-layout" aria-label="线路规划工作台">
-      <section class="panel route-map-panel">
-        <div class="route-panel-title">
-          <div><span class="route-step">02 / MAP</span><h2>地图选点与线路预览</h2></div>
-          <span class="route-map-tag">台湾 · DEM 覆盖范围</span>
-        </div>
-        <div class="route-map-controls" role="group" aria-label="地图端点选择">
-          <button id="pickStartBtn" type="button" aria-pressed="false" disabled><i class="start-mark"></i>选起点</button>
-          <button id="pickEndBtn" type="button" aria-pressed="false" disabled><i class="end-mark"></i>选终点</button>
-          <span id="mapPickStatus" aria-live="polite">服务器数据就绪并输入口令后，可在地图上选择起终点。</span>
-        </div>
-        <div id="routeMap" class="route-map" role="application" aria-label="点击地图设置线路起点和终点"></div>
-        <div class="route-map-legend" aria-label="地图图例">
-          <span><i class="legend-start"></i>起点</span>
-          <span><i class="legend-end"></i>终点</span>
-          <span><i class="legend-route"></i>规划线路</span>
-          <small>OpenStreetMap 底图仅供定位，不参与路线搜索</small>
-        </div>
-        <p id="mapCoverage" class="route-map-coverage">地图范围将在连接规划服务后显示。端点和路线由服务器检查台湾 DEM 与陆域边界。</p>
-        <div class="route-submit-area">
-          <button id="submitBtn" class="button primary full" type="submit" form="routeForm" disabled>生成候选线路 <span aria-hidden="true">→</span></button>
-          <div id="jobStatus" class="route-status" role="status" aria-live="polite">正在检查服务器 DEM 配置。</div>
-        </div>
-      </section>
-
       <form id="routeForm" class="panel route-form">
         <div class="route-form-title">
           <div><span class="route-step">01 / SETUP</span><h2>规划参数</h2></div>
@@ -71,6 +47,30 @@
         </section>
         <details class="route-data-details"><summary>其他参数与工程限制</summary><div class="route-voltage-field"><label for="voltage">电压等级 <small>仅作记录</small></label><input id="voltage" name="voltage_kv" maxlength="32" placeholder="可选，例如 161 kV"></div><p class="route-help">规划器不会按电压等级校核塔型、导线、档距或净空。地图底图仅供定位，不参与路线搜索。</p><p id="dataLayers" class="route-help">数据图层：等待服务器配置。</p></details>
       </form>
+
+      <section class="panel route-map-panel">
+        <div class="route-panel-title">
+          <div><span class="route-step">02 / MAP</span><h2>地图选点与线路预览</h2></div>
+          <span class="route-map-tag">台湾 · DEM 覆盖范围</span>
+        </div>
+        <div class="route-map-controls" role="group" aria-label="地图端点选择">
+          <button id="pickStartBtn" type="button" aria-pressed="false" disabled><i class="start-mark"></i>选起点</button>
+          <button id="pickEndBtn" type="button" aria-pressed="false" disabled><i class="end-mark"></i>选终点</button>
+          <span id="mapPickStatus" aria-live="polite">服务器数据就绪并输入口令后，可在地图上选择起终点。</span>
+        </div>
+        <div id="routeMap" class="route-map" role="application" aria-label="点击地图设置线路起点和终点"></div>
+        <div class="route-map-legend" aria-label="地图图例">
+          <span><i class="legend-start"></i>起点</span>
+          <span><i class="legend-end"></i>终点</span>
+          <span><i class="legend-route"></i>规划线路</span>
+          <small>OpenStreetMap 底图仅供定位，不参与路线搜索</small>
+        </div>
+        <p id="mapCoverage" class="route-map-coverage">地图范围将在连接规划服务后显示。端点和路线由服务器检查台湾 DEM 与陆域边界。</p>
+        <div class="route-submit-area">
+          <button id="submitBtn" class="button primary full" type="submit" form="routeForm" disabled>生成候选线路 <span aria-hidden="true">→</span></button>
+          <div id="jobStatus" class="route-status" role="status" aria-live="polite">正在检查服务器 DEM 配置。</div>
+        </div>
+      </section>
     </section>
 
     <section class="route-results-section" aria-labelledby="route-results-title">
