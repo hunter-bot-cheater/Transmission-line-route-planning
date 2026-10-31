@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "dataset_id": "176847",
+  "dataset_url": "https://data.gov.tw/dataset/176847",
+  "source_download_url": "https://data.moa.gov.tw/GetOpenDataFile.aspx?FileType=ZIP&RID=87575&id=J80",
+  "source_archive_path": "/data1/B24041626/pp/moi_swc_zones_115_20261030_01/source_1150922.zip",
+  "source_archive_bytes": 165880,
+  "source_archive_sha256": "7d98b9aa05391f9649c312ac6792a5072539d569d156e3937e703cffd4827e66",
+  "base_constraints_path": "/data1/B24041626/pp/work/data/official_constraints_20261023.geojson",
+  "base_constraints_sha256": "5967d659856b925cd42909a6b5e1cf4ac09ae808d6d1c8e7ecd851003fa530b5",
+  "source_crs": "EPSG:3826",
+  "output_crs": "EPSG:4326",
+  "source_feature_count": 66,
+  "invalid_source_feature_count": 1,
+  "geometry_repairs": [
+    {
+      "source_row_zero_based": 48,
+      "repair_method": "shapely.make_valid; retain polygonal components only",
+      "source_geometry_type": "Polygon",
+      "repaired_geometry_type": "Polygon",
+      "source_area_m2": 532894.2608442844,
+      "repaired_area_m2": 532894.2608442836,
+      "area_change_ratio": 1.5292100378365035e-15
+    }
+  ],
+  "maximum_repair_area_change_ratio": 1.5292100378365035e-15,
+  "maximum_allowed_repair_area_change_ratio": 0.01,
+  "source_designation_status_counts": {
+    "劃定": 66
+  },
+  "designation_code_counts": {
+    "6": 31,
+    "5,6": 31,
+    "1": 2,
+    "3": 2
+  },
+  "read_attribute_columns": [
+    "DRSWC_Land",
+    "Desig_Code",
+    "County",
+    "Anno_Area",
+    "Anno_Date"
+  ],
+  "address_values_read_or_emitted": false,
+  "route_geometry_used": false,
+  "constraint_mode": "soft",
+  "constraint_weight": 1.0,
+  "hard_exclusion_allowed": false,
+  "added_feature_count": 1,
+  "feature_count_total": 141,
+  "output_path": "/data1/B24041626/pp/moi_swc_zones_115_20261030_01/overlay_20261030_03/constraints_with_swc_zones.geojson",
+  "output_bytes": 9984823,
+  "output_sha256": "96cfdcf1e97d20ae8c0844b8041dc7ab9275e0f0d53a2c21ed4752796906ce9c"
+}
