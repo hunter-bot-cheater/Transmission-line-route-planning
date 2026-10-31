@@ -40,20 +40,29 @@ SAMPLE_STEP_M = 10.0
 
 
 def sample_route(path):
-    samples = []
+    samples, weights = [], []
     for first, second in zip(path, path[1:]):
         row_delta = (second[0] - first[0]) * SPACING_M[0]
         col_delta = (second[1] - first[1]) * SPACING_M[1]
         length = math.hypot(row_delta, col_delta)
         segments = max(1, math.ceil(length / SAMPLE_STEP_M))
         for index in range(segments):
-            fraction = index / segments
+            fraction = (index + 0.5) / segments
             samples.append((
                 (first[0] + fraction * (second[0] - first[0])) * SPACING_M[0],
                 (first[1] + fraction * (second[1] - first[1])) * SPACING_M[1],
             ))
-    samples.append((path[-1][0] * SPACING_M[0], path[-1][1] * SPACING_M[1]))
-    return np.asarray(samples, dtype=np.float64)
+            weights.append(length / segments)
+    return np.asarray(samples, dtype=np.float64), np.asarray(weights, dtype=np.float64)
+
+
+def weighted_quantile(values, weights, quantile):
+    order = np.argsort(values)
+    ordered_values = values[order]
+    cumulative = np.cumsum(weights[order])
+    index = min(np.searchsorted(cumulative, quantile * cumulative[-1], side="left"),
+                len(ordered_values) - 1)
+    return float(ordered_values[index])
 
 
 def run(output_dir):
@@ -73,7 +82,8 @@ def run(output_dir):
                 minimum_clearance_m=MIN_CLEARANCE_M,
             )
             if path:
-                routes[phase] = sample_route(path)
+                route_samples, route_weights = sample_route(path)
+                routes[phase] = (route_samples, route_weights)
                 objective = tower_graph_path_objective(path, cost, SPACING_M)
                 length = sum(
                     math.hypot((b[0] - a[0]) * SPACING_M[0],
@@ -83,7 +93,7 @@ def run(output_dir):
                     "phase_row": row_phase,
                     "phase_col": col_phase,
                     "status": "route_found",
-                    "sample_count": int(len(routes[phase])),
+                    "sample_count": int(len(route_samples)),
                     "route_length_m": round(length, 3),
                     "objective_cost_meter": objective["total_cost_meter"],
                 })
@@ -100,19 +110,25 @@ def run(output_dir):
     pair_rows = []
     for index, first_phase in enumerate(sorted(routes)):
         for second_phase in sorted(routes)[index + 1:]:
-            first, second = routes[first_phase], routes[second_phase]
-            distances = np.concatenate((
-                cKDTree(second).query(first)[0],
-                cKDTree(first).query(second)[0],
-            ))
+            first, first_weights = routes[first_phase]
+            second, second_weights = routes[second_phase]
+            forward = cKDTree(second).query(first)[0]
+            reverse = cKDTree(first).query(second)[0]
+            distances = np.concatenate((forward, reverse))
+            weights = np.concatenate((first_weights, second_weights))
+            total_weight = float(weights.sum())
             pair_rows.append({
                 "phase_a": f"{first_phase[0]},{first_phase[1]}",
                 "phase_b": f"{second_phase[0]},{second_phase[1]}",
-                "mean_bidirectional_distance_m": round(float(distances.mean()), 3),
-                "p95_bidirectional_distance_m": round(float(np.quantile(distances, .95)), 3),
+                "mean_bidirectional_distance_m": round(
+                    float(np.average(distances, weights=weights)), 3),
+                "p95_bidirectional_distance_m": round(
+                    weighted_quantile(distances, weights, .95), 3),
                 "max_bidirectional_distance_m": round(float(distances.max()), 3),
-                "within_100m_fraction": round(float(np.mean(distances <= 100.0)), 6),
-                "within_500m_fraction": round(float(np.mean(distances <= 500.0)), 6),
+                "within_100m_fraction": round(
+                    float(weights[distances <= 100.0].sum() / total_weight), 6),
+                "within_500m_fraction": round(
+                    float(weights[distances <= 500.0].sum() / total_weight), 6),
             })
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -139,6 +155,8 @@ def run(output_dir):
         "maximum_midspan_sag_m": MAX_SAG_M,
         "minimum_clearance_m": MIN_CLEARANCE_M,
         "sampling_step_m": SAMPLE_STEP_M,
+        "sample_locations": "segment_midpoints_with_each_sample_weighted_by_segment_length",
+        "pairwise_metrics": "pooled_bidirectional_arc_length_weighted_distances",
         "reference_geometry_loaded": False,
         "outputs": ["phase_routes.csv", "phase_pairs.csv"],
     }

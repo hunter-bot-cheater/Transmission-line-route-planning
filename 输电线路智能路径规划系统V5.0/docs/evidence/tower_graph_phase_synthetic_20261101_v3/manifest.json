@@ -1,0 +1,38 @@
+{
+  "experiment_type": "synthetic_phase_stability_not_real_line_accuracy",
+  "surface_source": "scripts/benchmark_tower_graph_sensitivity.py::synthetic_surface",
+  "shape": [
+    51,
+    61
+  ],
+  "pixel_spacing_m": [
+    100.0,
+    100.0
+  ],
+  "start_rc": [
+    25,
+    3
+  ],
+  "goal_rc": [
+    25,
+    57
+  ],
+  "tower_site_slope_limit_deg": 20.0,
+  "candidate_stride": 4,
+  "phase_count": 16,
+  "successful_phases": 9,
+  "pair_count": 36,
+  "minimum_span_m": 200.0,
+  "maximum_span_m": 700.0,
+  "attachment_height_m": 160.0,
+  "maximum_midspan_sag_m": 80.0,
+  "minimum_clearance_m": 15.0,
+  "sampling_step_m": 10.0,
+  "sample_locations": "segment_midpoints_with_each_sample_weighted_by_segment_length",
+  "pairwise_metrics": "pooled_bidirectional_arc_length_weighted_distances",
+  "reference_geometry_loaded": false,
+  "outputs": [
+    "phase_routes.csv",
+    "phase_pairs.csv"
+  ]
+}
